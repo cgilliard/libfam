@@ -84,20 +84,4 @@ i32 caddq(i32 a) {
 	return a;
 }
 
-/*************************************************
- * Name:        freeze
- *
- * Description: For finite field element a, compute standard
- *              representative r = a mod^+ Q.
- *
- * Arguments:   - i32: finite field element a
- *
- * Returns r.
- **************************************************/
-i32 freeze(i32 a) {
-	a = reduce32(a);
-	a = caddq(a);
-	return a;
-}
-
 #endif /* !USE_AVX2 */
