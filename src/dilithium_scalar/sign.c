@@ -309,37 +309,6 @@ int crypto_sign_signature(u8 *sig, u64 *siglen, const u8 *m, u64 mlen,
 }
 
 /*************************************************
- * Name:        crypto_sign
- *
- * Description: Compute signed message.
- *
- * Arguments:   - u8 *sm: pointer to output signed message (allocated
- *                             array with CRYPTO_BYTES + mlen bytes),
- *                             can be equal to m
- *              - u64 *smlen: pointer to output length of signed
- *                               message
- *              - const u8 *m: pointer to message to be signed
- *              - u64 mlen: length of message
- *              - const u8 *ctx: pointer to context string
- *              - u64 ctxlen: length of context string
- *              - const u8 *sk: pointer to bit-packed secret key
- *
- * Returns 0 (success) or -1 (context string too long)
- **************************************************/
-int crypto_sign(u8 *sm, u64 *smlen, const u8 *m, u64 mlen, const u8 *ctx,
-		u64 ctxlen, const u8 *sk, Rng *rng) {
-	int ret;
-	u64 i;
-
-	for (i = 0; i < mlen; ++i)
-		sm[CRYPTO_BYTES + mlen - 1 - i] = m[mlen - 1 - i];
-	ret = crypto_sign_signature(sm, smlen, sm + CRYPTO_BYTES, mlen, ctx,
-				    ctxlen, sk, rng);
-	*smlen += mlen;
-	return ret;
-}
-
-/*************************************************
  * Name:        crypto_sign_verify_internal
  *
  * Description: Verifies signature. Internal API.
@@ -478,46 +447,6 @@ int crypto_sign_verify(const u8 *sig, u64 siglen, const u8 *m, u64 mlen,
 
 	return crypto_sign_verify_internal(sig, siglen, m, mlen, pre,
 					   2 + ctxlen, pk);
-}
-
-/*************************************************
- * Name:        crypto_sign_open
- *
- * Description: Verify signed message.
- *
- * Arguments:   - u8 *m: pointer to output message (allocated
- *                            array with smlen bytes), can be equal to sm
- *              - u64 *mlen: pointer to output length of message
- *              - const u8 *sm: pointer to signed message
- *              - u64 smlen: length of signed message
- *              - const u8 *ctx: pointer to context tring
- *              - u64 ctxlen: length of context string
- *              - const u8 *pk: pointer to bit-packed public key
- *
- * Returns 0 if signed message could be verified correctly and -1 otherwise
- **************************************************/
-int crypto_sign_open(u8 *m, u64 *mlen, const u8 *sm, u64 smlen, const u8 *ctx,
-		     u64 ctxlen, const u8 *pk) {
-	u64 i;
-
-	if (smlen < CRYPTO_BYTES) goto badsig;
-
-	*mlen = smlen - CRYPTO_BYTES;
-	if (crypto_sign_verify(sm, CRYPTO_BYTES, sm + CRYPTO_BYTES, *mlen, ctx,
-			       ctxlen, pk))
-		goto badsig;
-	else {
-		/* All good, copy msg, return 0 */
-		for (i = 0; i < *mlen; ++i) m[i] = sm[CRYPTO_BYTES + i];
-		return 0;
-	}
-
-badsig:
-	/* Signature verification failed */
-	*mlen = 0;
-	for (i = 0; i < smlen; ++i) m[i] = 0;
-
-	return -1;
 }
 
 #endif /* !USE_AVX2 */
