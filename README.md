@@ -1,10 +1,10 @@
 # LibFam
 
-[![CI Pipeline](https://github.com/myfamilyorg/libfam/actions/workflows/main.yml/badge.svg)](https://github.com/myfamilyorg/libfam/actions/workflows/main.yml)
-[![Release Version](https://img.shields.io/github/v/release/myfamilyorg/libfam.svg?color=blue)](https://github.com/myfamilyorg/libfam/releases)
-[![Documentation](https://img.shields.io/static/v1?label=Documentation&message=Github+Pages&color=orange)](https://myfamilyorg.github.io/libfam/)
-[![License](https://img.shields.io/github/license/myfamilyorg/libfam.svg)](https://github.com/myfamilyorg/libfam/blob/master/LICENSE)
-[![Stars](https://img.shields.io/github/stars/myfamilyorg/libfam.svg?style=social)](https://github.com/myfamilyorg/libfam/stargazers)
+[![CI Pipeline](https://github.com/cgilliard/libfam/actions/workflows/main.yml/badge.svg)](https://github.com/cgilliard/libfam/actions/workflows/main.yml)
+[![Release Version](https://img.shields.io/github/v/release/cgilliard/libfam.svg?color=blue)](https://github.com/cgilliard/libfam/releases)
+[![Documentation](https://img.shields.io/static/v1?label=Documentation&message=Github+Pages&color=orange)](https://cgilliard.github.io/libfam/)
+[![License](https://img.shields.io/github/license/cgilliard/libfam.svg)](https://github.com/cgilliard/libfam/blob/master/LICENSE)
+[![Stars](https://img.shields.io/github/stars/cgilliard/libfam.svg?style=social)](https://github.com/cgilliard/libfam/stargazers)
 
 <p align="center">
     <img src="docs/MyFamilyLogo.png" alt="Logo">
@@ -25,7 +25,7 @@ Instructions assume ubuntu minimal, but similar commands are possible with other
 ```
 sudo apt update
 sudo apt install clang -y
-wget https://github.com/myfamilyorg/libfam/archive/refs/tags/2.0.0.tar.gz
+wget https://github.com/cgilliard/libfam/archive/refs/tags/2.0.0.tar.gz
 gzip -dc 2.0.0.tar.gz | tar xvf -
 cd libfam-2.0.0
 ./build
