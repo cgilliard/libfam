@@ -6,7 +6,7 @@
 # Generators
 . "$PROJECT_DIR/scripts/xxdir.sh"
 
-TAG=$(git describe --tags --dirty 2>/dev/null || echo "unknown")
+TAG=$(git describe --tags --dirty 2>/dev/null || echo "2.0.0")
 printf '#define LIBFAM_VERSION "%s"\n' "$TAG" > "$PROJECT_DIR/src/include/libfam/version.h"
 
 SUB_DIRS="base crypto dilithium_scalar dilithium_avx2 kyber_scalar kyber_avx2 core compress"
