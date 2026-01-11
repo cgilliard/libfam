@@ -37,9 +37,10 @@ void print_hex(const u8 *data, u64 size, FILE *out, const u8 *file,
 	       const u8 *namespace) {
 	u8 buf[strlen(file) + 100];
 
-	snprintf(buf, strlen(file) + 100,
-		 "__attribute__((aligned(32))) u8 %sxxdir_file_%i[] = {\n",
-		 namespace, file_count);
+	snprintf(
+	    buf, strlen(file) + 100,
+	    "__attribute__((aligned(32))) const u8 %sxxdir_file_%i[] = {\n",
+	    namespace, file_count);
 	for (i32 i = 0; i < strlen(buf); i++)
 		if (buf[i] == '.') buf[i] = '_';
 	fprintf(out, "%s", buf);
@@ -52,8 +53,8 @@ void print_hex(const u8 *data, u64 size, FILE *out, const u8 *file,
 		}
 	}
 	file_sizes[file_count] = size;
-	fprintf(out, "0x00};\nu64 %sxxdir_file_size_%i = %zu;\n", namespace,
-		file_count, size);
+	fprintf(out, "0x00};\nconst u64 %sxxdir_file_size_%i = %zu;\n",
+		namespace, file_count, size);
 }
 
 void proc_file(const u8 *file_path, const u8 *output_header, FILE *out,
@@ -128,7 +129,7 @@ i32 main(i32 argc, char **argv) {
 
 	u8 initial_text[2048];
 	snprintf(initial_text, sizeof(initial_text),
-		 "u8 *%sxxdir_file_names[] = {", namespace);
+		 "const u8 *%sxxdir_file_names[] = {", namespace);
 
 	// add three bytes for the last strcat
 	u8 *buf = malloc(sizeof(u8) * (strlen(initial_text) + 8));
@@ -172,13 +173,14 @@ i32 main(i32 argc, char **argv) {
 	// write the names to the file
 	fprintf(out, "%s", buf);
 
-	fprintf(out, "\ni32 %sxxdir_file_count=%i;\n", namespace, file_count);
+	fprintf(out, "\nconst i32 %sxxdir_file_count=%i;\n", namespace,
+		file_count);
 
-	fprintf(out, "u8 *%sxxdir_files[] = {", namespace);
+	fprintf(out, "const u8 *%sxxdir_files[] = {", namespace);
 	for (int i = 0; i < file_count; i++)
 		fprintf(out, "%sxxdir_file_%i,", namespace, i);
 	fprintf(out, "(void*)0};\n");
-	fprintf(out, "u64 %sxxdir_file_sizes[] = { ", namespace);
+	fprintf(out, "const u64 %sxxdir_file_sizes[] = { ", namespace);
 	for (i32 i = 0; i < file_count; i++)
 		fprintf(out, "%i, ", file_sizes[i]);
 	fprintf(out, "0};\n");
