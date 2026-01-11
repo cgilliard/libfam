@@ -24,7 +24,7 @@ Instructions assume ubuntu minimal, but similar commands are possible with other
 
 ```
 sudo apt update
-sudo apt install clang
+sudo apt install clang -y
 wget https://github.com/myfamilyorg/libfam/archive/refs/tags/2.0.0.tar.gz
 gzip -dc 2.0.0.tar.gz | tar xvf -
 cd libfam-2.0.0
@@ -56,7 +56,7 @@ Test can be run with the following command:
 
 Coverage can be calculated with the following command:
 ```
-sudo apt install gcc
+sudo apt install gcc -y
 ./build cov
 ```
 
