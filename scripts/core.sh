@@ -35,12 +35,11 @@ else
 fi
 
 build_asm() {
-    local srcdir="$PROJECT_DIR/src/asm"
     local objdir="$OBJDIR/asm"
     mkdir -p "$objdir"
 
     if [ "${ARCH}" = "x86_64" ]; then
-
+        local srcdir="$PROJECT_DIR/src/asm"
         for src in "$srcdir"/*.S; do
             [ -f "$src" ] || continue
             basename="${src##*/}"
@@ -53,7 +52,20 @@ build_asm() {
                 ${COMMAND} || exit $?;
             fi
         done
+    else
+	 local srcdir="$PROJECT_DIR/src/armasm"
+         for src in "$srcdir"/*.S; do
+            [ -f "$src" ] || continue
+            basename="${src##*/}"
 
+            obj="$objdir/${basename%.S}.o"
+
+            if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ]; then
+                COMMAND="$CC -march=armv8-a+crypto -I$PROJECT_DIR/$INCDIR -c $src -o $obj";
+                [ "$SILENT" != "1" ] && echo ${COMMAND};
+                ${COMMAND} || exit $?;
+            fi
+        done
     fi
 }
 
