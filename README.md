@@ -24,7 +24,7 @@ Instructions assume ubuntu minimal, but similar commands are possible with other
 
 ```
 sudo apt update
-sudo apt install clang # optionally git as well (used to generate version for czip)
+sudo apt install clang
 wget https://github.com/myfamilyorg/libfam/archive/refs/tags/2.0.0.tar.gz
 gzip -dc 2.0.0.tar.gz | tar xvf -
 cd libfam-2.0.0
