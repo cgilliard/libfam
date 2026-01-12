@@ -56,8 +56,7 @@ PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 	res =
 	    iouring_init_pwrite(__global_iou__, fd, buf, len, offset, U64_MAX);
 	if (res < 0) return -1;
-	if (iouring_submit(__global_iou__, 1) < 0) return -1;
-	return iouring_wait(__global_iou__, &id);
+	return iouring_wait(__global_iou__, &id, 1);
 }
 
 PUBLIC i64 pread(i32 fd, void *buf, u64 len, u64 offset) {
@@ -74,8 +73,7 @@ PUBLIC i64 pread(i32 fd, void *buf, u64 len, u64 offset) {
 	if (global_iou_init() < 0) return -1;
 	res = iouring_init_pread(__global_iou__, fd, buf, len, offset, U64_MAX);
 	if (res < 0) return -1;
-	if (iouring_submit(__global_iou__, 1) < 0) return -1;
-	return iouring_wait(__global_iou__, &id);
+	return iouring_wait(__global_iou__, &id, 1);
 }
 
 i32 open(const u8 *path, i32 flags, u32 mode) {
@@ -87,8 +85,7 @@ i32 open(const u8 *path, i32 flags, u32 mode) {
 	res = iouring_init_openat(__global_iou__, AT_FDCWD, (void *)path, &how,
 				  U64_MAX);
 	if (res < 0) return -1;
-	if (iouring_submit(__global_iou__, 1) < 0) return -1;
-	res = iouring_wait(__global_iou__, &id);
+	res = iouring_wait(__global_iou__, &id, 1);
 #if TEST == 1
 	if (res >= 0) __aadd64(&open_fds, 1);
 #endif /* TEST */
@@ -103,8 +100,7 @@ PUBLIC i32 close(i32 fd) {
 	if (global_iou_init() < 0) return -1;
 	res = iouring_init_close(__global_iou__, fd, U64_MAX);
 	if (res < 0) return -1;
-	if (iouring_submit(__global_iou__, 1) < 0) return -1;
-	res = iouring_wait(__global_iou__, &id);
+	res = iouring_wait(__global_iou__, &id, 1);
 #if TEST == 1
 	if (res >= 0) __asub64(&open_fds, 1);
 #endif /* TEST */
@@ -119,8 +115,7 @@ PUBLIC i32 fallocate(i32 fd, u64 new_size) {
 	if (global_iou_init() < 0) return -1;
 	res = iouring_init_fallocate(__global_iou__, fd, new_size, U64_MAX);
 	if (res < 0) return -1;
-	if (iouring_submit(__global_iou__, 1) < 0) return -1;
-	res = iouring_wait(__global_iou__, &id);
+	res = iouring_wait(__global_iou__, &id, 1);
 	return res;
 }
 
@@ -131,8 +126,7 @@ PUBLIC i32 fsync(i32 fd) {
 	if (global_iou_init() < 0) return -1;
 	res = iouring_init_fsync(__global_iou__, fd, U64_MAX);
 	if (res < 0) return -1;
-	if (iouring_submit(__global_iou__, 1) < 0) return -1;
-	res = iouring_wait(__global_iou__, &id);
+	res = iouring_wait(__global_iou__, &id, 1);
 	return res;
 }
 

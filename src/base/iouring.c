@@ -261,13 +261,13 @@ i32 iouring_spin(IoUring *iou, u64 *id) {
 	return res;
 }
 
-i32 iouring_wait(IoUring *iou, u64 *id) {
+i32 iouring_wait(IoUring *iou, u64 *id, u32 min_complete) {
 	u32 head, tail, mask = *iou->cq_mask;
 	for (;;) {
 		head = __aload32(iou->cq_head);
 		tail = __aload32(iou->cq_tail);
 		if (head != tail) break;
-		i32 ret = io_uring_enter2(iou->ring_fd, 0, 1,
+		i32 ret = io_uring_enter2(iou->ring_fd, min_complete, 1,
 					  IORING_ENTER_GETEVENTS, NULL, 0);
 
 		(void)ret;

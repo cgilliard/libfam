@@ -23,30 +23,22 @@
  *
  *******************************************************************************/
 
-#ifndef _IO_URING_H
-#define _IO_URING_H
+#ifndef _STORAGE_H
+#define _STORAGE_H
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE 4096
+#endif /* PAGE_SIZE */
 
 #include <libfam/types.h>
 
-typedef struct IoUring IoUring;
-struct open_how;
+typedef struct Storage Storage;
 
-i32 iouring_init(IoUring **iou, u32 queue_depth);
-i32 iouring_init_pread(IoUring *iou, i32 fd, void *buf, u64 len, u64 foffset,
-		       u64 id);
-i32 iouring_init_pwrite(IoUring *iou, i32 fd, const void *buf, u64 len,
-			u64 foffset, u64 id);
-i32 iouring_init_fsync(IoUring *iou, i32 fd, u64 id);
-i32 iouring_init_openat(IoUring *iou, i32 dirfd, const char *path,
-			struct open_how *how, u64 id);
-i32 iouring_init_close(IoUring *iou, i32 fd, u64 id);
-i32 iouring_init_fallocate(IoUring *iou, i32 fd, u64 new_size, u64 id);
-i32 iouring_submit(IoUring *iou, u32 count);
-i32 iouring_spin(IoUring *iou, u64 *id);
-i32 iouring_wait(IoUring *iou, u64 *id, u32 min_complete);
-void iouring_destroy(IoUring *iou);
-i32 iouring_ring_fd(IoUring *iou);
-bool iouring_pending(IoUring *iou, u64 id);
-bool iouring_pending_all(IoUring *iou);
+Storage *storage_init(const u8 *path, u64 cache_sector_count, u64 hash_buckets,
+		      u64 queue_size);
+i32 storage_write(Storage *s, const u8 buffer[PAGE_SIZE], u64 sector);
+i32 storage_read(Storage *s, u8 buffer[PAGE_SIZE], u64 sector);
+i32 storage_flush(Storage *s);
+void storage_destroy(Storage *s);
 
-#endif /* _IO_URING_H */
+#endif /* _STORAGE_H */

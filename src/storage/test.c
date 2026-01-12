@@ -23,30 +23,18 @@
  *
  *******************************************************************************/
 
-#ifndef _IO_URING_H
-#define _IO_URING_H
+#include <libfam/storage.h>
+#include <libfam/test.h>
 
-#include <libfam/types.h>
+Test(storage1) {
+#define STORAGE1_PATH "/tmp/storage1.dat"
+	unlink(STORAGE1_PATH);
+	i32 fd = file(STORAGE1_PATH);
+	fallocate(fd, PAGE_SIZE * 128);
+	close(fd);
 
-typedef struct IoUring IoUring;
-struct open_how;
-
-i32 iouring_init(IoUring **iou, u32 queue_depth);
-i32 iouring_init_pread(IoUring *iou, i32 fd, void *buf, u64 len, u64 foffset,
-		       u64 id);
-i32 iouring_init_pwrite(IoUring *iou, i32 fd, const void *buf, u64 len,
-			u64 foffset, u64 id);
-i32 iouring_init_fsync(IoUring *iou, i32 fd, u64 id);
-i32 iouring_init_openat(IoUring *iou, i32 dirfd, const char *path,
-			struct open_how *how, u64 id);
-i32 iouring_init_close(IoUring *iou, i32 fd, u64 id);
-i32 iouring_init_fallocate(IoUring *iou, i32 fd, u64 new_size, u64 id);
-i32 iouring_submit(IoUring *iou, u32 count);
-i32 iouring_spin(IoUring *iou, u64 *id);
-i32 iouring_wait(IoUring *iou, u64 *id, u32 min_complete);
-void iouring_destroy(IoUring *iou);
-i32 iouring_ring_fd(IoUring *iou);
-bool iouring_pending(IoUring *iou, u64 id);
-bool iouring_pending_all(IoUring *iou);
-
-#endif /* _IO_URING_H */
+	Storage *s1 = storage_init(STORAGE1_PATH, 64, 32, 16);
+	ASSERT(s1, "storage_init");
+	storage_destroy(s1);
+	unlink(STORAGE1_PATH);
+}

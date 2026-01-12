@@ -894,9 +894,9 @@ Test(iouring_wait_err) {
 	ASSERT(iouring_pending(iou, U64_MAX), "pending");
 	ASSERT(iouring_pending(iou, U64_MAX - 1), "pending");
 
-	i32 res = iouring_wait(iou, &id);
+	i32 res = iouring_wait(iou, &id, 0);
 	ASSERT_EQ(res, -1, "open file fail");
-	res = iouring_wait(iou, &id);
+	res = iouring_wait(iou, &id, 0);
 	ASSERT_EQ(res, -1, "open file fail");
 
 	ASSERT(!iouring_pending(iou, 0), "!pending");
@@ -1028,7 +1028,7 @@ Test(iouring1) {
 	bool found10 = false, found11 = false, found12 = false;
 	for (u32 i = 0; i < 3; i++) {
 		u64 wid;
-		iouring_wait(iou, &wid);
+		iouring_wait(iou, &wid, 0);
 		if (wid == 10) found10 = true;
 		if (wid == 11) found11 = true;
 		if (wid == 12) found12 = true;

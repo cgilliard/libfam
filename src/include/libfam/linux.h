@@ -26,6 +26,8 @@
 #ifndef _LINUX_H
 #define _LINUX_H
 
+#include <libfam/types.h>
+
 struct timespec {
 	u64 tv_sec;
 	u64 tv_nsec;
