@@ -110,7 +110,7 @@ struct io_uring_sqe *iouring_get_sqe(IoUring *iou) {
 }
 
 i32 iouring_init_pread(IoUring *iou, i32 fd, void *buf, u64 len, u64 foffset,
-		       u64 id) {
+		       u64 id, u32 flags) {
 	struct io_uring_sqe *sqe;
 	sqe = iouring_get_sqe(iou);
 	if (!sqe) {
@@ -121,7 +121,29 @@ i32 iouring_init_pread(IoUring *iou, i32 fd, void *buf, u64 len, u64 foffset,
 	fastmemset(sqe, 0, sizeof(*sqe));
 
 	sqe->opcode = IORING_OP_READ;
-	sqe->flags = 0;
+	sqe->flags = flags;
+	sqe->fd = fd;
+	sqe->addr = (u64)buf;
+	sqe->len = len;
+	sqe->off = foffset;
+	sqe->user_data = id;
+	__aadd32(iou->sq_tail, 1);
+	return 0;
+}
+
+i32 iouring_init_pread_fixed(IoUring *iou, i32 fd, void *buf, u64 len,
+			     u64 foffset, u64 id, u32 flags) {
+	struct io_uring_sqe *sqe;
+	sqe = iouring_get_sqe(iou);
+	if (!sqe) {
+		errno = EBUSY;
+		return -1;
+	}
+
+	fastmemset(sqe, 0, sizeof(*sqe));
+
+	sqe->opcode = IORING_OP_READ_FIXED;
+	sqe->flags = flags;
 	sqe->fd = fd;
 	sqe->addr = (u64)buf;
 	sqe->len = len;
@@ -132,7 +154,7 @@ i32 iouring_init_pread(IoUring *iou, i32 fd, void *buf, u64 len, u64 foffset,
 }
 
 i32 iouring_init_pwrite(IoUring *iou, i32 fd, const void *buf, u64 len,
-			u64 foffset, u64 id) {
+			u64 foffset, u64 id, u32 flags) {
 	struct io_uring_sqe *sqe;
 	sqe = iouring_get_sqe(iou);
 	if (!sqe) {
@@ -143,7 +165,29 @@ i32 iouring_init_pwrite(IoUring *iou, i32 fd, const void *buf, u64 len,
 	fastmemset(sqe, 0, sizeof(*sqe));
 
 	sqe->opcode = IORING_OP_WRITE;
-	sqe->flags = IOSQE_IO_LINK;
+	sqe->flags = flags;
+	sqe->fd = fd;
+	sqe->addr = (u64)buf;
+	sqe->len = len;
+	sqe->off = foffset;
+	sqe->user_data = id;
+	__aadd32(iou->sq_tail, 1);
+	return 0;
+}
+
+i32 iouring_init_pwrite_fixed(IoUring *iou, i32 fd, const void *buf, u64 len,
+			      u64 foffset, u64 id, u32 flags) {
+	struct io_uring_sqe *sqe;
+	sqe = iouring_get_sqe(iou);
+	if (!sqe) {
+		errno = EBUSY;
+		return -1;
+	}
+
+	fastmemset(sqe, 0, sizeof(*sqe));
+
+	sqe->opcode = IORING_OP_WRITE_FIXED;
+	sqe->flags = flags;
 	sqe->fd = fd;
 	sqe->addr = (u64)buf;
 	sqe->len = len;

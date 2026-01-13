@@ -33,12 +33,15 @@
 #include <libfam/types.h>
 
 typedef struct Storage Storage;
+typedef void (*StorageReadOnComplete)(const u8 buffer[PAGE_SIZE], u64 id);
+typedef void (*StorageFlushOnComplete)(u64 id);
 
 Storage *storage_init(const u8 *path, u64 cache_sector_count, u64 hash_buckets,
 		      u64 queue_size);
 i32 storage_write(Storage *s, const u8 buffer[PAGE_SIZE], u64 sector);
-i32 storage_read(Storage *s, u8 buffer[PAGE_SIZE], u64 sector);
-i32 storage_flush(Storage *s);
+i32 storage_read(Storage *s, u64 sector, u64 id,
+		 const StorageReadOnComplete *callback);
+i32 storage_flush(Storage *s, u64 id, const StorageFlushOnComplete *callback);
 void storage_destroy(Storage *s);
 
 #endif /* _STORAGE_H */

@@ -55,20 +55,29 @@ Storage *storage_init(const u8 *path, u64 cache_sector_count,
 		      u64 hash_bucket_count, u64 queue_size) {
 	Storage *ret = NULL;
 	IoUring *iou = NULL;
-	i32 fd;
+	i32 res;
+	i32 fds[1];
 
-	fd = open(path, O_RDWR | O_DIRECT, 0);
-	if (fd < 0) return NULL;
+	fds[0] = open(path, O_RDWR | O_DIRECT, 0);
+	if (fds[0] < 0) return NULL;
 
 	if (iouring_init(&iou, queue_size) < 0) {
-		close(fd);
+		close(fds[0]);
+		return NULL;
+	}
+
+	res = io_uring_register(iouring_ring_fd(iou), IORING_REGISTER_FILES,
+				fds, 1);
+	if (res < 0) {
+		close(fds[0]);
+		iouring_destroy(iou);
 		return NULL;
 	}
 
 	ret = map(sizeof(Storage) + cache_sector_count * sizeof(CacheEntry));
 	if (!ret) {
 		iouring_destroy(iou);
-		close(fd);
+		close(fds[0]);
 		return NULL;
 	}
 
@@ -76,7 +85,7 @@ Storage *storage_init(const u8 *path, u64 cache_sector_count,
 	if (!ret->hash_buckets) {
 		munmap(ret, sizeof(Storage) +
 				cache_sector_count * sizeof(CacheEntry));
-		close(fd);
+		close(fds[0]);
 		iouring_destroy(iou);
 		return NULL;
 	}
@@ -89,7 +98,7 @@ Storage *storage_init(const u8 *path, u64 cache_sector_count,
 	}
 	ret->hash_bucket_count = hash_bucket_count;
 	ret->cache_sector_count = cache_sector_count;
-	ret->fd = fd;
+	ret->fd = fds[0];
 	ret->iou = iou;
 
 	return ret;
@@ -99,16 +108,21 @@ i32 storage_write(Storage *s, const u8 buffer[PAGE_SIZE], u64 sector) {
 	return 0;
 }
 
-i32 storage_read(Storage *s, u8 buffer[PAGE_SIZE], u64 sector) {
-	// u64 id;
+i32 storage_read(Storage *s, u64 sector, u64 id,
+		 const StorageReadOnComplete *callback) {
+	__attribute__((aligned(4096))) u8 buffer[PAGE_SIZE];
+	u64 idx;
 	iouring_init_pread(s->iou, s->fd, buffer, PAGE_SIZE, sector * PAGE_SIZE,
-			   1);
-	iouring_submit(s->iou, 1);
+			   1, IOSQE_FIXED_FILE);
+	iouring_wait(s->iou, &idx, 1);
 
 	return 0;
 }
 
-i32 storage_flush(Storage *s) { return 0; }
+i32 storage_flush(Storage *s, u64 id, const StorageFlushOnComplete *callback) {
+	return 0;
+}
+
 void storage_destroy(Storage *s) {
 	if (s) {
 		if (s->iou) iouring_destroy(s->iou);

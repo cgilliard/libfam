@@ -803,13 +803,14 @@ Test(iouring_cov) {
 	iouring_init_openat(iou, AT_FDCWD, "/tmp/blah", &how, U64_MAX);
 
 	errno = 0;
-	ASSERT_EQ(iouring_init_pread(iou, -1, NULL, 0, 0, U64_MAX), -1,
+	ASSERT_EQ(iouring_init_pread(iou, -1, NULL, 0, 0, U64_MAX, 0), -1,
 		  "queue full");
 	ASSERT_EQ(errno, EBUSY, "ebusy");
 
 	errno = 0;
-	ASSERT_EQ(iouring_init_pwrite(iou, -1, NULL, 0, 0, U64_MAX), -1,
-		  "queue full");
+	ASSERT_EQ(
+	    iouring_init_pwrite(iou, -1, NULL, 0, 0, U64_MAX, IOSQE_IO_LINK),
+	    -1, "queue full");
 	ASSERT_EQ(errno, EBUSY, "ebusy");
 
 	errno = 0;
@@ -865,7 +866,8 @@ Test(iouring_slowspin) {
 	res = io_uring_register(iouring_ring_fd(iou), IORING_REGISTER_BUFFERS,
 				&v1, 1);
 	ASSERT(!res, "io_uring_register");
-	ASSERT(!iouring_init_pwrite(iou, fd, buf, 3, 0, U64_MAX), "pwrite");
+	ASSERT(!iouring_init_pwrite(iou, fd, buf, 3, 0, U64_MAX, IOSQE_IO_LINK),
+	       "pwrite");
 	ASSERT(!iouring_init_fsync(iou, fd, U64_MAX - 1), "fsync");
 	iouring_submit(iou, 2);
 	res = iouring_spin(iou, &id);
@@ -1003,7 +1005,7 @@ Test(iouring1) {
 
 	iouring_init(&iou, 3);
 	ASSERT(iou, "iouring_init");
-	iouring_init_pwrite(iou, f1, "abc\n", 4, 0, 7);
+	iouring_init_pwrite(iou, f1, "abc\n", 4, 0, 7, IOSQE_IO_LINK);
 	v = iouring_pending(iou, 7);
 	ASSERT(v, "pending");
 	v = iouring_pending(iou, 8);
@@ -1016,9 +1018,9 @@ Test(iouring1) {
 	v = iouring_pending(iou, 7);
 	ASSERT(!v, "!pending");
 
-	iouring_init_pwrite(iou, f1, "def\n", 4, 0, 10);
-	iouring_init_pwrite(iou, f1, "ghi\n", 4, 0, 11);
-	iouring_init_pwrite(iou, f1, "jkl\n", 4, 0, 12);
+	iouring_init_pwrite(iou, f1, "def\n", 4, 0, 10, IOSQE_IO_LINK);
+	iouring_init_pwrite(iou, f1, "ghi\n", 4, 0, 11, IOSQE_IO_LINK);
+	iouring_init_pwrite(iou, f1, "jkl\n", 4, 0, 12, IOSQE_IO_LINK);
 	res = iouring_submit(iou, 3);
 	ASSERT_EQ(res, 3, "res=3");
 	ASSERT(iouring_pending(iou, 10), "10");
@@ -1101,7 +1103,8 @@ Test(iouring2) {
 	u8 buffer[4096 * 30] = {0};
 	for (u32 i = 0; i < 4096 * 30; i++) buffer[i] = 9;
 	for (u32 i = 0; i < 4096 * 30; i += 4096)
-		ASSERT(!iouring_init_pwrite(iou, fd, buffer + i, 4096, i, i),
+		ASSERT(!iouring_init_pwrite(iou, fd, buffer + i, 4096, i, i,
+					    IOSQE_IO_LINK),
 		       "pwrite");
 	ASSERT_EQ(iouring_submit(iou, 30), 30, "submit");
 	bool found[30] = {0};

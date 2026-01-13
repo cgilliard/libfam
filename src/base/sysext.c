@@ -53,8 +53,8 @@ PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 #endif /* TEST */
 
 	if (global_iou_init() < 0) return -1;
-	res =
-	    iouring_init_pwrite(__global_iou__, fd, buf, len, offset, U64_MAX);
+	res = iouring_init_pwrite(__global_iou__, fd, buf, len, offset, U64_MAX,
+				  IOSQE_IO_LINK);
 	if (res < 0) return -1;
 	return iouring_wait(__global_iou__, &id, 1);
 }
@@ -71,7 +71,8 @@ PUBLIC i64 pread(i32 fd, void *buf, u64 len, u64 offset) {
 #endif /* TEST */
 
 	if (global_iou_init() < 0) return -1;
-	res = iouring_init_pread(__global_iou__, fd, buf, len, offset, U64_MAX);
+	res = iouring_init_pread(__global_iou__, fd, buf, len, offset, U64_MAX,
+				 0);
 	if (res < 0) return -1;
 	return iouring_wait(__global_iou__, &id, 1);
 }

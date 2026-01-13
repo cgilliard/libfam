@@ -33,9 +33,13 @@ struct open_how;
 
 i32 iouring_init(IoUring **iou, u32 queue_depth);
 i32 iouring_init_pread(IoUring *iou, i32 fd, void *buf, u64 len, u64 foffset,
-		       u64 id);
+		       u64 id, u32 flags);
 i32 iouring_init_pwrite(IoUring *iou, i32 fd, const void *buf, u64 len,
-			u64 foffset, u64 id);
+			u64 foffset, u64 id, u32 flags);
+i32 iouring_init_pread_fixed(IoUring *iou, i32 fd, void *buf, u64 len,
+			     u64 foffset, u64 id, u32 flags);
+i32 iouring_init_pwrite_fixed(IoUring *iou, i32 fd, const void *buf, u64 len,
+			      u64 foffset, u64 id, u32 flags);
 i32 iouring_init_fsync(IoUring *iou, i32 fd, u64 id);
 i32 iouring_init_openat(IoUring *iou, i32 dirfd, const char *path,
 			struct open_how *how, u64 id);
