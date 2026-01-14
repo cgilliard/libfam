@@ -34,6 +34,7 @@ typedef struct LruCacheEntry {
 	struct LruCacheEntry *hash_next;
 	struct LruCacheEntry *lru_next;
 	struct LruCacheEntry *lru_prev;
+	u64 bucket;
 	u64 key;
 	u8 value[];
 } LruCacheEntry;
@@ -142,7 +143,17 @@ void lru_put(LruCache *cache, u64 key, void *value) {
 	u64 bucket = aighthash64(&key, sizeof(u64), cache->seed) %
 		     cache->hash_bucket_count;
 	LruCacheEntry *nent = cache->lru_tail;
+	u64 old_bucket = nent->bucket;
+	LruCacheEntry **head = &cache->hash_buckets[old_bucket];
+	while (*head) {
+		if (*head == nent) {
+			*head = nent->hash_next;
+			break;
+		}
+		head = &(*head)->hash_next;
+	}
 
+	nent->bucket = bucket;
 	nent->key = key;
 	fastmemcpy(nent->value, value, cache->value_size);
 	cache->lru_tail = nent->lru_prev;

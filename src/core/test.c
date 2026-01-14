@@ -281,14 +281,30 @@ Test(lru_cache_cycle) {
 	LruCache *cache = lru_init(256, 512, sizeof(u64));
 
 	ASSERT(cache, "cache");
-	for (u64 i = 0; i < 128; i++) {
-		u64 x = i;
+	for (u64 i = 0; i < 256; i++) {
+		u64 x = i + 1000;
 		lru_put(cache, i, &x);
 	}
-	for (u64 i = 0; i < 128; i++) {
+	for (u64 i = 0; i < 256; i++) {
 		u64 *value = lru_get(cache, i);
 		ASSERT(value, "found {}", i);
-		ASSERT_EQ(*value, i, "value {}", i);
+		ASSERT_EQ(*value, i + 1000, "value {}", i);
 	}
+
+	u64 x = 1256;
+	lru_put(cache, 256, &x);
+
+	ASSERT(!lru_get(cache, 0), "evicted");
+	x = 1001;
+	ASSERT(!memcmp(lru_get(cache, 1), &x, sizeof(u64)), "not evicted");
+
+	x = 2000;
+	lru_put(cache, 1000, &x);
+	ASSERT(!lru_get(cache, 2), "evicted");
+	x = 1001;
+	ASSERT(!memcmp(lru_get(cache, 1), &x, sizeof(u64)), "not evicted");
+	x = 1003;
+	ASSERT(!memcmp(lru_get(cache, 3), &x, sizeof(u64)), "not evicted");
+
 	lru_destroy(cache);
 }
