@@ -23,19 +23,17 @@
  *
  *******************************************************************************/
 
-#include <libfam/storage.h>
-#include <libfam/test.h>
+#ifndef _LRU_H
+#define _LRU_H
 
-Test(storage1) {
-#define STORAGE1_PATH "/tmp/storage1.dat"
-	unlink(STORAGE1_PATH);
-	i32 fd = file(STORAGE1_PATH);
-	fallocate(fd, PAGE_SIZE * 128);
-	close(fd);
+typedef struct {
+} Lru;
 
-	Storage *s1 = storage_init(STORAGE1_PATH, 64, 32, 16);
-	ASSERT(s1, "storage_init");
-	usleep(1000);
-	storage_destroy(s1);
-	unlink(STORAGE1_PATH);
-}
+i32 lru_init(Lru *lru, u64 hash_bucket_count, u64 lru_count, u64 key_size,
+	     u64 value_size);
+void lru_put(Lru *lru, const void *key, const void *value, void **key_evicted,
+	     void **value_evicted);
+const void *lru_get(Lru *lru, const void *key);
+void lru_bring_to_front(Lru *lru, const void *key);
+
+#endif /* _LRU_H */

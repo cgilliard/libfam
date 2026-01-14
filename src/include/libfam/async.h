@@ -23,19 +23,17 @@
  *
  *******************************************************************************/
 
-#include <libfam/storage.h>
-#include <libfam/test.h>
+#ifndef _ASYNC_H
+#define _ASYNC_H
 
-Test(storage1) {
-#define STORAGE1_PATH "/tmp/storage1.dat"
-	unlink(STORAGE1_PATH);
-	i32 fd = file(STORAGE1_PATH);
-	fallocate(fd, PAGE_SIZE * 128);
-	close(fd);
+#include <libfam/types.h>
 
-	Storage *s1 = storage_init(STORAGE1_PATH, 64, 32, 16);
-	ASSERT(s1, "storage_init");
-	usleep(1000);
-	storage_destroy(s1);
-	unlink(STORAGE1_PATH);
-}
+typedef struct Async Async;
+struct io_uring_sqe;
+
+i32 async_init(Async **async, u32 queue_depth);
+i32 async_execute(Async *async, struct io_uring_sqe *events, u64 count);
+i32 async_complete(Async *async, u64 *id);
+void async_destroy(Async *async);
+
+#endif /* _ASYNC_H */

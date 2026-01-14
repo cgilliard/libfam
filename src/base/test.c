@@ -23,6 +23,7 @@
  *
  *******************************************************************************/
 
+#include <libfam/async.h>
 #include <libfam/atomic.h>
 #include <libfam/builtin.h>
 #include <libfam/debug.h>
@@ -1120,4 +1121,29 @@ Test(iouring2) {
 	close(fd);
 	unlink(path);
 	iouring_destroy(iou);
+}
+
+Test(async) {
+	u64 id = 0;
+	struct open_how how = {.flags = O_CREAT | O_RDWR, .mode = 0600};
+	Async *async = NULL;
+	struct io_uring_sqe sqe1 = {
+	    .opcode = IORING_OP_OPENAT2,
+	    .fd = AT_FDCWD,
+	    .addr = (u64) "/tmp/async.dat",
+	    .len = sizeof(struct open_how),
+	    .off = (u64)&how,
+	    .user_data = 123,
+	};
+
+	unlink("/tmp/async.dat");
+	ASSERT(!exists("/tmp/async.dat"), "!exists");
+	ASSERT(!async_init(&async, 8), "async_init");
+	ASSERT(async, "async");
+	async_execute(async, (struct io_uring_sqe[]){sqe1}, 1);
+	async_complete(async, &id);
+	ASSERT_EQ(id, 123, "id");
+	ASSERT(exists("/tmp/async.dat"), "exists");
+	async_destroy(async);
+	unlink("/tmp/async.dat");
 }

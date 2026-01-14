@@ -153,6 +153,19 @@ i32 iouring_init_pread_fixed(IoUring *iou, i32 fd, void *buf, u64 len,
 	return 0;
 }
 
+i32 iouring_prep(IoUring *iou, struct io_uring_sqe event) {
+	struct io_uring_sqe *sqe;
+	sqe = iouring_get_sqe(iou);
+	if (!sqe) {
+		errno = EBUSY;
+		return -1;
+	}
+
+	fastmemcpy(sqe, &event, sizeof(struct io_uring_sqe));
+	__aadd32(iou->sq_tail, 1);
+	return 0;
+}
+
 i32 iouring_init_pwrite(IoUring *iou, i32 fd, const void *buf, u64 len,
 			u64 foffset, u64 id, u32 flags) {
 	struct io_uring_sqe *sqe;
@@ -305,13 +318,13 @@ i32 iouring_spin(IoUring *iou, u64 *id) {
 	return res;
 }
 
-i32 iouring_wait(IoUring *iou, u64 *id, u32 min_complete) {
+i32 iouring_wait(IoUring *iou, u64 *id, u32 to_submit) {
 	u32 head, tail, mask = *iou->cq_mask;
 	for (;;) {
 		head = __aload32(iou->cq_head);
 		tail = __aload32(iou->cq_tail);
 		if (head != tail) break;
-		i32 ret = io_uring_enter2(iou->ring_fd, min_complete, 1,
+		i32 ret = io_uring_enter2(iou->ring_fd, to_submit, 1,
 					  IORING_ENTER_GETEVENTS, NULL, 0);
 
 		(void)ret;
