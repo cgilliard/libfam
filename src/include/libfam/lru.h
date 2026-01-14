@@ -26,14 +26,14 @@
 #ifndef _LRU_H
 #define _LRU_H
 
-typedef struct {
-} Lru;
+#include <libfam/types.h>
 
-i32 lru_init(Lru *lru, u64 hash_bucket_count, u64 lru_count, u64 key_size,
-	     u64 value_size);
-void lru_put(Lru *lru, const void *key, const void *value, void **key_evicted,
-	     void **value_evicted);
-const void *lru_get(Lru *lru, const void *key);
-void lru_bring_to_front(Lru *lru, const void *key);
+typedef struct LruCache LruCache;
+
+LruCache *lru_init(u64 capacity, u64 hash_bucket_count, u64 value_size);
+void lru_destroy(LruCache *cache);
+void *lru_get(LruCache *cache, u64 key);
+void lru_put(LruCache *cache, u64 key, void *value);
+void *lru_tail(LruCache *cache);
 
 #endif /* _LRU_H */

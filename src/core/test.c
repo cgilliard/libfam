@@ -26,6 +26,7 @@
 #include <libfam/debug.h>
 #include <libfam/format.h>
 #include <libfam/limits.h>
+#include <libfam/lru.h>
 #include <libfam/rng.h>
 #include <libfam/string.h>
 #include <libfam/test.h>
@@ -265,3 +266,29 @@ Test(format2) {
 	_debug_alloc_failure = false;
 }
 
+Test(lru_cache) {
+	LruCache *cache = lru_init(1024, 2048, sizeof(u64));
+	ASSERT(cache, "cache");
+	u64 value = 2;
+	lru_put(cache, 1, &value);
+	ASSERT_EQ(lru_get(cache, 2), NULL, "cache not found");
+	u64 *x = lru_get(cache, 1);
+	ASSERT_EQ(*x, 2, "cache found");
+	lru_destroy(cache);
+}
+
+Test(lru_cache_cycle) {
+	LruCache *cache = lru_init(256, 512, sizeof(u64));
+
+	ASSERT(cache, "cache");
+	for (u64 i = 0; i < 128; i++) {
+		u64 x = i;
+		lru_put(cache, i, &x);
+	}
+	for (u64 i = 0; i < 128; i++) {
+		u64 *value = lru_get(cache, i);
+		ASSERT(value, "found {}", i);
+		ASSERT_EQ(*value, i, "value {}", i);
+	}
+	lru_destroy(cache);
+}

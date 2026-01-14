@@ -1124,7 +1124,9 @@ Test(iouring2) {
 }
 
 Test(async) {
-	u64 id = 0;
+	u64 ids[MAX_EVENTS] = {0};
+	u32 count;
+	i32 results[MAX_EVENTS] = {0};
 	struct open_how how = {.flags = O_CREAT | O_RDWR, .mode = 0600};
 	Async *async = NULL;
 	struct io_uring_sqe sqe1 = {
@@ -1140,9 +1142,11 @@ Test(async) {
 	ASSERT(!exists("/tmp/async.dat"), "!exists");
 	ASSERT(!async_init(&async, 8), "async_init");
 	ASSERT(async, "async");
-	async_execute(async, (struct io_uring_sqe[]){sqe1}, 1);
-	async_complete(async, &id);
-	ASSERT_EQ(id, 123, "id");
+	count = async_execute_complete(async, (struct io_uring_sqe[]){sqe1}, 1,
+				       ids, results);
+	ASSERT_EQ(count, 1, "count");
+	ASSERT_EQ(ids[0], 123, "id");
+	ASSERT(results[0] > 0, "result");
 	ASSERT(exists("/tmp/async.dat"), "exists");
 	async_destroy(async);
 	unlink("/tmp/async.dat");
