@@ -1123,10 +1123,20 @@ Test(iouring2) {
 	iouring_destroy(iou);
 }
 
+i32 complete_counter = 0;
+extern u64 open_fds;
+
+void on_complete(i32 res, u64 user_data, void *ctx) {
+	ASSERT_EQ(user_data, 123, "user_data");
+	ASSERT(res > 0, "new fd");
+	ASSERT(!ctx, "ctx");
+	__aadd64(&open_fds, 1);
+	close(res);
+	complete_counter++;
+}
+
 Test(async) {
-	u64 ids[MAX_EVENTS] = {0};
 	u32 count;
-	i32 results[MAX_EVENTS] = {0};
 	struct open_how how = {.flags = O_CREAT | O_RDWR, .mode = 0600};
 	Async *async = NULL;
 	struct io_uring_sqe sqe1 = {
@@ -1140,14 +1150,70 @@ Test(async) {
 
 	unlink("/tmp/async.dat");
 	ASSERT(!exists("/tmp/async.dat"), "!exists");
-	ASSERT(!async_init(&async, 8), "async_init");
+	ASSERT(!async_init(&async, 8, on_complete, NULL), "async_init");
 	ASSERT(async, "async");
-	count = async_execute_complete(async, (struct io_uring_sqe[]){sqe1}, 1,
-				       ids, results, true);
+	count = async_execute(async, (struct io_uring_sqe[]){sqe1}, 1, true);
+	ASSERT_EQ(complete_counter, 1, "callback");
 	ASSERT_EQ(count, 1, "count");
-	ASSERT_EQ(ids[0], 123, "id");
-	ASSERT(results[0] > 0, "result");
 	ASSERT(exists("/tmp/async.dat"), "exists");
 	async_destroy(async);
 	unlink("/tmp/async.dat");
+}
+
+u32 chain_status = 0;
+i32 chain_fd = 0;
+
+typedef struct {
+	Async *async;
+} AsyncHolder;
+
+void chain_complete(i32 res, u64 user_data, void *ctx) {
+	AsyncHolder *holder = ctx;
+	if (user_data == 123) {
+		chain_fd = res;
+		struct io_uring_sqe sqe1 = {
+		    .opcode = IORING_OP_FALLOCATE,
+		    .fd = res,
+		    .addr = 4096,
+		    .user_data = 124,
+		};
+
+		async_execute(holder->async, (struct io_uring_sqe[]){sqe1}, 1,
+			      false);
+	} else {
+		chain_status = 1;
+	}
+}
+
+Test(async_chain) {
+	AsyncHolder holder;
+	struct open_how how = {.flags = O_CREAT | O_RDWR, .mode = 0600};
+	Async *async = NULL;
+	struct io_uring_sqe sqe1 = {
+	    .opcode = IORING_OP_OPENAT2,
+	    .fd = AT_FDCWD,
+	    .addr = (u64) "/tmp/async_chain.dat",
+	    .len = sizeof(struct open_how),
+	    .off = (u64)&how,
+	    .user_data = 123,
+	};
+
+	unlink("/tmp/async_chain.dat");
+	ASSERT(!exists("/tmp/async_chain.dat"), "!exists");
+	ASSERT(!async_init(&async, 8, chain_complete, &holder), "async_init");
+	holder.async = async;
+	ASSERT(async, "async");
+	async_execute(async, (struct io_uring_sqe[]){sqe1}, 1, false);
+	while (!chain_status) async_execute(async, NULL, 0, true);
+	ASSERT(exists("/tmp/async_chain.dat"), "exists");
+
+	struct stat st;
+	fstat(chain_fd, &st);
+	ASSERT_EQ(st.st_size, 4096, "size=4096");
+
+	close(chain_fd);
+	__aadd64(&open_fds, 1);
+
+	async_destroy(async);
+	unlink("/tmp/async_chain.dat");
 }

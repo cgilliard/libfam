@@ -49,9 +49,12 @@ struct Async {
 	u32 *cq_tail;
 	u32 *sq_mask;
 	u32 *cq_mask;
+	AsyncCallback callback;
+	void *ctx;
 };
 
-i32 async_init(Async **ret, u32 queue_depth) {
+i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
+	       void *ctx) {
 	Async *async = NULL;
 
 	if ((async = smap(sizeof(Async))) == NULL) return -1;
@@ -105,14 +108,15 @@ i32 async_init(Async **ret, u32 queue_depth) {
 	    (struct io_uring_cqe *)(async->cq_ring + async->params.cq_off.cqes);
 
 	async->queue_depth = queue_depth;
+	async->callback = callback;
+	async->ctx = ctx;
 
 	*ret = async;
 	return 0;
 }
 
-i32 async_execute_complete(Async *async, struct io_uring_sqe *events, u32 count,
-			   u64 ids[MAX_EVENTS], i32 results[MAX_EVENTS],
-			   bool wait) {
+i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
+		  bool wait) {
 	u32 tail = *async->sq_tail, drained;
 	u32 head = *async->cq_head;
 	u32 depth = async->params.sq_entries;
@@ -140,11 +144,12 @@ i32 async_execute_complete(Async *async, struct io_uring_sqe *events, u32 count,
 			return -1;
 	tail = __aload32(async->cq_tail);
 
-	drained = min(tail - head, MAX_EVENTS);
+	drained = tail - head;
 	for (u32 i = 0; i < drained; i++) {
 		u32 idx = (head + i) & mask;
-		ids[i] = async->cqes[idx].user_data;
-		results[i] = async->cqes[idx].res;
+		u64 user_data = async->cqes[idx].user_data;
+		i32 result = async->cqes[idx].res;
+		async->callback(result, user_data, async->ctx);
 	}
 	__astore32(async->cq_head, head + drained);
 	return drained;

@@ -28,15 +28,15 @@
 
 #include <libfam/types.h>
 
-#define MAX_EVENTS 512
+typedef void (*AsyncCallback)(int res, u64 user_data, void *ctx);
 
 typedef struct Async Async;
 struct io_uring_sqe;
 
-i32 async_init(Async **async, u32 queue_depth);
-i32 async_execute_complete(Async *async, struct io_uring_sqe *events, u32 count,
-			   u64 ids[MAX_EVENTS], i32 results[MAX_EVENTS],
-			   bool wait);
+i32 async_init(Async **async, u32 queue_depth, AsyncCallback callback,
+	       void *ctx);
+i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
+		  bool wait);
 void async_destroy(Async *async);
 
 #endif /* _ASYNC_H */
