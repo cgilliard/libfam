@@ -32,12 +32,12 @@ ${STORMVEC_SRC} \
 -L${LIB_DIR} \
 -lfam"
 
-if [ ! -e "${BIN_DIR}/stormvec" ] || [ "${STORMVEC_SRC}" -nt "${BIN_DIR}/stormvec" ]; then
-	if [ "$SILENT" != "1" ]; then
-		echo ${COMMAND};
-	fi
-	${COMMAND} || exit 1;
-fi
+#if [ ! -e "${BIN_DIR}/stormvec" ] || [ "${STORMVEC_SRC}" -nt "${BIN_DIR}/stormvec" ]; then
+#	if [ "$SILENT" != "1" ]; then
+#		echo ${COMMAND};
+#	fi
+#	${COMMAND} || exit 1;
+#fi
 
 COMMAND="${CC} \
 -o ${BIN_DIR}/czip \
@@ -48,10 +48,10 @@ ${CZIP_SRC} \
 -L${LIB_DIR} \
 -lfam"
 
-if [ ! -e "${BIN_DIR}/czip" ] || [ "${CZIP_SRC}" -nt "${BIN_DIR}/czip" ]; then
-        if [ "$SILENT" != "1" ]; then
-                echo ${COMMAND};
-        fi
-        ${COMMAND} || exit 1;
-fi
+#if [ ! -e "${BIN_DIR}/czip" ] || [ "${CZIP_SRC}" -nt "${BIN_DIR}/czip" ]; then
+#        if [ "$SILENT" != "1" ]; then
+#                echo ${COMMAND};
+#        fi
+#        ${COMMAND} || exit 1;
+#fi
 
