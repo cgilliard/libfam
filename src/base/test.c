@@ -1217,3 +1217,29 @@ Test(async_chain) {
 	async_destroy(async);
 	unlink("/tmp/async_chain.dat");
 }
+
+Test(async_errors) {
+	Async *async;
+	ASSERT_EQ(async_init(&async, U32_MAX, chain_complete, NULL), -1,
+		  "queue too large");
+
+	_debug_alloc_count = 0;
+	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc0");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 1;
+	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc1");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 2;
+	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc2");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 3;
+	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc3");
+	_debug_alloc_count = I64_MAX;
+
+	ASSERT(!async_init(&async, 1, chain_complete, NULL), "init success");
+	ASSERT_EQ(async_execute(async, NULL, 2, false), -1, "queue too big");
+	async_destroy(async);
+}

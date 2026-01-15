@@ -78,12 +78,15 @@ i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 
 	async->sq_ring = mmap(NULL, async->sq_ring_size, PROT_READ | PROT_WRITE,
 			      MAP_SHARED, async->ring_fd, IORING_OFF_SQ_RING);
+
 	if (async->sq_ring == MAP_FAILED) {
 		async_destroy(async);
 		return -1;
 	}
+
 	async->cq_ring = mmap(NULL, async->cq_ring_size, PROT_READ | PROT_WRITE,
 			      MAP_SHARED, async->ring_fd, IORING_OFF_CQ_RING);
+
 	if (async->cq_ring == MAP_FAILED) {
 		async_destroy(async);
 		return -1;
@@ -126,6 +129,7 @@ i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
 		errno = EINVAL;
 		return -1;
 	}
+
 	if (__builtin_expect(tail - head >= (depth - (count - 1)), 0)) {
 		errno = EBUSY;
 		return -1;
@@ -137,11 +141,13 @@ i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
 		fastmemcpy(&async->sqes[index], &events[i],
 			   sizeof(struct io_uring_sqe));
 	}
+
 	__aadd32(async->sq_tail, count);
-	if (__builtin_expect(count || (__aload32(async->cq_tail) != head), 1))
-		if (io_uring_enter2(async->ring_fd, count, wait ? 1 : 0,
-				    IORING_ENTER_GETEVENTS, NULL, 0) < 0)
-			return -1;
+	if (__builtin_expect(count || (__aload32(async->cq_tail) != head), 1)) {
+		i32 res = io_uring_enter2(async->ring_fd, count, wait ? 1 : 0,
+					  IORING_ENTER_GETEVENTS, NULL, 0);
+		if (res < 0) return -1;
+	}
 	tail = __aload32(async->cq_tail);
 
 	drained = tail - head;

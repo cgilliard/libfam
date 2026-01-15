@@ -131,41 +131,6 @@ i32 iouring_init_pread(IoUring *iou, i32 fd, void *buf, u64 len, u64 foffset,
 	return 0;
 }
 
-i32 iouring_init_pread_fixed(IoUring *iou, i32 fd, void *buf, u64 len,
-			     u64 foffset, u64 id, u32 flags) {
-	struct io_uring_sqe *sqe;
-	sqe = iouring_get_sqe(iou);
-	if (!sqe) {
-		errno = EBUSY;
-		return -1;
-	}
-
-	fastmemset(sqe, 0, sizeof(*sqe));
-
-	sqe->opcode = IORING_OP_READ_FIXED;
-	sqe->flags = flags;
-	sqe->fd = fd;
-	sqe->addr = (u64)buf;
-	sqe->len = len;
-	sqe->off = foffset;
-	sqe->user_data = id;
-	__aadd32(iou->sq_tail, 1);
-	return 0;
-}
-
-i32 iouring_prep(IoUring *iou, struct io_uring_sqe event) {
-	struct io_uring_sqe *sqe;
-	sqe = iouring_get_sqe(iou);
-	if (!sqe) {
-		errno = EBUSY;
-		return -1;
-	}
-
-	fastmemcpy(sqe, &event, sizeof(struct io_uring_sqe));
-	__aadd32(iou->sq_tail, 1);
-	return 0;
-}
-
 i32 iouring_init_pwrite(IoUring *iou, i32 fd, const void *buf, u64 len,
 			u64 foffset, u64 id, u32 flags) {
 	struct io_uring_sqe *sqe;
@@ -178,28 +143,6 @@ i32 iouring_init_pwrite(IoUring *iou, i32 fd, const void *buf, u64 len,
 	fastmemset(sqe, 0, sizeof(*sqe));
 
 	sqe->opcode = IORING_OP_WRITE;
-	sqe->flags = flags;
-	sqe->fd = fd;
-	sqe->addr = (u64)buf;
-	sqe->len = len;
-	sqe->off = foffset;
-	sqe->user_data = id;
-	__aadd32(iou->sq_tail, 1);
-	return 0;
-}
-
-i32 iouring_init_pwrite_fixed(IoUring *iou, i32 fd, const void *buf, u64 len,
-			      u64 foffset, u64 id, u32 flags) {
-	struct io_uring_sqe *sqe;
-	sqe = iouring_get_sqe(iou);
-	if (!sqe) {
-		errno = EBUSY;
-		return -1;
-	}
-
-	fastmemset(sqe, 0, sizeof(*sqe));
-
-	sqe->opcode = IORING_OP_WRITE_FIXED;
 	sqe->flags = flags;
 	sqe->fd = fd;
 	sqe->addr = (u64)buf;
