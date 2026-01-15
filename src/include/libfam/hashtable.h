@@ -41,6 +41,6 @@ Hashtable *hashtable_init(u64 hash_bucket_count, u64 key_size, u64 value_size);
 void hashtable_destroy(Hashtable *hashtable);
 void *hashtable_get(Hashtable *hashtable, const void *key);
 void hashtable_put(Hashtable *hashtable, const HashtableKeyValue *kv);
-void *hashtable_remove(Hashtable *hashtable, const void *key);
+HashtableKeyValue *hashtable_remove(Hashtable *hashtable, const void *key);
 
 #endif /* _HASHTABLE_H */

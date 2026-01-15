@@ -29,11 +29,15 @@
 #include <libfam/rng.h>
 #include <libfam/syscall.h>
 #include <libfam/sysext.h>
+#include <libfam/utils.h>
 
 typedef struct HashtableEntry {
 	struct HashtableEntry *hash_next;
 	u8 data[];
 } HashtableEntry;
+
+STATIC_ASSERT(sizeof(HashtableEntry) == HASHTABLE_KEY_VALUE_OVERHEAD,
+	      hashtable_overhead);
 
 struct Hashtable {
 	u64 key_size;
@@ -92,7 +96,7 @@ void hashtable_put(Hashtable *hashtable, const HashtableKeyValue *kv) {
 	((HashtableEntry *)kv)->hash_next = hashtable->hash_buckets[bucket];
 	hashtable->hash_buckets[bucket] = (HashtableEntry *)kv;
 }
-void *hashtable_remove(Hashtable *hashtable, const void *key) {
+HashtableKeyValue *hashtable_remove(Hashtable *hashtable, const void *key) {
 	u64 bucket = aighthash64(key, hashtable->key_size, hashtable->seed) %
 		     hashtable->hash_bucket_count;
 	HashtableEntry **head = &hashtable->hash_buckets[bucket];
