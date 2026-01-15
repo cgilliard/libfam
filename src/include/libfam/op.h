@@ -23,20 +23,24 @@
  *
  *******************************************************************************/
 
-#ifndef _ASYNC_H
-#define _ASYNC_H
+#ifndef _OP_H
+#define _OP_H
 
+#include <libfam/linux.h>
 #include <libfam/types.h>
 
-#define MAX_EVENTS 512
+typedef void (*OpCallback)(int res, u64 id, void *user_arg);
 
-typedef struct Async Async;
-struct io_uring_sqe;
+typedef struct {
+	struct io_uring_sqe sqe;
+	OpCallback callback;
+} Op;
 
-i32 async_init(Async **async, u32 queue_depth);
-i32 async_execute_complete(Async *async, struct io_uring_sqe *events, u32 count,
-			   u64 ids[MAX_EVENTS], i32 results[MAX_EVENTS],
-			   bool wait);
-void async_destroy(Async *async);
+typedef struct OpContext OpContext;
 
-#endif /* _ASYNC_H */
+OpContext *op_context_create(u32 queue_depth, void *user_arg);
+void op_context_destroy(OpContext *ctx);
+
+i32 op_execute_complete(OpContext *ctx, Op *ops, u32 count, bool wait);
+
+#endif /* _OP_H */

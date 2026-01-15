@@ -139,7 +139,7 @@ void *lru_get(LruCache *cache, u64 key) {
 	return NULL;
 }
 
-void lru_put(LruCache *cache, u64 key, void *value) {
+void lru_put(LruCache *cache, u64 key, const void *value) {
 	u64 bucket = aighthash64(&key, sizeof(u64), cache->seed) %
 		     cache->hash_bucket_count;
 	LruCacheEntry *nent = cache->lru_tail;

@@ -25,6 +25,7 @@
 
 #include <libfam/debug.h>
 #include <libfam/format.h>
+#include <libfam/hashtable.h>
 #include <libfam/limits.h>
 #include <libfam/lru.h>
 #include <libfam/rbtree.h>
@@ -413,4 +414,50 @@ Test(lru_cache_consistent) {
 	ASSERT_EQ(*check, arr[5000].value, "found");
 
 	lru_destroy(cache);
+}
+
+Test(hashtable) {
+	u64 key;
+	u32 value;
+	u8 kv1[HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64) + sizeof(u32)];
+	u8 kv2[HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64) + sizeof(u32)];
+	Hashtable *h = hashtable_init(512, sizeof(u64), sizeof(u32));
+	ASSERT(h, "hashtable_init");
+	key = 123;
+	value = 456;
+	fastmemcpy(kv1 + sizeof(HashtableKeyValue), &key, sizeof(u64));
+	fastmemcpy(kv1 + sizeof(HashtableKeyValue) + sizeof(u64), &value,
+		   sizeof(u32));
+	hashtable_put(h, (HashtableKeyValue *)kv1);
+	key = 999;
+	value = 1010;
+	fastmemcpy(kv2 + sizeof(HashtableKeyValue), &key, sizeof(u64));
+	fastmemcpy(kv2 + sizeof(HashtableKeyValue) + sizeof(u64), &value,
+		   sizeof(u32));
+	hashtable_put(h, (HashtableKeyValue *)kv2);
+
+	key = 123;
+	u32 *vout = hashtable_get(h, &key);
+	ASSERT_EQ(*vout, 456, "hashtable_get");
+
+	key = 999;
+	vout = hashtable_get(h, &key);
+	ASSERT_EQ(*vout, 1010, "hashtable_get2");
+
+	key = 998;
+	vout = hashtable_get(h, &key);
+	ASSERT(!vout, "not found");
+
+	ASSERT(!hashtable_remove(h, &key), "remove null");
+	key = 999;
+	void *res = hashtable_remove(h, &key);
+	ASSERT(res, "found");
+	u64 *k1 = (void *)((u8 *)res + sizeof(HashtableKeyValue));
+	ASSERT_EQ(*k1, 999, "key");
+	u32 *v1 = (void *)((u8 *)res + sizeof(HashtableKeyValue) + sizeof(u64));
+	ASSERT_EQ(*v1, 1010, "value");
+
+	ASSERT(!hashtable_get(h, &key), "key not found");
+
+	hashtable_destroy(h);
 }

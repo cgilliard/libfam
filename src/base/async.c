@@ -111,7 +111,8 @@ i32 async_init(Async **ret, u32 queue_depth) {
 }
 
 i32 async_execute_complete(Async *async, struct io_uring_sqe *events, u32 count,
-			   u64 ids[MAX_EVENTS], i32 results[MAX_EVENTS]) {
+			   u64 ids[MAX_EVENTS], i32 results[MAX_EVENTS],
+			   bool wait) {
 	u32 tail = *async->sq_tail, drained;
 	u32 head = *async->cq_head;
 	u32 depth = async->params.sq_entries;
@@ -134,7 +135,7 @@ i32 async_execute_complete(Async *async, struct io_uring_sqe *events, u32 count,
 	}
 	__aadd32(async->sq_tail, count);
 	if (__builtin_expect(count || (__aload32(async->cq_tail) != head), 1))
-		if (io_uring_enter2(async->ring_fd, count, 1,
+		if (io_uring_enter2(async->ring_fd, count, wait ? 1 : 0,
 				    IORING_ENTER_GETEVENTS, NULL, 0) < 0)
 			return -1;
 	tail = __aload32(async->cq_tail);
@@ -147,45 +148,6 @@ i32 async_execute_complete(Async *async, struct io_uring_sqe *events, u32 count,
 	}
 	__astore32(async->cq_head, head + drained);
 	return drained;
-}
-
-i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count) {
-	u32 tail = *async->sq_tail;
-	u32 head = __aload32(async->cq_head);
-	u32 depth = async->params.sq_entries;
-	if (count > depth) {
-		errno = EINVAL;
-		return -1;
-	}
-	if (tail - head >= (depth - (count - 1))) {
-		errno = EBUSY;
-		return -1;
-	}
-
-	for (u64 i = 0; i < count; i++) {
-		u32 index = (tail + i) & *async->sq_mask;
-		async->sq_array[index] = index;
-
-		fastmemcpy(&async->sqes[index], &events[i],
-			   sizeof(struct io_uring_sqe));
-	}
-	__aadd32(async->sq_tail, count);
-	return io_uring_enter2(async->ring_fd, count, 0, 0, NULL, 0);
-}
-
-u32 async_complete(Async *async, u64 ids[MAX_EVENTS], i32 results[MAX_EVENTS]) {
-	u32 head = *async->cq_head, tail, mask = *async->cq_mask, count, i;
-	while ((tail = __aload32(async->cq_tail)) == head)
-		io_uring_enter2(async->ring_fd, 0, 1, IORING_ENTER_GETEVENTS,
-				NULL, 0);
-	count = min(tail - head, MAX_EVENTS - 1);
-	for (i = 0; i < count; i++) {
-		u32 idx = (head + i) & mask;
-		ids[i] = async->cqes[idx].user_data;
-		results[i] = async->cqes[idx].res;
-	}
-	__astore32(async->cq_head, head + count);
-	return count;
 }
 
 void async_destroy(Async *async) {

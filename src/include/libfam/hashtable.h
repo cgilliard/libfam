@@ -23,20 +23,24 @@
  *
  *******************************************************************************/
 
-#ifndef _ASYNC_H
-#define _ASYNC_H
+#ifndef _HASHTABLE_H
+#define _HASHTABLE_H
 
 #include <libfam/types.h>
 
-#define MAX_EVENTS 512
+#define HASHTABLE_KEY_VALUE_OVERHEAD 8
 
-typedef struct Async Async;
-struct io_uring_sqe;
+typedef struct Hashtable Hashtable;
 
-i32 async_init(Async **async, u32 queue_depth);
-i32 async_execute_complete(Async *async, struct io_uring_sqe *events, u32 count,
-			   u64 ids[MAX_EVENTS], i32 results[MAX_EVENTS],
-			   bool wait);
-void async_destroy(Async *async);
+typedef struct {
+	u8 _reserved[HASHTABLE_KEY_VALUE_OVERHEAD];
+	u8 data[];
+} HashtableKeyValue;
 
-#endif /* _ASYNC_H */
+Hashtable *hashtable_init(u64 hash_bucket_count, u64 key_size, u64 value_size);
+void hashtable_destroy(Hashtable *hashtable);
+void *hashtable_get(Hashtable *hashtable, const void *key);
+void hashtable_put(Hashtable *hashtable, const HashtableKeyValue *kv);
+void *hashtable_remove(Hashtable *hashtable, const void *key);
+
+#endif /* _HASHTABLE_H */

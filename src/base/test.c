@@ -1143,7 +1143,7 @@ Test(async) {
 	ASSERT(!async_init(&async, 8), "async_init");
 	ASSERT(async, "async");
 	count = async_execute_complete(async, (struct io_uring_sqe[]){sqe1}, 1,
-				       ids, results);
+				       ids, results, true);
 	ASSERT_EQ(count, 1, "count");
 	ASSERT_EQ(ids[0], 123, "id");
 	ASSERT(results[0] > 0, "result");
