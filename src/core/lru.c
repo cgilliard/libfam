@@ -90,7 +90,7 @@ LruCache *lru_init(u64 capacity, u64 hash_bucket_count, u64 value_size) {
 				   (i + 1) * (sizeof(LruCacheEntry) +
 					      cache->value_size));
 	}
-	cache->lru_head = &cache->entries[0];
+	cache->lru_head = (LruCacheEntry *)cache->entries;
 	cache->lru_tail = (void *)((u8 *)cache->entries +
 				   (capacity - 1) * (sizeof(LruCacheEntry) +
 						     cache->value_size));
@@ -166,4 +166,5 @@ void lru_put(LruCache *cache, u64 key, void *value) {
 	cache->hash_buckets[bucket] = nent;
 }
 
-void *lru_tail(LruCache *cache) { return cache->lru_tail; }
+void *lru_tail(LruCache *cache) { return cache->lru_tail->value; }
+void *lru_head(LruCache *cache) { return cache->lru_head->value; }

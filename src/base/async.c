@@ -51,15 +51,6 @@ struct Async {
 	u32 *cq_mask;
 };
 
-STATIC struct io_uring_sqe *async_get_sqe(Async *async) {
-	u32 tail = __aload32(async->sq_tail);
-	u32 head = __aload32(async->cq_head);
-	if (tail - head >= async->queue_depth) return NULL;
-	u32 index = tail & *async->sq_mask;
-	async->sq_array[index] = index;
-	return &async->sqes[index];
-}
-
 i32 async_init(Async **ret, u32 queue_depth) {
 	Async *async = NULL;
 

@@ -27,6 +27,7 @@
 #include <libfam/format.h>
 #include <libfam/limits.h>
 #include <libfam/lru.h>
+#include <libfam/rbtree.h>
 #include <libfam/rng.h>
 #include <libfam/string.h>
 #include <libfam/test.h>
@@ -305,6 +306,111 @@ Test(lru_cache_cycle) {
 	ASSERT(!memcmp(lru_get(cache, 1), &x, sizeof(u64)), "not evicted");
 	x = 1003;
 	ASSERT(!memcmp(lru_get(cache, 3), &x, sizeof(u64)), "not evicted");
+
+	lru_destroy(cache);
+}
+
+typedef struct {
+	RbTreeNode _reserved;
+	u64 key;
+	u64 value;
+} KeyValue;
+
+static i32 lru_cache_search(RbTreeNode *cur, const RbTreeNode *value,
+			    RbTreeNodePair *retval) {
+	while (cur) {
+		u64 v1 = ((KeyValue *)cur)->key;
+		u64 v2 = ((KeyValue *)value)->key;
+		if (v1 == v2) {
+			retval->self = cur;
+			break;
+		} else if (v1 < v2) {
+			retval->parent = cur;
+			retval->is_right = 1;
+			cur = cur->right;
+		} else {
+			retval->parent = cur;
+			retval->is_right = 0;
+			cur = cur->left;
+		}
+		retval->self = cur;
+	}
+	return 0;
+}
+
+Test(lru_cache_consistent) {
+	RbTree tree = RBTREE_INIT;
+
+	LruCache *cache = lru_init(1024, 512, sizeof(u64));
+	Rng rng;
+
+	rng_init(&rng);
+	KeyValue arr[4096 + 1024] = {0};
+
+	for (u32 i = 0; i < 4096; i++) {
+		u64 key = 0;
+		u64 value = 0;
+		KeyValue kv;
+		RbTreeNodePair retval;
+		do {
+			memset(&retval, 0, sizeof(RbTreeNodePair));
+			rng_gen(&rng, &key, sizeof(u64));
+			rng_gen(&rng, &value, sizeof(u64));
+			kv.key = key;
+			kv.value = value;
+			lru_cache_search(tree.root, (RbTreeNode *)&kv, &retval);
+		} while (retval.self && ((KeyValue *)retval.self)->key == key);
+		KeyValue *kvmap = &arr[i];
+		kvmap->key = key;
+		kvmap->value = value;
+		rbtree_put(&tree, (RbTreeNode *)kvmap, lru_cache_search);
+		lru_put(cache, key, &value);
+	}
+
+	for (u32 i = 0; i < 1024; i++) {
+		u64 key = 0;
+		u64 value = 0;
+		KeyValue kv;
+		RbTreeNodePair retval;
+		do {
+			memset(&retval, 0, sizeof(RbTreeNodePair));
+			rng_gen(&rng, &key, sizeof(u64));
+			rng_gen(&rng, &value, sizeof(u64));
+			kv.key = key;
+			kv.value = value;
+			lru_cache_search(tree.root, (RbTreeNode *)&kv, &retval);
+		} while (retval.self && ((KeyValue *)retval.self)->key == key);
+		KeyValue *kvmap = &arr[i + 4096];
+		kvmap->key = key;
+		kvmap->value = value;
+		rbtree_put(&tree, (RbTreeNode *)kvmap, lru_cache_search);
+		lru_put(cache, key, &value);
+	}
+
+	for (u32 i = 0; i < 4096; i++) {
+		void *value = lru_get(cache, arr[i].key);
+		ASSERT(!value, "!value");
+	}
+	for (u32 i = 4096; i < 4096 + 1024; i++) {
+		u64 *value = lru_get(cache, arr[i].key);
+		ASSERT_EQ(*value, arr[i].value, "found");
+	}
+
+	// bring 4999/5000 to front
+	lru_get(cache, arr[4999].key);
+	lru_get(cache, arr[5000].key);
+
+	for (u32 i = 0; i < 1023; i++) {
+		u64 key = 0, value = 0;
+		do {
+			rng_gen(&rng, &key, sizeof(u64));
+			rng_gen(&rng, &value, sizeof(u64));
+		} while (lru_get(cache, key));
+		lru_put(cache, key, &value);
+	}
+	ASSERT(!lru_get(cache, arr[4999].key), "evicted");
+	u64 *check = lru_get(cache, arr[5000].key);
+	ASSERT_EQ(*check, arr[5000].value, "found");
 
 	lru_destroy(cache);
 }

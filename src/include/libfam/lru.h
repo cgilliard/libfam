@@ -35,5 +35,6 @@ void lru_destroy(LruCache *cache);
 void *lru_get(LruCache *cache, u64 key);
 void lru_put(LruCache *cache, u64 key, void *value);
 void *lru_tail(LruCache *cache);
+void *lru_head(LruCache *cache);
 
 #endif /* _LRU_H */
