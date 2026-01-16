@@ -25,7 +25,6 @@
 
 #include <libfam/atomic.h>
 #include <libfam/debug.h>
-#include <libfam/format.h>
 #include <libfam/iouring.h>
 #include <libfam/limits.h>
 #include <libfam/linux.h>
