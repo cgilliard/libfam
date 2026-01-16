@@ -762,7 +762,7 @@ Test(clone) {
 }
 
 Test(open1) {
-	struct statx st;
+	struct statx st = {0};
 	u64 size = 4097;
 	unlink("/tmp/open1.dat");
 	unlink("/tmp/open2.dat");
@@ -1006,7 +1006,7 @@ Test(async_chain) {
 	while (!chain_status) async_execute(async, NULL, 0, true);
 	ASSERT(exists("/tmp/async_chain.dat"), "exists");
 
-	struct statx st;
+	struct statx st = {0};
 
 	statx("/tmp/async_chain.dat", &st);
 	ASSERT_EQ(st.stx_size, 4096, "size=4096");
