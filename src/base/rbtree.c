@@ -299,15 +299,17 @@ STATIC void rbtree_remove_impl(RbTree *tree, RbTreeNodePair *pair) {
 	if (do_fixup) rbtree_remove_fixup(tree, p, w, x);
 }
 
-i32 rbtree_put(RbTree *tree, RbTreeNode *value, const RbTreeSearch search) {
+PUBLIC i32 rbtree_put(RbTree *tree, RbTreeNode *value,
+		      const RbTreeSearch search) {
 	RbTreeNodePair pair = {0};
 	if (search(ROOT(tree), value, &pair) < 0) return -1;
 	if (rbtree_put_impl(tree, &pair, value) < 0) return -1;
 	rbtree_insert_fixup(tree, value);
 	return 0;
 }
-RbTreeNode *rbtree_remove(RbTree *tree, RbTreeNode *value,
-			  const RbTreeSearch search) {
+
+PUBLIC RbTreeNode *rbtree_remove(RbTree *tree, RbTreeNode *value,
+				 const RbTreeSearch search) {
 	RbTreeNodePair pair = {0};
 	if (search(ROOT(tree), value, &pair) < 0) return NULL;
 	if (pair.self) rbtree_remove_impl(tree, &pair);

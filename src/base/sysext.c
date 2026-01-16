@@ -30,13 +30,13 @@
 #include <libfam/utils.h>
 
 static Async *__global_async = NULL;
-i32 __global_res = 0;
+static i32 __global_res = 0;
 
-static void global_async_callback(i32 res, u64 user_data, void *ctx) {
+STATIC void global_async_callback(i32 res, u64 user_data, void *ctx) {
 	__global_res = res;
 }
 
-static i32 global_async_init(void) {
+STATIC i32 global_async_init(void) {
 	if (__global_async) return 0;
 	return async_init(&__global_async, 1, global_async_callback, NULL);
 }
@@ -281,7 +281,7 @@ PUBLIC void yield(void) {
 #endif
 }
 
-u64 cycle_counter(void) {
+PUBLIC u64 cycle_counter(void) {
 #if defined(__x86_64__)
 	u32 lo, hi;
 	mfence();

@@ -33,7 +33,7 @@ i32 __err_value = 0;
 PUBLIC i32 *__error(void) { return &__err_value; }
 PUBLIC i32 *__err_location(void) { return &__err_value; }
 
-void perror(const char *s) {
+PUBLIC void perror(const char *s) {
 	const u8 *err_msg;
 	i32 __attribute__((unused)) _v;
 	if (s) {
@@ -46,7 +46,7 @@ void perror(const char *s) {
 	_v = pwrite(2, "\n", 1, 0);
 }
 
-char *strerror(i32 err_code) {
+PUBLIC char *strerror(i32 err_code) {
 	switch (err_code) {
 		case SUCCESS:
 			return "Success";

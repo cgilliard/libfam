@@ -56,7 +56,7 @@ PUBLIC char *strcpy(char *dest, const char *src) {
 	return dest;
 }
 
-char *strncpy(char *dest, const char *src, u64 n) {
+PUBLIC char *strncpy(char *dest, const char *src, u64 n) {
 	u64 i;
 	for (i = 0; i < n && src[i] != '\0'; i++) dest[i] = src[i];
 	for (; i < n; i++) dest[i] = '\0';
@@ -70,14 +70,14 @@ PUBLIC char *strcat(char *dest, const char *src) {
 	return dest;
 }
 
-char *strchr(const char *s, i32 c) {
+PUBLIC char *strchr(const char *s, i32 c) {
 	do
 		if (*s == c) return (char *)s;
 	while (*s++);
 	return !c ? (char *)s : NULL;
 }
 
-i32 strncmp(const char *x, const char *y, u64 n) {
+PUBLIC i32 strncmp(const char *x, const char *y, u64 n) {
 	while (n > 0 && *x == *y && *x) x++, y++, n--;
 	if (n == 0) return 0;
 	return (char)*x - (char)*y;
@@ -106,15 +106,15 @@ PUBLIC i32 memcmp(const void *s1, const void *s2, u64 n) {
 	return 0;
 }
 
-void *memmove(void *dest, const void *src, u64 n) {
+PUBLIC void *memmove(void *dest, const void *src, u64 n) {
 	u8 *d = (void *)((u8 *)dest + n);
 	u8 *s = (void *)((u8 *)src + n);
 	while (n--) d--, s--, *d = *s;
 	return dest;
 }
 
-u8 f64_to_string(u8 buf[MAX_F64_STRING_LEN], f64 v, i32 max_decimals,
-		 bool commas) {
+PUBLIC u8 f64_to_string(u8 buf[MAX_F64_STRING_LEN], f64 v, i32 max_decimals,
+			bool commas) {
 	u64 pos = 0;
 	i32 is_negative;
 	u64 int_part;
@@ -209,7 +209,7 @@ u8 f64_to_string(u8 buf[MAX_F64_STRING_LEN], f64 v, i32 max_decimals,
 	return pos;
 }
 
-void secure_zero32(u8 buf[32]) {
+PUBLIC void secure_zero32(u8 buf[32]) {
 #ifdef USE_AVX2
 	__m256i zero = _mm256_setzero_si256();
 	_mm256_store_si256((__m256i *)buf, zero);

@@ -27,13 +27,13 @@
 #include <libfam/types.h>
 #include <libfam/utils.h>
 
-i32 no_color(void) { return getenv("NO_COLOR") != NULL; }
-const u8 *get_dimmed(void) { return no_color() ? "" : "\x1b[2m"; }
-const u8 *get_red(void) { return no_color() ? "" : "\x1b[31m"; }
-const u8 *get_bright_red(void) { return no_color() ? "" : "\x1b[91m"; }
-const u8 *get_green(void) { return no_color() ? "" : "\x1b[32m"; }
-const u8 *get_yellow(void) { return no_color() ? "" : "\x1b[33m"; }
-const u8 *get_cyan(void) { return no_color() ? "" : "\x1b[36m"; }
-const u8 *get_magenta(void) { return no_color() ? "" : "\x1b[35m"; }
-const u8 *get_blue(void) { return no_color() ? "" : "\x1b[34m"; }
-const u8 *get_reset(void) { return no_color() ? "" : "\x1b[0m"; }
+PUBLIC i32 no_color(void) { return getenv("NO_COLOR") != NULL; }
+PUBLIC const u8 *get_dimmed(void) { return no_color() ? "" : "\x1b[2m"; }
+PUBLIC const u8 *get_red(void) { return no_color() ? "" : "\x1b[31m"; }
+PUBLIC const u8 *get_bright_red(void) { return no_color() ? "" : "\x1b[91m"; }
+PUBLIC const u8 *get_green(void) { return no_color() ? "" : "\x1b[32m"; }
+PUBLIC const u8 *get_yellow(void) { return no_color() ? "" : "\x1b[33m"; }
+PUBLIC const u8 *get_cyan(void) { return no_color() ? "" : "\x1b[36m"; }
+PUBLIC const u8 *get_magenta(void) { return no_color() ? "" : "\x1b[35m"; }
+PUBLIC const u8 *get_blue(void) { return no_color() ? "" : "\x1b[34m"; }
+PUBLIC const u8 *get_reset(void) { return no_color() ? "" : "\x1b[0m"; }
