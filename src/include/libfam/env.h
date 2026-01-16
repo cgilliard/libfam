@@ -23,40 +23,23 @@
  *
  *******************************************************************************/
 
-#ifndef _DEBUG_H
-#define _DEBUG_H
+#ifndef _ENV_H
+#define _ENV_H
 
 #include <libfam/types.h>
 
-extern bool _debug_no_exit;
+char *getenv(const char *name);
+i32 init_environ(u8 **envp);
 
-#if TEST == 1
-extern bool _debug_no_write;
-extern bool _debug_fail_getsockbyname;
-extern bool _debug_fail_pipe2;
-extern bool _debug_fail_listen;
-extern bool _debug_fail_setsockopt;
-extern bool _debug_fail_fcntl;
-extern bool _debug_fail_epoll_create1;
-extern bool _debug_fail_clone;
-extern bool _debug_bible_invalid_hash;
-extern bool _debug_alloc_failure;
-extern bool _debug_no_aesni;
-extern bool _debug_fail_fstat;
-extern bool _debug_fork_fail;
-extern bool _debug_compress_fail;
-extern bool _debug_fail_io_uring_setup;
-extern bool _debug_pwrite_0;
-extern i64 _debug_pwrite_fail;
-extern i64 _debug_pread_fail;
-extern i64 _debug_alloc_count;
-extern u64 heap_bytes;
+#define IS_VALGRIND()                           \
+	({                                      \
+		bool _ret__;                    \
+		u8 *_vg__ = getenv("VALGRIND"); \
+		if (_vg__ && _vg__[0] == '1')   \
+			_ret__ = true;          \
+		else                            \
+			_ret__ = false;         \
+		_ret__;                         \
+	})
 
-u64 get_heap_bytes(void);
-void heap_bytes_reset(void);
-u64 get_open_fds(void);
-void open_fds_reset(void);
-#endif /* TEST */
-
-#endif /* _DEBUG_H */
-
+#endif /* _ENV_H */

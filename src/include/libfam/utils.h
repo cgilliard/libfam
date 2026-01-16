@@ -62,4 +62,10 @@
 #define offsetof(type, member) ((u64) & (((type *)0)->member))
 #endif
 
+#define RETURN_ERR(v)      \
+	do {               \
+		errno = v; \
+		return -1; \
+	} while (0);
+
 #endif /* _UTILS_H */

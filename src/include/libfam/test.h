@@ -38,7 +38,7 @@
 			println("{}{}{}: [{}]. '{}'", BRIGHT_RED,              \
 				__assertion_msg, RESET, active[exe_test].name, \
 				format_to_string(&fmt));                       \
-			_exit(-1);                                             \
+			exit_group(-1);                                             \
 		}                                                              \
 	})
 
@@ -51,7 +51,7 @@
 			println("{}{}{}: [{}]. '{}'", BRIGHT_RED,              \
 				__assertion_msg, RESET, active[exe_test].name, \
 				format_to_string(&fmt));                       \
-			_exit(-1);                                             \
+			exit_group(-1);                                             \
 		}                                                              \
 	})
 

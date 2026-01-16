@@ -23,40 +23,36 @@
  *
  *******************************************************************************/
 
-#ifndef _DEBUG_H
-#define _DEBUG_H
+#ifndef _COLORS_H
+#define _COLORS_H
 
 #include <libfam/types.h>
 
-extern bool _debug_no_exit;
+const u8 *get_dimmed(void);
+#define DIMMED get_dimmed()
 
-#if TEST == 1
-extern bool _debug_no_write;
-extern bool _debug_fail_getsockbyname;
-extern bool _debug_fail_pipe2;
-extern bool _debug_fail_listen;
-extern bool _debug_fail_setsockopt;
-extern bool _debug_fail_fcntl;
-extern bool _debug_fail_epoll_create1;
-extern bool _debug_fail_clone;
-extern bool _debug_bible_invalid_hash;
-extern bool _debug_alloc_failure;
-extern bool _debug_no_aesni;
-extern bool _debug_fail_fstat;
-extern bool _debug_fork_fail;
-extern bool _debug_compress_fail;
-extern bool _debug_fail_io_uring_setup;
-extern bool _debug_pwrite_0;
-extern i64 _debug_pwrite_fail;
-extern i64 _debug_pread_fail;
-extern i64 _debug_alloc_count;
-extern u64 heap_bytes;
+const u8 *get_red(void);
+#define RED get_red()
 
-u64 get_heap_bytes(void);
-void heap_bytes_reset(void);
-u64 get_open_fds(void);
-void open_fds_reset(void);
-#endif /* TEST */
+const u8 *get_bright_red(void);
+#define BRIGHT_RED get_bright_red()
 
-#endif /* _DEBUG_H */
+const u8 *get_green(void);
+#define GREEN get_green()
 
+const u8 *get_yellow(void);
+#define YELLOW get_yellow()
+
+const u8 *get_cyan(void);
+#define CYAN get_cyan()
+
+const u8 *get_magenta(void);
+#define MAGENTA get_magenta()
+
+const u8 *get_blue(void);
+#define BLUE get_blue()
+
+const u8 *get_reset(void);
+#define RESET get_reset()
+
+#endif /* _COLORS_H */

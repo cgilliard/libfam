@@ -23,40 +23,19 @@
  *
  *******************************************************************************/
 
-#ifndef _DEBUG_H
-#define _DEBUG_H
-
 #include <libfam/types.h>
+#include <libfam/utils.h>
 
-extern bool _debug_no_exit;
-
-#if TEST == 1
-extern bool _debug_no_write;
-extern bool _debug_fail_getsockbyname;
-extern bool _debug_fail_pipe2;
-extern bool _debug_fail_listen;
-extern bool _debug_fail_setsockopt;
-extern bool _debug_fail_fcntl;
-extern bool _debug_fail_epoll_create1;
-extern bool _debug_fail_clone;
-extern bool _debug_bible_invalid_hash;
-extern bool _debug_alloc_failure;
-extern bool _debug_no_aesni;
-extern bool _debug_fail_fstat;
-extern bool _debug_fork_fail;
-extern bool _debug_compress_fail;
-extern bool _debug_fail_io_uring_setup;
-extern bool _debug_pwrite_0;
-extern i64 _debug_pwrite_fail;
-extern i64 _debug_pread_fail;
-extern i64 _debug_alloc_count;
-extern u64 heap_bytes;
-
-u64 get_heap_bytes(void);
-void heap_bytes_reset(void);
-u64 get_open_fds(void);
-void open_fds_reset(void);
-#endif /* TEST */
-
-#endif /* _DEBUG_H */
-
+STATIC_ASSERT(sizeof(u8) == 1, u8_sizes_match);
+STATIC_ASSERT(sizeof(i8) == 1, i8_sizes_match);
+STATIC_ASSERT(sizeof(u16) == 2, u16_sizes_match);
+STATIC_ASSERT(sizeof(i16) == 2, i16_sizes_match);
+STATIC_ASSERT(sizeof(u32) == 4, u32_sizes_match);
+STATIC_ASSERT(sizeof(i32) == 4, i32_sizes_match);
+STATIC_ASSERT(sizeof(u64) == 8, u64_sizes_match);
+STATIC_ASSERT(sizeof(i64) == 8, i64_sizes_match);
+STATIC_ASSERT(sizeof(u128) == 16, u128_sizes_match);
+STATIC_ASSERT(sizeof(i128) == 16, i128_sizes_match);
+STATIC_ASSERT(sizeof(f64) == 8, f64_sizes_match);
+STATIC_ASSERT(sizeof(void *) == 8, os_64_bit);
+STATIC_ASSERT(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, little_endian);

@@ -26,3 +26,13 @@
 #include <libfam/debug.h>
 
 bool _debug_no_exit = false;
+
+#if TEST == 1
+u64 heap_bytes;
+u64 open_fds;
+u64 get_heap_bytes(void) { return heap_bytes; }
+void heap_bytes_reset(void) { heap_bytes = 0; }
+u64 get_open_fds(void) { return open_fds; }
+void open_fds_reset(void) { open_fds = 0; }
+#endif /* TEST */
+

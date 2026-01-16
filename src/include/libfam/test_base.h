@@ -77,7 +77,7 @@ extern TestEntry *active;
 			_v = pwrite(2, "]. '", 4, 0);                          \
 			_v = pwrite(2, msg, faststrlen(msg), 0);               \
 			_v = pwrite(2, "'\n", 2, 0);                           \
-			_exit(-1);                                             \
+			exit_group(-1);                                             \
 		}                                                              \
 	} while (0);
 
@@ -95,7 +95,7 @@ extern TestEntry *active;
 			_v = pwrite(2, "]. '", 4, 0);                          \
 			_v = pwrite(2, msg, faststrlen(msg), 0);               \
 			_v = pwrite(2, "'\n", 2, 0);                           \
-			_exit(-1);                                             \
+			exit_group(-1);                                             \
 		}                                                              \
 	} while (0);
 
