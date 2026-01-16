@@ -148,22 +148,22 @@ PUBLIC void _exit(i32 status){
 
 i32 getpid(void) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_getpid, 0, 0, 0, 0, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 i32 kill(i32 pid, i32 signal) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_kill, (i64)pid, (i64)signal, 0, 0, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset) {
@@ -188,108 +188,109 @@ void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset) {
 
 i32 munmap(void *addr, u64 len) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_munmap, (i64)addr, (i64)len, 0, 0, 0, 0);
-	if (v < 0) ERROR(-v);
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+
 #if TEST == 1
 	__asub64(&heap_bytes, (len + PAGE_SIZE - 1) & PAGE_MASK);
 #endif /* TEST */
 
-	OK(v);
-CLEANUP:
-	RETURN;
+	return v;
 }
 
 i32 clone(i64 flags, void *sp) {
 	i32 v;
-INIT:
 
 #if TEST == 1
 	if (_debug_fail_clone) return -1;
 #endif
 
 	v = (i32)raw_syscall(SYS_clone, flags, (i64)sp, 0, 0, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
 		 struct rt_sigaction *oldact, u64 sigsetsize) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_rt_sigaction, (i64)signum, (i64)act,
 			     (i64)oldact, (i64)sigsetsize, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 i32 io_uring_setup(u32 entries, struct io_uring_params *params) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_io_uring_setup, (i64)entries, (i64)params, 0,
 			     0, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 i32 io_uring_enter2(u32 fd, u32 to_submit, u32 min_complete, u32 flags,
 		    void *arg, u64 sz) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_io_uring_enter, (i64)fd, (i64)to_submit,
 			     (i64)min_complete, (i64)flags, (i64)arg, (i64)sz);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 i32 io_uring_register(u32 fd, u32 opcode, void *arg, u32 nr_args) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_io_uring_register, (i64)fd, (i64)opcode,
 			     (i64)arg, (i64)nr_args, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 i32 waitid(i32 idtype, i32 id, void *infop, i32 options) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_waitid, idtype, (i64)id, (i64)infop,
 			     (i64)options, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 i32 clock_gettime(i32 clockid, struct timespec *tp) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_clock_gettime, (i64)clockid, (i64)tp, 0, 0, 0,
 			     0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 i32 nanosleep(const struct timespec *duration, struct timespec *rem) {
 	i32 v;
-INIT:
 	v = raw_syscall(SYS_nanosleep, (i64)duration, (i64)rem, 0, 0, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 PUBLIC i32 fstat(i32 fd, struct stat *buf) {
@@ -297,12 +298,12 @@ PUBLIC i32 fstat(i32 fd, struct stat *buf) {
 #if TEST == 1
 	if (_debug_fail_fstat) return -1;
 #endif /* TEST */
-INIT:
 	v = (i32)raw_syscall(SYS_fstat, (i64)fd, (i64)buf, 0, 0, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 #ifdef __aarch64__
@@ -333,33 +334,33 @@ PUBLIC __attribute__((naked)) void restorer(void) { SYSCALL_RESTORER; }
 
 i32 unlinkat(i32 dfd, const char *path, i32 flags) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_unlinkat, (i64)dfd, (i64)path, (i64)flags, 0,
 			     0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 PUBLIC i32 fchmod(i32 fd, u32 mode) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_fchmod, (i64)fd, (i64)mode, 0, 0, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }
 
 PUBLIC i32 utimesat(i32 dirfd, const u8 *pathname, const struct timeval *times,
 		    i32 flags) {
 	i32 v;
-INIT:
 	v = (i32)raw_syscall(SYS_utimesat, (i64)dirfd, (i64)pathname,
 			     (i64)times, (i64)flags, 0, 0);
-	if (v < 0) ERROR(-v);
-	OK(v);
-CLEANUP:
-	RETURN;
+	if (v < 0) {
+		errno = -v;
+		return -1;
+	}
+	return v;
 }

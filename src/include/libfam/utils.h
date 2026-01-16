@@ -28,33 +28,7 @@
 
 #include <libfam/errno.h>
 
-#define STDERR_FD 2
-#define STDOUT_FD 1
-
-#ifndef COVERAGE
-#define INLINE __attribute__((always_inline)) __inline
-#else
-#define INLINE
-#endif
 #define PUBLIC __attribute__((visibility("default")))
-
-#define INIT             \
-	i64 _ret__ = -1; \
-	(void)_ret__;    \
-	_init__
-#define CLEANUP                     \
-	if (false) goto _init__;    \
-	if (false) goto _cleanup__; \
-	_ret__ = 0;                 \
-	_cleanup__
-#define RETURN return _ret__
-#define ERROR(...) ({ __VA_OPT__(errno = __VA_ARGS__;) goto _cleanup__; })
-#define OK(v)                    \
-	({                       \
-		_ret__ = (v);    \
-		goto _cleanup__; \
-	})
-#define IS_OK (_ret__ >= 0)
 
 #define STATIC_ASSERT(condition, message) \
 	typedef u8 static_assert_##message[(condition) ? 1 : -1]

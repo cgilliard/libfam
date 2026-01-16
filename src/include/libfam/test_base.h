@@ -63,42 +63,40 @@ extern TestEntry *active;
 	}                                                                   \
 	void __bench_##name(void)
 
-#define ASSERT_EQ(x, y, msg)                                                 \
-	do {                                                                 \
-		if ((x) != (y)) {                                            \
-			i32 __attribute((unused)) _v;                        \
-			_v = pwrite(STDERR_FD, BRIGHT_RED,                   \
-				    faststrlen(BRIGHT_RED), 0);              \
-			_v = pwrite(STDERR_FD, __assertion_msg,              \
-				    faststrlen(__assertion_msg), 0);         \
-			_v = pwrite(STDERR_FD, RESET, faststrlen(RESET), 0); \
-			_v = pwrite(STDERR_FD, ": [", 3, 0);                 \
-			_v = pwrite(STDERR_FD, active[exe_test].name,        \
-				    faststrlen(active[exe_test].name), 0);   \
-			_v = pwrite(STDERR_FD, "]. '", 4, 0);                \
-			_v = pwrite(STDERR_FD, msg, faststrlen(msg), 0);     \
-			_v = pwrite(STDERR_FD, "'\n", 2, 0);                 \
-			_exit(-1);                                           \
-		}                                                            \
+#define ASSERT_EQ(x, y, msg)                                                   \
+	do {                                                                   \
+		if ((x) != (y)) {                                              \
+			i32 __attribute((unused)) _v;                          \
+			_v = pwrite(2, BRIGHT_RED, faststrlen(BRIGHT_RED), 0); \
+			_v = pwrite(2, __assertion_msg,                        \
+				    faststrlen(__assertion_msg), 0);           \
+			_v = pwrite(2, RESET, faststrlen(RESET), 0);           \
+			_v = pwrite(2, ": [", 3, 0);                           \
+			_v = pwrite(2, active[exe_test].name,                  \
+				    faststrlen(active[exe_test].name), 0);     \
+			_v = pwrite(2, "]. '", 4, 0);                          \
+			_v = pwrite(2, msg, faststrlen(msg), 0);               \
+			_v = pwrite(2, "'\n", 2, 0);                           \
+			_exit(-1);                                             \
+		}                                                              \
 	} while (0);
 
-#define ASSERT(x, msg)                                                       \
-	do {                                                                 \
-		if (!(x)) {                                                  \
-			i32 __attribute((unused)) _v;                        \
-			_v = pwrite(STDERR_FD, BRIGHT_RED,                   \
-				    faststrlen(BRIGHT_RED), 0);              \
-			_v = pwrite(STDERR_FD, __assertion_msg,              \
-				    faststrlen(__assertion_msg), 0);         \
-			_v = pwrite(STDERR_FD, RESET, faststrlen(RESET), 0); \
-			_v = pwrite(STDERR_FD, ": [", 3, 0);                 \
-			_v = pwrite(STDERR_FD, active[exe_test].name,        \
-				    faststrlen(active[exe_test].name), 0);   \
-			_v = pwrite(STDERR_FD, "]. '", 4, 0);                \
-			_v = pwrite(STDERR_FD, msg, faststrlen(msg), 0);     \
-			_v = pwrite(STDERR_FD, "'\n", 2, 0);                 \
-			_exit(-1);                                           \
-		}                                                            \
+#define ASSERT(x, msg)                                                         \
+	do {                                                                   \
+		if (!(x)) {                                                    \
+			i32 __attribute((unused)) _v;                          \
+			_v = pwrite(2, BRIGHT_RED, faststrlen(BRIGHT_RED), 0); \
+			_v = pwrite(2, __assertion_msg,                        \
+				    faststrlen(__assertion_msg), 0);           \
+			_v = pwrite(2, RESET, faststrlen(RESET), 0);           \
+			_v = pwrite(2, ": [", 3, 0);                           \
+			_v = pwrite(2, active[exe_test].name,                  \
+				    faststrlen(active[exe_test].name), 0);     \
+			_v = pwrite(2, "]. '", 4, 0);                          \
+			_v = pwrite(2, msg, faststrlen(msg), 0);               \
+			_v = pwrite(2, "'\n", 2, 0);                           \
+			_exit(-1);                                             \
+		}                                                              \
 	} while (0);
 
 #ifdef COVERAGE

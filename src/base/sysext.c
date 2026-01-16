@@ -202,8 +202,10 @@ PUBLIC i64 write_num(i32 fd, u64 num) {
 	u8 *p;
 	u64 len;
 	i64 written;
-INIT:
-	if (fd < 0) ERROR(EBADF);
+	if (fd < 0) {
+		errno = EBADF;
+		return -1;
+	}
 
 	p = buf + sizeof(buf) - 1;
 	*p = '\0';
@@ -218,10 +220,12 @@ INIT:
 
 	len = buf + sizeof(buf) - 1 - p;
 	written = pwrite(fd, p, len, 0);
-	if (written < 0) ERROR();
-	if ((u64)written != len) ERROR(EIO);
-CLEANUP:
-	RETURN;
+	if (written < 0) return -1;
+	if ((u64)written != len) {
+		errno = EIO;
+		return -1;
+	}
+	return 0;
 }
 
 void yield(void) {

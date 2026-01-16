@@ -53,15 +53,17 @@ struct IoUring {
 
 i32 iouring_init(IoUring **res, u32 queue_depth) {
 	IoUring *iou = NULL;
-INIT:
 	iou = mmap(NULL, sizeof(IoUring), PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (iou == MAP_FAILED) ERROR();
+	if (iou == MAP_FAILED) return -1;
 	(iou)->sq_ring = NULL;
 	(iou)->cq_ring = NULL;
 	(iou)->sqes = NULL;
 	(iou)->ring_fd = io_uring_setup(queue_depth, &(iou)->params);
-	if ((iou)->ring_fd < 0) ERROR();
+	if ((iou)->ring_fd < 0) {
+		iouring_destroy(iou);
+		return -1;
+	}
 
 	(iou)->sq_ring_size =
 	    (iou)->params.sq_off.array + (iou)->params.sq_entries * sizeof(u32);
@@ -72,13 +74,22 @@ INIT:
 	    (iou)->params.sq_entries * sizeof(struct io_uring_sqe);
 	(iou)->sq_ring = mmap(NULL, (iou)->sq_ring_size, PROT_READ | PROT_WRITE,
 			      MAP_SHARED, (iou)->ring_fd, IORING_OFF_SQ_RING);
-	if ((iou)->sq_ring == MAP_FAILED) ERROR();
+	if ((iou)->sq_ring == MAP_FAILED) {
+		iouring_destroy(iou);
+		return -1;
+	}
 	(iou)->cq_ring = mmap(NULL, (iou)->cq_ring_size, PROT_READ | PROT_WRITE,
 			      MAP_SHARED, (iou)->ring_fd, IORING_OFF_CQ_RING);
-	if ((iou)->cq_ring == MAP_FAILED) ERROR();
+	if ((iou)->cq_ring == MAP_FAILED) {
+		iouring_destroy(iou);
+		return -1;
+	}
 	(iou)->sqes = mmap(NULL, (iou)->sqes_size, PROT_READ | PROT_WRITE,
 			   MAP_SHARED, (iou)->ring_fd, IORING_OFF_SQES);
-	if ((iou)->sqes == MAP_FAILED) ERROR();
+	if ((iou)->sqes == MAP_FAILED) {
+		iouring_destroy(iou);
+		return -1;
+	}
 
 	(iou)->sq_tail = (u32 *)((iou)->sq_ring + (iou)->params.sq_off.tail);
 	(iou)->sq_array = (u32 *)((iou)->sq_ring + (iou)->params.sq_off.array);
@@ -95,9 +106,7 @@ INIT:
 	(iou)->queue_depth = queue_depth;
 
 	*res = iou;
-CLEANUP:
-	if (!IS_OK) iouring_destroy(iou);
-	RETURN;
+	return 0;
 }
 
 struct io_uring_sqe *iouring_get_sqe(IoUring *iou) {

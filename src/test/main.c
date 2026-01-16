@@ -52,12 +52,12 @@ TestEntry *active;
 void add_test_fn(void (*test_fn)(void), const u8 *name) {
 	if (faststrlen((void *)name) > MAX_TEST_NAME) {
 		const u8 *msg = (void *)"test name too long!\n";
-		pwrite(STDERR_FD, msg, faststrlen((void *)msg), 0);
+		pwrite(2, msg, faststrlen((void *)msg), 0);
 		_exit(-1);
 	}
 	if (cur_tests >= MAX_TESTS) {
 		const u8 *msg = (void *)"too many tests!";
-		pwrite(STDERR_FD, msg, faststrlen((void *)msg), 0);
+		pwrite(2, msg, faststrlen((void *)msg), 0);
 		_exit(-1);
 	}
 	tests[cur_tests].test_fn = test_fn;
@@ -69,12 +69,12 @@ void add_test_fn(void (*test_fn)(void), const u8 *name) {
 void add_bench_fn(void (*test_fn)(void), const u8 *name) {
 	if (faststrlen((void *)name) > MAX_TEST_NAME) {
 		const u8 *msg = (void *)"bench name too long!\n";
-		pwrite(STDERR_FD, msg, faststrlen((void *)msg), 0);
+		pwrite(2, msg, faststrlen((void *)msg), 0);
 		_exit(-1);
 	}
 	if (cur_tests >= MAX_TESTS) {
 		const u8 *msg = (void *)"too many benches!";
-		pwrite(STDERR_FD, msg, faststrlen((void *)msg), 0);
+		pwrite(2, msg, faststrlen((void *)msg), 0);
 		_exit(-1);
 	}
 	benches[cur_benches].test_fn = test_fn;
@@ -130,32 +130,30 @@ i32 run_tests(u8 **envp) {
 	if (init_environ(envp) < 0) {
 		perror("init_environ");
 		const u8 *msg = (void *)"Too many environment variables!\n";
-		pwrite(STDERR_FD, msg, faststrlen((void *)msg), 0);
+		pwrite(2, msg, faststrlen((void *)msg), 0);
 		_exit(-1);
 	}
 
 	pattern = (void *)getenv("TEST_PATTERN");
 
-	pwrite(STDERR_FD, (void *)CYAN, faststrlen((void *)CYAN), 0);
+	pwrite(2, (void *)CYAN, faststrlen((void *)CYAN), 0);
 	if (!pattern || !strcmp((void *)pattern, (void *)"*")) {
-		pwrite(STDERR_FD, (void *)"Running ",
-		       faststrlen((void *)"Running "), 0);
-		write_num(STDERR_FD, cur_tests);
-		pwrite(STDERR_FD, (void *)" tests",
-		       faststrlen((void *)" tests"), 0);
-		pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
-		pwrite(STDERR_FD, (void *)"...\n", 4, 0);
-	} else {
-		pwrite(STDERR_FD, (void *)"Running test",
-		       faststrlen((void *)"Running test"), 0);
-		pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
-		pwrite(STDERR_FD, (void *)": '", 3, 0);
-		pwrite(STDERR_FD, (void *)pattern, faststrlen((void *)pattern),
+		pwrite(2, (void *)"Running ", faststrlen((void *)"Running "),
 		       0);
-		pwrite(STDERR_FD, "' ...\n", 6, 0);
+		write_num(2, cur_tests);
+		pwrite(2, (void *)" tests", faststrlen((void *)" tests"), 0);
+		pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+		pwrite(2, (void *)"...\n", 4, 0);
+	} else {
+		pwrite(2, (void *)"Running test",
+		       faststrlen((void *)"Running test"), 0);
+		pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+		pwrite(2, (void *)": '", 3, 0);
+		pwrite(2, (void *)pattern, faststrlen((void *)pattern), 0);
+		pwrite(2, "' ...\n", 6, 0);
 	}
 
-	pwrite(STDERR_FD, (void *)SPACER, faststrlen((void *)SPACER), 0);
+	pwrite(2, (void *)SPACER, faststrlen((void *)SPACER), 0);
 
 	total = micros();
 	heap_bytes_reset();
@@ -164,35 +162,30 @@ i32 run_tests(u8 **envp) {
 		if (!pattern || !strcmp((void *)pattern, (void *)"*") ||
 		    !strcmp((void *)pattern, (void *)tests[exe_test].name)) {
 			i64 start = micros();
-			pwrite(STDERR_FD, (void *)YELLOW,
-			       faststrlen((void *)YELLOW), 0);
-			pwrite(STDERR_FD, (void *)"Running test",
+			pwrite(2, (void *)YELLOW, faststrlen((void *)YELLOW),
+			       0);
+			pwrite(2, (void *)"Running test",
 			       faststrlen((void *)"Running test"), 0);
-			pwrite(STDERR_FD, (void *)RESET,
-			       faststrlen((void *)RESET), 0);
-			pwrite(STDERR_FD, (void *)" ", 1, 0);
-			write_num(STDERR_FD, ++test_count);
-			pwrite(STDERR_FD, " [", 2, 0);
-			pwrite(STDERR_FD, (void *)DIMMED,
-			       faststrlen((void *)DIMMED), 0);
-			pwrite(STDERR_FD, tests[exe_test].name,
+			pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+			pwrite(2, (void *)" ", 1, 0);
+			write_num(2, ++test_count);
+			pwrite(2, " [", 2, 0);
+			pwrite(2, (void *)DIMMED, faststrlen((void *)DIMMED),
+			       0);
+			pwrite(2, tests[exe_test].name,
 			       faststrlen((void *)tests[exe_test].name), 0);
-			pwrite(STDERR_FD, (void *)RESET,
-			       faststrlen((void *)RESET), 0);
+			pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
 
-			pwrite(STDERR_FD, (void *)"] ", 2, 0);
+			pwrite(2, (void *)"] ", 2, 0);
 
 			tests[exe_test].test_fn();
 
-			pwrite(STDERR_FD, (void *)GREEN,
-			       faststrlen((void *)GREEN), 0);
-			pwrite(STDERR_FD, "[", 1, 0);
-			write_num(STDERR_FD, (i64)(micros() - start));
-			pwrite(STDERR_FD, (void *)"µs",
-			       faststrlen((void *)"µs"), 0);
-			pwrite(STDERR_FD, "]\n", 2, 0);
-			pwrite(STDERR_FD, (void *)RESET,
-			       faststrlen((void *)RESET), 0);
+			pwrite(2, (void *)GREEN, faststrlen((void *)GREEN), 0);
+			pwrite(2, "[", 1, 0);
+			write_num(2, (i64)(micros() - start));
+			pwrite(2, (void *)"µs", faststrlen((void *)"µs"), 0);
+			pwrite(2, "]\n", 2, 0);
+			pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
 		}
 		ASSERT_BYTES(0);
 		ASSERT_OPEN_FDS(0);
@@ -202,23 +195,23 @@ i32 run_tests(u8 **envp) {
 	len = f64_to_string(buf, ms, 3, false);
 	buf[len] = 0;
 
-	pwrite(STDERR_FD, (void *)SPACER, faststrlen((void *)SPACER), 0);
+	pwrite(2, (void *)SPACER, faststrlen((void *)SPACER), 0);
 
-	pwrite(STDERR_FD, (void *)GREEN, faststrlen((void *)GREEN), 0);
-	pwrite(STDERR_FD, (void *)"Success", faststrlen((void *)"Success"), 0);
-	pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
-	pwrite(STDERR_FD, (void *)"! ", 2, 0);
-	write_num(STDERR_FD, test_count);
-	pwrite(STDERR_FD, (void *)" ", 1, 0);
-	pwrite(STDERR_FD, (void *)CYAN, faststrlen((void *)CYAN), 0);
-	pwrite(STDERR_FD, (void *)"tests passed!",
-	       faststrlen((void *)"tests passed!"), 0);
-	pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
-	pwrite(STDERR_FD, (void *)GREEN, faststrlen((void *)GREEN), 0);
-	pwrite(STDERR_FD, " [", 2, 0);
-	pwrite(STDERR_FD, (void *)buf, faststrlen((void *)buf), 0);
-	pwrite(STDERR_FD, " ms]\n", 5, 0);
-	pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
+	pwrite(2, (void *)GREEN, faststrlen((void *)GREEN), 0);
+	pwrite(2, (void *)"Success", faststrlen((void *)"Success"), 0);
+	pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+	pwrite(2, (void *)"! ", 2, 0);
+	write_num(2, test_count);
+	pwrite(2, (void *)" ", 1, 0);
+	pwrite(2, (void *)CYAN, faststrlen((void *)CYAN), 0);
+	pwrite(2, (void *)"tests passed!", faststrlen((void *)"tests passed!"),
+	       0);
+	pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+	pwrite(2, (void *)GREEN, faststrlen((void *)GREEN), 0);
+	pwrite(2, " [", 2, 0);
+	pwrite(2, (void *)buf, faststrlen((void *)buf), 0);
+	pwrite(2, " ms]\n", 5, 0);
+	pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
 
 	return 0;
 }
@@ -232,32 +225,31 @@ i32 run_benches(u8 **envp) {
 	if (init_environ(envp) < 0) {
 		perror("init_environ");
 		const u8 *msg = (void *)"Too many environment variables!\n";
-		pwrite(STDERR_FD, msg, faststrlen((void *)msg), 0);
+		pwrite(2, msg, faststrlen((void *)msg), 0);
 		_exit(-1);
 	}
 
 	pattern = (void *)getenv("TEST_PATTERN");
 
-	pwrite(STDERR_FD, (void *)CYAN, faststrlen((void *)CYAN), 0);
+	pwrite(2, (void *)CYAN, faststrlen((void *)CYAN), 0);
 	if (!pattern || !strcmp((void *)pattern, (void *)"*")) {
-		pwrite(STDERR_FD, (void *)"Running ",
-		       faststrlen((void *)"Running "), 0);
-		write_num(STDERR_FD, cur_benches);
-		pwrite(STDERR_FD, (void *)" benches",
-		       faststrlen((void *)" benches"), 0);
-		pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
-		pwrite(STDERR_FD, (void *)"...\n", 4, 0);
-	} else {
-		pwrite(STDERR_FD, (void *)"Running bench",
-		       faststrlen((void *)"Running bench"), 0);
-		pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
-		pwrite(STDERR_FD, (void *)": '", 3, 0);
-		pwrite(STDERR_FD, (void *)pattern, faststrlen((void *)pattern),
+		pwrite(2, (void *)"Running ", faststrlen((void *)"Running "),
 		       0);
-		pwrite(STDERR_FD, "' ...\n", 6, 0);
+		write_num(2, cur_benches);
+		pwrite(2, (void *)" benches", faststrlen((void *)" benches"),
+		       0);
+		pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+		pwrite(2, (void *)"...\n", 4, 0);
+	} else {
+		pwrite(2, (void *)"Running bench",
+		       faststrlen((void *)"Running bench"), 0);
+		pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+		pwrite(2, (void *)": '", 3, 0);
+		pwrite(2, (void *)pattern, faststrlen((void *)pattern), 0);
+		pwrite(2, "' ...\n", 6, 0);
 	}
 
-	pwrite(STDERR_FD, (void *)SPACER, faststrlen((void *)SPACER), 0);
+	pwrite(2, (void *)SPACER, faststrlen((void *)SPACER), 0);
 
 	heap_bytes_reset();
 	total = micros();
@@ -265,23 +257,21 @@ i32 run_benches(u8 **envp) {
 	for (exe_test = 0; exe_test < cur_benches; exe_test++) {
 		if (!pattern || !strcmp((void *)pattern, (void *)"*") ||
 		    !strcmp((void *)pattern, (void *)benches[exe_test].name)) {
-			pwrite(STDERR_FD, (void *)YELLOW,
-			       faststrlen((void *)YELLOW), 0);
-			pwrite(STDERR_FD, (void *)"Running bench",
+			pwrite(2, (void *)YELLOW, faststrlen((void *)YELLOW),
+			       0);
+			pwrite(2, (void *)"Running bench",
 			       faststrlen((void *)"Running bench"), 0);
-			pwrite(STDERR_FD, (void *)RESET,
-			       faststrlen((void *)RESET), 0);
-			pwrite(STDERR_FD, (void *)" ", 1, 0);
-			write_num(STDERR_FD, ++bench_count);
-			pwrite(STDERR_FD, " [", 2, 0);
-			pwrite(STDERR_FD, (void *)DIMMED,
-			       faststrlen((void *)DIMMED), 0);
-			pwrite(STDERR_FD, benches[exe_test].name,
+			pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+			pwrite(2, (void *)" ", 1, 0);
+			write_num(2, ++bench_count);
+			pwrite(2, " [", 2, 0);
+			pwrite(2, (void *)DIMMED, faststrlen((void *)DIMMED),
+			       0);
+			pwrite(2, benches[exe_test].name,
 			       faststrlen((void *)benches[exe_test].name), 0);
-			pwrite(STDERR_FD, (void *)RESET,
-			       faststrlen((void *)RESET), 0);
+			pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
 
-			pwrite(STDERR_FD, (void *)"] ", 2, 0);
+			pwrite(2, (void *)"] ", 2, 0);
 
 			benches[exe_test].test_fn();
 		}
@@ -293,23 +283,23 @@ i32 run_benches(u8 **envp) {
 	len = f64_to_string(buf, ms, 3, false);
 	buf[len] = 0;
 
-	pwrite(STDERR_FD, (void *)SPACER, faststrlen((void *)SPACER), 0);
+	pwrite(2, (void *)SPACER, faststrlen((void *)SPACER), 0);
 
-	pwrite(STDERR_FD, (void *)GREEN, faststrlen((void *)GREEN), 0);
-	pwrite(STDERR_FD, (void *)"Success", faststrlen((void *)"Success"), 0);
-	pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
-	pwrite(STDERR_FD, (void *)"! ", 2, 0);
-	write_num(STDERR_FD, bench_count);
-	pwrite(STDERR_FD, (void *)" ", 1, 0);
-	pwrite(STDERR_FD, (void *)CYAN, faststrlen((void *)CYAN), 0);
-	pwrite(STDERR_FD, (void *)"benches passed!",
+	pwrite(2, (void *)GREEN, faststrlen((void *)GREEN), 0);
+	pwrite(2, (void *)"Success", faststrlen((void *)"Success"), 0);
+	pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+	pwrite(2, (void *)"! ", 2, 0);
+	write_num(2, bench_count);
+	pwrite(2, (void *)" ", 1, 0);
+	pwrite(2, (void *)CYAN, faststrlen((void *)CYAN), 0);
+	pwrite(2, (void *)"benches passed!",
 	       faststrlen((void *)"benches passed!"), 0);
-	pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
-	pwrite(STDERR_FD, (void *)GREEN, faststrlen((void *)GREEN), 0);
-	pwrite(STDERR_FD, " [", 2, 0);
-	pwrite(STDERR_FD, (void *)buf, faststrlen((void *)buf), 0);
-	pwrite(STDERR_FD, " ms]\n", 5, 0);
-	pwrite(STDERR_FD, (void *)RESET, faststrlen((void *)RESET), 0);
+	pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
+	pwrite(2, (void *)GREEN, faststrlen((void *)GREEN), 0);
+	pwrite(2, " [", 2, 0);
+	pwrite(2, (void *)buf, faststrlen((void *)buf), 0);
+	pwrite(2, " ms]\n", 5, 0);
+	pwrite(2, (void *)RESET, faststrlen((void *)RESET), 0);
 
 	return 0;
 }

@@ -89,7 +89,6 @@ char *getenv(const char *name) {
 
 i32 init_environ(u8 **envp) {
 	i32 i;
-INIT:
 	for (i = 0; envp && i < MAX_ENV_VARS && envp[i]; i++) {
 		u8 *itt = envp[i];
 		i32 res;
@@ -99,10 +98,15 @@ INIT:
 		__env_values[i].value = itt;
 		res = rbtree_put(&__env_tree, (RbTreeNode *)&__env_values[i],
 				 env_rbtree_search);
-		if (res < 0) ERROR(EDUPLICATE);
+		if (res < 0) {
+			errno = EDUPLICATE;
+			return -1;
+		}
 	}
-	if (i == MAX_ENV_VARS && envp[i]) ERROR(EOVERFLOW);
+	if (i == MAX_ENV_VARS && envp[i]) {
+		errno = EOVERFLOW;
+		return -1;
+	}
 	environ = envp;
-CLEANUP:
-	RETURN;
+	return 0;
 }

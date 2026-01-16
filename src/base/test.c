@@ -378,10 +378,10 @@ Test(string_chr_cat) {
 Test(colors) {
 	i32 __attribute__((unused)) _v;
 	_debug_no_write = true;
-	_v = pwrite(STDERR_FD, RED, strlen(RED), 0);
-	_v = pwrite(STDERR_FD, BRIGHT_RED, strlen(BRIGHT_RED), 0);
-	_v = pwrite(STDERR_FD, MAGENTA, strlen(MAGENTA), 0);
-	_v = pwrite(STDERR_FD, BLUE, strlen(BLUE), 0);
+	_v = pwrite(2, RED, strlen(RED), 0);
+	_v = pwrite(2, BRIGHT_RED, strlen(BRIGHT_RED), 0);
+	_v = pwrite(2, MAGENTA, strlen(MAGENTA), 0);
+	_v = pwrite(2, BLUE, strlen(BLUE), 0);
 	_debug_no_write = false;
 }
 

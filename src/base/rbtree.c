@@ -131,9 +131,9 @@ STATIC void rbtree_insert_fixup(RbTree *tree, RbTreeNode *k) {
 
 STATIC i32 rbtree_put_impl(RbTree *tree, RbTreeNodePair *pair,
 			   RbTreeNode *value) {
-INIT:
 	if (pair->self) {
-		ERROR(EDUPLICATE);
+		errno = EDUPLICATE;
+		return -1;
 	} else {
 		if (pair->parent == 0) {
 			SET_ROOT(tree, value);
@@ -147,8 +147,7 @@ INIT:
 				SET_LEFT(pair->parent, value);
 		}
 	}
-CLEANUP:
-	RETURN;
+	return 0;
 }
 
 STATIC RbTreeNode *rbtree_find_successor(RbTreeNode *x) {
@@ -302,12 +301,10 @@ STATIC void rbtree_remove_impl(RbTree *tree, RbTreeNodePair *pair) {
 
 i32 rbtree_put(RbTree *tree, RbTreeNode *value, const RbTreeSearch search) {
 	RbTreeNodePair pair = {0};
-INIT:
-	if (search(ROOT(tree), value, &pair) < 0) ERROR();
-	if (rbtree_put_impl(tree, &pair, value) < 0) ERROR();
+	if (search(ROOT(tree), value, &pair) < 0) return -1;
+	if (rbtree_put_impl(tree, &pair, value) < 0) return -1;
 	rbtree_insert_fixup(tree, value);
-CLEANUP:
-	RETURN;
+	return 0;
 }
 RbTreeNode *rbtree_remove(RbTree *tree, RbTreeNode *value,
 			  const RbTreeSearch search) {
