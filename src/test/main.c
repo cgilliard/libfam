@@ -30,7 +30,7 @@
 #include <libfam/sysext.h>
 
 i32 main(i32 argc, u8 **argv, u8 **envp) {
-	struct statx st;
+	struct statx st = {0};
 	pwrite(2, "hi\n", 3, 0);
 	usleep(100000ULL);
 	pwrite(2, "ok\n", 3, 0);
