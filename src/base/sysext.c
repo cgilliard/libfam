@@ -25,6 +25,7 @@
 
 #include <libfam/async.h>
 #include <libfam/atomic.h>
+#include <libfam/debug.h>
 #include <libfam/linux.h>
 #include <libfam/syscall.h>
 #include <libfam/utils.h>
@@ -48,6 +49,15 @@ PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 				   .len = len,
 				   .off = offset,
 				   .user_data = 1};
+
+#if TEST == 1
+	if (_debug_pwrite_fail-- == 0) {
+		errno = EIO;
+		return -1;
+	}
+	if ((fd == 1 || fd == 2) && _debug_no_write) return len;
+#endif /* TEST */
+
 	if (global_async_init() < 0) return -1;
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
@@ -66,6 +76,13 @@ PUBLIC i64 pread(i32 fd, void *buf, u64 len, u64 offset) {
 				   .len = len,
 				   .off = offset,
 				   .user_data = 1};
+#if TEST == 1
+	if (_debug_pread_fail-- == 0) {
+		errno = EIO;
+		return -1;
+	}
+#endif /* TEST */
+
 	if (global_async_init() < 0) return -1;
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
@@ -92,8 +109,12 @@ PUBLIC i32 open(const u8 *path, i32 flags, u32 mode) {
 	if (__global_res < 0) {
 		errno = __global_res;
 		return -1;
-	} else
+	} else {
+#if TEST == 1
+		__aadd64(&open_fds, 1);
+#endif /* TEST */
 		return __global_res;
+	}
 }
 
 PUBLIC i32 close(i32 fd) {
@@ -106,8 +127,12 @@ PUBLIC i32 close(i32 fd) {
 	if (__global_res < 0) {
 		errno = __global_res;
 		return -1;
-	} else
+	} else {
+#if TEST == 1
+		__asub64(&open_fds, 1);
+#endif /* TEST */
 		return __global_res;
+	}
 }
 
 PUBLIC i32 fallocate(i32 fd, u64 new_size) {
@@ -231,10 +256,10 @@ PUBLIC i32 statx(const u8 *pathname, struct statx *st) {
 PUBLIC i32 waitpid(i32 pid) {
 	u8 buf[1024] = {0};
 	struct io_uring_sqe sqe = {.opcode = IORING_OP_WAITID,
-				   .addr = (u64)buf,
-				   .fd = P_PID,
-				   .off = pid,
-				   .len = WEXITED,
+				   .addr2 = (u64)buf,
+				   .len = P_PID,
+				   .fd = pid,
+				   .file_index = WEXITED,
 				   .user_data = 1};
 	if (global_async_init() < 0) return -1;
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
@@ -312,7 +337,7 @@ PUBLIC i32 exists(const u8 *pathname) {
 	return 0;
 }
 
-PUBLIC i64 write_num(i32 fd, u64 num) {
+i64 write_num(i32 fd, u64 num) {
 	u8 buf[21];
 	u8 *p;
 	u64 len;

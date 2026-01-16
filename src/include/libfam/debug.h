@@ -50,6 +50,7 @@ extern bool _debug_pwrite_0;
 extern i64 _debug_pwrite_fail;
 extern i64 _debug_pread_fail;
 extern i64 _debug_alloc_count;
+extern i64 open_fds;
 extern u64 heap_bytes;
 
 u64 get_heap_bytes(void);

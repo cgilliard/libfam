@@ -38,6 +38,7 @@ i64 pread(i32 fd, void *buf, u64 len, u64 offset);
 i32 open(const u8 *path, i32 flags, u32 mode);
 i32 fallocate(i32 fd, u64 new_size);
 i32 fsync(i32 fd);
+i64 fsize(i32 fd);
 i32 fdatasync(i32 fd);
 i32 close(i32 fd);
 i64 micros(void);

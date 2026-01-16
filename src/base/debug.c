@@ -24,12 +24,16 @@
  *******************************************************************************/
 
 #include <libfam/debug.h>
+#include <libfam/limits.h>
 
 bool _debug_no_exit = false;
 
 #if TEST == 1
+bool _debug_no_write = false;
+i64 _debug_pwrite_fail = I64_MAX;
+i64 _debug_pread_fail = I64_MAX;
 u64 heap_bytes;
-u64 open_fds;
+i64 open_fds;
 u64 get_heap_bytes(void) { return heap_bytes; }
 void heap_bytes_reset(void) { heap_bytes = 0; }
 u64 get_open_fds(void) { return open_fds; }
