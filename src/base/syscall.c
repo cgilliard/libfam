@@ -35,12 +35,8 @@
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 
 #ifdef __aarch64__
-#define SYS_unlinkat 35
 #define SYS_fchmod 52
-#define SYS_fstat 80
 #define SYS_utimesat 88
-#define SYS_waitid 95
-#define SYS_nanosleep 101
 #define SYS_kill 129
 #define SYS_rt_sigaction 134
 #define SYS_getpid 172
@@ -52,19 +48,15 @@
 #define SYS_io_uring_enter 426
 #define SYS_io_uring_register 427
 #elif defined(__x86_64__)
-#define SYS_fstat 5
 #define SYS_mmap 9
 #define SYS_munmap 11
 #define SYS_rt_sigaction 13
-#define SYS_nanosleep 35
 #define SYS_getpid 39
 #define SYS_clone 56
 #define SYS_kill 62
 #define SYS_fchmod 91
 #define SYS_clock_gettime 228
-#define SYS_waitid 247
 #define SYS_utimesat 261
-#define SYS_unlinkat 263
 #define SYS_io_uring_setup 425
 #define SYS_io_uring_enter 426
 #define SYS_io_uring_register 427
@@ -103,8 +95,6 @@ i64 raw_syscall(i64 sysno, i64 a0, i64 a1, i64 a2, i64 a3, i64 a4, i64 a5) {
 	return result;
 }
 
-extern bool _debug_no_exit;
-
 #ifdef __aarch64__
 #define SYSCALL_EXIT                 \
 	if (_debug_no_exit) return;  \
@@ -138,7 +128,7 @@ void __gcov_dump(void);
 	SYSCALL_EXIT
 #endif /* COVERAGE */
 
-PUBLIC void _exit(i32 status) {
+PUBLIC void exit_group(i32 status) {
 #ifdef COVERAGE
 	SYSCALL_EXIT_COV
 #else
@@ -168,11 +158,6 @@ i32 kill(i32 pid, i32 signal) {
 }
 
 void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset) {
-#if TEST == 1
-	if (_debug_alloc_failure) return (void *)-1;
-	if (_debug_alloc_count-- == 0) return (void *)-1;
-#endif /* TEST */
-
 	void *ret =
 	    (void *)(u64)raw_syscall(SYS_mmap, (i64)addr, (i64)length,
 				     (i64)prot, (i64)flags, (i64)fd, offset);
@@ -205,10 +190,6 @@ i32 munmap(void *addr, u64 len) {
 i32 clone(i64 flags, void *sp) {
 	i32 v;
 
-#if TEST == 1
-	if (_debug_fail_clone) return -1;
-#endif
-
 	v = (i32)raw_syscall(SYS_clone, flags, (i64)sp, 0, 0, 0, 0);
 	RETURN_VALUE(v);
 }
@@ -223,9 +204,6 @@ i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
 
 i32 io_uring_setup(u32 entries, struct io_uring_params *params) {
 	i32 v;
-#if TEST == 1
-	if (_debug_fail_io_uring_setup) return -1;
-#endif
 
 	v = (i32)raw_syscall(SYS_io_uring_setup, (i64)entries, (i64)params, 0,
 			     0, 0, 0);
@@ -246,32 +224,10 @@ i32 io_uring_register(u32 fd, u32 opcode, void *arg, u32 nr_args) {
 	RETURN_VALUE(v);
 }
 
-i32 waitid(i32 idtype, i32 id, void *infop, i32 options) {
-	i32 v;
-	v = (i32)raw_syscall(SYS_waitid, idtype, (i64)id, (i64)infop,
-			     (i64)options, 0, 0);
-	RETURN_VALUE(v);
-}
-
 i32 clock_gettime(i32 clockid, struct timespec *tp) {
 	i32 v;
 	v = (i32)raw_syscall(SYS_clock_gettime, (i64)clockid, (i64)tp, 0, 0, 0,
 			     0);
-	RETURN_VALUE(v);
-}
-
-i32 nanosleep(const struct timespec *duration, struct timespec *rem) {
-	i32 v;
-	v = raw_syscall(SYS_nanosleep, (i64)duration, (i64)rem, 0, 0, 0, 0);
-	RETURN_VALUE(v);
-}
-
-PUBLIC i32 fstat(i32 fd, struct stat *buf) {
-	i32 v;
-#if TEST == 1
-	if (_debug_fail_fstat) return -1;
-#endif /* TEST */
-	v = (i32)raw_syscall(SYS_fstat, (i64)fd, (i64)buf, 0, 0, 0, 0);
 	RETURN_VALUE(v);
 }
 
@@ -300,13 +256,6 @@ PUBLIC __attribute__((naked)) void restorer(void) { SYSCALL_RESTORER; }
 #else
 #error "Unsupported platform"
 #endif /* ARCH */
-
-i32 unlinkat(i32 dfd, const char *path, i32 flags) {
-	i32 v;
-	v = (i32)raw_syscall(SYS_unlinkat, (i64)dfd, (i64)path, (i64)flags, 0,
-			     0, 0);
-	RETURN_VALUE(v);
-}
 
 PUBLIC i32 fchmod(i32 fd, u32 mode) {
 	i32 v;

@@ -32,28 +32,22 @@ struct rt_sigaction;
 struct io_uring_params;
 struct timespec;
 struct timeval;
-struct stat;
 
 i32 clock_gettime(i32 clockid, struct timespec *tp);
 i32 getpid(void);
-i32 waitid(i32 idtype, i32 id, void *infop, i32 options);
 i32 kill(i32 pid, i32 signal);
 void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset);
 i32 munmap(void *addr, u64 len);
 i32 clone(i64 flags, void *sp);
 i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
 		 struct rt_sigaction *oldact, u64 sigsetsize);
-void _exit(i32 status);
+void exit_group(i32 status);
 i32 io_uring_setup(u32 entries, struct io_uring_params *params);
 i32 io_uring_enter2(u32 fd, u32 to_submit, u32 min_complete, u32 flags,
 		    void *arg, u64 sz);
 i32 io_uring_register(u32 fd, u32 opcode, void *arg, u32 nr_args);
-// i32 nanosleep(const struct timespec *duration, struct timespec *rem);
 void restorer(void);
-// i32 unlinkat(i32 dfd, const char *path, i32 flags);
-// i32 fstat(i32 fd, struct stat *buf);
-// i32 fchmod(i32 fd, u32 mode);
-//  i32 utimesat(i32 dirfd, const u8 *path, const struct timeval *times, i32
-//  flags);
+i32 fchmod(i32 fd, u32 mode);
+i32 utimesat(i32 dirfd, const u8 *path, const struct timeval *times, i32 flags);
 
 #endif /* _SYSCALL_H */

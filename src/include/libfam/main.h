@@ -26,6 +26,8 @@
 #ifndef _MAIN_H
 #define _MAIN_H
 
+#include <libfam/types.h>
+
 #ifdef __aarch64__
 #define CALL_MAIN                   \
 	__asm__(                    \
@@ -42,7 +44,7 @@
 	    "    mov sp, x4\n"      \
 	    "    bl main\n"         \
 	    "    mov x0, x0\n"      \
-	    "    mov x8, #93\n"     \
+	    "    mov x8, #94\n"     \
 	    "    svc #0\n");
 #elif defined(__x86_64__)
 #define CALL_MAIN                          \
@@ -60,7 +62,7 @@
 	    "    and $-16, %rsp\n"         \
 	    "    call main\n"              \
 	    "    mov %rax, %rdi\n"         \
-	    "    mov $60, %rax\n"          \
+	    "    mov $231, %rax\n"         \
 	    "    syscall\n");
 #endif /* __x86_64__ */
 
