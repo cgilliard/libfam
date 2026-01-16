@@ -52,7 +52,7 @@ if [ "${BASE_CFLAGS}" = "" ]; then
 		BASE_CFLAGS="-DPAGE_SIZE=${PAGE_SIZE} -Werror -Wall -funroll-loops -fstack-protector-strong -std=c11 -O3"
 	fi
 fi
-BASE_LDFLAGS="-shared -fstack-protector-strong -ffreestanding -nostdlib"
+BASE_LDFLAGS="-shared -fstack-protector-strong -ffreestanding -nostdlib -Wl,--no-eh-frame-hdr"
 
 # ------------------------------------------------------------------
 # 3. Mode-specific flags
