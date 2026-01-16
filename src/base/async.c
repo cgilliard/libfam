@@ -53,6 +53,11 @@ struct Async {
 	void *ctx;
 };
 
+#if TEST == 1
+void async_add_queue(Async *async) { __aadd32(async->sq_tail, 1); }
+void async_sub_queue(Async *async) { __asub32(async->sq_tail, 1); }
+#endif /* TEST */
+
 i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 	       void *ctx) {
 	Async *async = NULL;

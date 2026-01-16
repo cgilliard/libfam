@@ -769,6 +769,7 @@ Test(open1) {
 
 	errno = 0;
 	i32 fd = open("/tmp/open1.dat", O_CREAT | O_RDWR, 0600);
+	fdatasync(fd);
 	ASSERT(fd > 0, "fd>0 1");
 	ASSERT(!statx("/tmp/open1.dat", &st), "statx");
 	ASSERT(!st.stx_size, "size=0");
@@ -838,8 +839,34 @@ Test(exists) {
 }
 
 Test(nanosleep) {
-	nsleep(150000000);
-	usleep(100000);
+	i32 res;
+	res = nsleep(150000000);
+	ASSERT(!res, "nsleep");
+	res = usleep(100000);
+	ASSERT(!res, "usleep");
+	res = usleep(U64_MAX / 1000);
+	ASSERT_EQ(res, -1, "usleep overflow");
+	res = nsleep(U64_MAX);
+	ASSERT_EQ(res, -1, "nsleep overflow");
+}
+
+extern Async *__global_async;
+Test(async_errs) {
+	u8 buf[1];
+	async_add_queue(__global_async);
+	ASSERT_EQ(pwrite(2, "x", 1, 0), -1, "pwrite err");
+	ASSERT_EQ(pread(0, buf, 1, 0), -1, "pread err");
+	ASSERT_EQ(open("/tmp/abc", O_CREAT | O_RDONLY, 0600), -1, "open err");
+	ASSERT_EQ(close(-1), -1, "close err");
+	ASSERT_EQ(fallocate(2, 100), -1, "fallocate err");
+	ASSERT_EQ(fsync(2), -1, "fsync err");
+	ASSERT_EQ(fdatasync(2), -1, "fdatasync err");
+	ASSERT_EQ(nsleep(0), -1, "nsleep err");
+	ASSERT_EQ(usleep(0), -1, "usleep err");
+	ASSERT_EQ(unlink("/tmp/abc"), -1, "unlink err");
+	ASSERT_EQ(statx("/tmp/abc", NULL), -1, "statx err");
+	ASSERT_EQ(waitpid(1), -1, "waitpid err");
+	async_sub_queue(__global_async);
 }
 
 Test(secure_zero) {
@@ -1017,3 +1044,30 @@ Test(async_chain) {
 	async_destroy(async);
 	unlink("/tmp/async_chain.dat");
 }
+
+Test(async_errors) {
+	Async *async;
+	ASSERT_EQ(async_init(&async, U32_MAX, chain_complete, NULL), -1,
+		  "queue too large");
+
+	_debug_alloc_count = 0;
+	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc0");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 1;
+	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc1");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 2;
+	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc2");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 3;
+	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc3");
+	_debug_alloc_count = I64_MAX;
+
+	ASSERT(!async_init(&async, 1, chain_complete, NULL), "init success");
+	ASSERT_EQ(async_execute(async, NULL, 2, false), -1, "queue too big");
+	async_destroy(async);
+}
+

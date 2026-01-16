@@ -98,9 +98,9 @@ PUBLIC i32 init_environ(u8 **envp) {
 		__env_values[i].value = itt;
 		res = rbtree_put(&__env_tree, (RbTreeNode *)&__env_values[i],
 				 env_rbtree_search);
-		if (res < 0) RETURN_ERR(EDUPLICATE);
+		if (res < 0) ERR(EDUPLICATE);
 	}
-	if (i == MAX_ENV_VARS && envp[i]) RETURN_ERR(EOVERFLOW);
+	if (i == MAX_ENV_VARS && envp[i]) ERR(EOVERFLOW);
 	environ = envp;
 	return 0;
 }

@@ -30,7 +30,7 @@
 #include <libfam/syscall.h>
 #include <libfam/utils.h>
 
-static Async *__global_async = NULL;
+Async *__global_async = NULL;
 static i32 __global_res = 0;
 
 STATIC void global_async_callback(i32 res, u64 user_data, void *ctx) {
@@ -51,10 +51,7 @@ PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 				   .user_data = 1};
 
 #if TEST == 1
-	if (_debug_pwrite_fail-- == 0) {
-		errno = EIO;
-		return -1;
-	}
+	if (_debug_pwrite_fail-- == 0) ERR(EIO);
 	if ((fd == 1 || fd == 2) && _debug_no_write) return len;
 #endif /* TEST */
 
@@ -62,11 +59,8 @@ PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
 }
 
 PUBLIC i64 pread(i32 fd, void *buf, u64 len, u64 offset) {
@@ -77,21 +71,15 @@ PUBLIC i64 pread(i32 fd, void *buf, u64 len, u64 offset) {
 				   .off = offset,
 				   .user_data = 1};
 #if TEST == 1
-	if (_debug_pread_fail-- == 0) {
-		errno = EIO;
-		return -1;
-	}
+	if (_debug_pread_fail-- == 0) ERR(EIO);
 #endif /* TEST */
 
 	if (global_async_init() < 0) return -1;
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
 }
 
 PUBLIC i32 open(const u8 *path, i32 flags, u32 mode) {
@@ -106,15 +94,11 @@ PUBLIC i32 open(const u8 *path, i32 flags, u32 mode) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else {
+	if (__global_res < 0) ERR(-__global_res);
 #if TEST == 1
-		__aadd64(&open_fds, 1);
+	__aadd64(&open_fds, 1);
 #endif /* TEST */
-		return __global_res;
-	}
+	return __global_res;
 }
 
 PUBLIC i32 close(i32 fd) {
@@ -124,15 +108,11 @@ PUBLIC i32 close(i32 fd) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else {
+	if (__global_res < 0) ERR(-__global_res);
 #if TEST == 1
-		__asub64(&open_fds, 1);
+	__asub64(&open_fds, 1);
 #endif /* TEST */
-		return __global_res;
-	}
+	return __global_res;
 }
 
 PUBLIC i32 fallocate(i32 fd, u64 new_size) {
@@ -144,11 +124,8 @@ PUBLIC i32 fallocate(i32 fd, u64 new_size) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
 }
 
 PUBLIC i32 fsync(i32 fd) {
@@ -158,11 +135,8 @@ PUBLIC i32 fsync(i32 fd) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
 }
 
 PUBLIC i32 fdatasync(i32 fd) {
@@ -174,11 +148,8 @@ PUBLIC i32 fdatasync(i32 fd) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
 }
 
 PUBLIC i32 nsleep(u64 nanos) {
@@ -191,18 +162,16 @@ PUBLIC i32 nsleep(u64 nanos) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res == -ETIME)
+		return 0;
+	else {
+		if (__global_res < 0) errno = -__global_res;
+		return __global_res < 0 ? -1 : __global_res;
+	}
 }
 
 PUBLIC i32 usleep(u64 micros) {
-	if (micros * 1000 < micros) {
-		errno = EOVERFLOW;
-		return -1;
-	}
+	if (micros * 1000 < micros) ERR(EOVERFLOW);
 	struct timespec ts = {.tv_nsec = micros * 1000};
 	struct io_uring_sqe sqe = {.opcode = IORING_OP_TIMEOUT,
 				   .addr = (u64)&ts,
@@ -212,11 +181,12 @@ PUBLIC i32 usleep(u64 micros) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res == -ETIME)
+		return 0;
+	else {
+		if (__global_res < 0) errno = -__global_res;
+		return __global_res < 0 ? -1 : __global_res;
+	}
 }
 
 PUBLIC i32 unlink(const u8 *pathname) {
@@ -228,11 +198,8 @@ PUBLIC i32 unlink(const u8 *pathname) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = __global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
 }
 
 PUBLIC i32 statx(const u8 *pathname, struct statx *st) {
@@ -246,11 +213,8 @@ PUBLIC i32 statx(const u8 *pathname, struct statx *st) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = -__global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
 }
 
 PUBLIC i32 waitpid(i32 pid) {
@@ -265,11 +229,8 @@ PUBLIC i32 waitpid(i32 pid) {
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
 			  true) < 0)
 		return -1;
-	if (__global_res < 0) {
-		errno = -__global_res;
-		return -1;
-	} else
-		return __global_res;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
 }
 
 PUBLIC void *map(u64 length) {
@@ -342,10 +303,7 @@ i64 write_num(i32 fd, u64 num) {
 	u8 *p;
 	u64 len;
 	i64 written;
-	if (fd < 0) {
-		errno = EBADF;
-		return -1;
-	}
+	if (fd < 0) ERR(EBADF);
 
 	p = buf + sizeof(buf) - 1;
 	*p = '\0';
@@ -361,10 +319,7 @@ i64 write_num(i32 fd, u64 num) {
 	len = buf + sizeof(buf) - 1 - p;
 	written = pwrite(fd, p, len, 0);
 	if (written < 0) return -1;
-	if ((u64)written != len) {
-		errno = EIO;
-		return -1;
-	}
+	if ((u64)written != len) ERR(EIO);
 	return 0;
 }
 

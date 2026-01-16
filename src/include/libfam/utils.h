@@ -62,7 +62,7 @@
 #define offsetof(type, member) ((u64) & (((type *)0)->member))
 #endif
 
-#define RETURN_ERR(v)      \
+#define ERR(v)             \
 	do {               \
 		errno = v; \
 		return -1; \

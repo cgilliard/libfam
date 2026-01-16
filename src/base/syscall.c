@@ -154,9 +154,13 @@ i32 kill(i32 pid, i32 signal) {
 }
 
 void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset) {
-	void *ret =
-	    (void *)(u64)raw_syscall(SYS_mmap, (i64)addr, (i64)length,
-				     (i64)prot, (i64)flags, (i64)fd, offset);
+	void *ret;
+#if TEST == 1
+	if (_debug_alloc_count-- == 0) return (void *)-1;
+#endif /* TEST */
+
+	ret = (void *)(u64)raw_syscall(SYS_mmap, (i64)addr, (i64)length,
+				       (i64)prot, (i64)flags, (i64)fd, offset);
 	if ((i64)ret < 0) {
 		errno = -(i64)ret;
 		return (void *)-1;

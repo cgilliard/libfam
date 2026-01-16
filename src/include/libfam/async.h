@@ -39,4 +39,9 @@ i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
 		  bool wait);
 void async_destroy(Async *async);
 
+#if TEST == 1
+void async_add_queue(Async *async);
+void async_sub_queue(Async *async);
+#endif /* TEST */
+
 #endif /* _ASYNC_H */
