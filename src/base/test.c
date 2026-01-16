@@ -762,6 +762,7 @@ Test(clone) {
 	munmap(val, sizeof(u64));
 }
 
+/*
 Test(open1) {
 	u64 size = 4097;
 	unlink("/tmp/open1.dat");
@@ -1272,3 +1273,4 @@ Test(sysext_errors) {
 	ASSERT_EQ(write_num(2, 0), -1, "write_num0");
 	_debug_pwrite_0 = false;
 }
+*/

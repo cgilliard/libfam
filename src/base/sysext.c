@@ -131,13 +131,17 @@ PUBLIC i32 fsync(i32 fd) {
 	return res;
 }
 
+/*
 PUBLIC i32 nsleep(u64 nsec) {
 	struct timespec ts = {.tv_sec = (nsec / 1000000000ULL),
 			      .tv_nsec = (nsec % 1000000000ULL)};
 	return nanosleep(&ts, &ts);
 }
+*/
 
+/*
 PUBLIC i32 usleep(u64 usec) { return nsleep(usec * 1000); }
+*/
 
 PUBLIC i32 fork(void) {
 #if TEST == 1
@@ -179,13 +183,17 @@ i32 await(i32 pid) {
 	return waitid(P_PID, pid, buf, WEXITED);
 }
 
+/*
 PUBLIC i64 fsize(i32 fd) {
 	struct stat st;
 	i32 res = fstat(fd, &st);
 	return res < 0 ? -1 : st.st_size;
 }
+*/
 
+/*
 PUBLIC i32 unlink(const u8 *path) { return unlinkat(AT_FDCWD, path, 0); }
+*/
 
 PUBLIC i32 file(const u8 *path) { return open(path, O_CREAT | O_RDWR, 0600); }
 
