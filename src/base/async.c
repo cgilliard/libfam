@@ -85,6 +85,7 @@ i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 			      MAP_SHARED, async->ring_fd, IORING_OFF_SQ_RING);
 
 	if (async->sq_ring == MAP_FAILED) {
+		async->sq_ring = NULL;
 		async_destroy(async);
 		return -1;
 	}
@@ -93,12 +94,14 @@ i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 			      MAP_SHARED, async->ring_fd, IORING_OFF_CQ_RING);
 
 	if (async->cq_ring == MAP_FAILED) {
+		async->cq_ring = NULL;
 		async_destroy(async);
 		return -1;
 	}
 	async->sqes = mmap(NULL, async->sqes_size, PROT_READ | PROT_WRITE,
 			   MAP_SHARED, async->ring_fd, IORING_OFF_SQES);
 	if (async->sqes == MAP_FAILED) {
+		async->sqes = NULL;
 		async_destroy(async);
 		return -1;
 	}

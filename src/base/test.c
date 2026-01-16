@@ -1072,7 +1072,7 @@ Test(async_errors) {
 }
 
 Test(misc) {
-	struct statx st;
+	struct statx st = {0};
 	unlink("/tmp/misc1");
 	i32 f1 = open("/tmp/misc1", O_CREAT | O_RDWR, 0600);
 	ASSERT(fchmod(f1, 0777) >= 0, "fchmod");
