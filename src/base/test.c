@@ -987,8 +987,6 @@ Test(write_num) {
 	unlink("/tmp/write_num0");
 }
 
-#include <libfam/format.h>
-
 Test(iouring1) {
 	struct stat st;
 	u64 id;
