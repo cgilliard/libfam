@@ -1071,3 +1071,16 @@ Test(async_errors) {
 	async_destroy(async);
 }
 
+Test(misc) {
+	struct statx st;
+	unlink("/tmp/misc1");
+	i32 f1 = open("/tmp/misc1", O_CREAT | O_RDWR, 0600);
+	ASSERT(fchmod(f1, 0777) >= 0, "fchmod");
+	statx("/tmp/misc1", &st);
+	struct timeval ts[2] = {0};
+	ts[0].tv_sec = st.stx_atime.tv_sec - 1;
+	ts[1].tv_sec = st.stx_mtime.tv_sec - 1;
+	ASSERT(!utimesat(f1, NULL, ts, 0), "utimesat");
+	unlink("/tmp/misc1");
+	ASSERT_EQ(io_uring_register(-1, 0, NULL, 0), -1, "reg err");
+}
