@@ -250,9 +250,9 @@ i32 clock_gettime(i32 clockid, struct timespec *tp) {
 #endif /* ARCH */
 
 #ifdef __aarch64__
-PUBLIC void restorer(void) { SYSCALL_RESTORER; }
+void restorer(void) { SYSCALL_RESTORER; }
 #elif defined(__x86_64__)
-PUBLIC __attribute__((naked)) void restorer(void) { SYSCALL_RESTORER; }
+__attribute__((naked)) void restorer(void) { SYSCALL_RESTORER; }
 #else
 #error "Unsupported platform"
 #endif /* ARCH */

@@ -53,8 +53,8 @@ struct Async {
 	void *ctx;
 };
 
-PUBLIC i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
-		      void *ctx) {
+i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
+	       void *ctx) {
 	Async *async = NULL;
 
 	if ((async = smap(sizeof(Async))) == NULL) return -1;
@@ -118,8 +118,8 @@ PUBLIC i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 	return 0;
 }
 
-PUBLIC i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
-			 bool wait) {
+i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
+		  bool wait) {
 	u32 tail = *async->sq_tail, drained;
 	u32 head = *async->cq_head;
 	u32 depth = async->params.sq_entries;
@@ -164,7 +164,7 @@ PUBLIC i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
 	return drained;
 }
 
-PUBLIC void async_destroy(Async *async) {
+void async_destroy(Async *async) {
 	if (async) {
 		if (async->sq_ring) munmap(async->sq_ring, async->sq_ring_size);
 		async->sq_ring = NULL;
