@@ -44,6 +44,7 @@ PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 	u64 id;
 	i64 res;
 #if TEST == 1
+	if (_debug_pwrite_0) return 0;
 	if (_debug_pwrite_fail-- == 0) {
 		errno = EIO;
 		return -1;

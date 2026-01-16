@@ -1241,3 +1241,34 @@ Test(async_errors) {
 	ASSERT_EQ(async_execute(async, NULL, 2, false), -1, "queue too big");
 	async_destroy(async);
 }
+
+Test(iouring_errors) {
+	IoUring *iou = NULL;
+
+	_debug_alloc_count = 0;
+	ASSERT_EQ(iouring_init(&iou, 1), -1, "alloc0");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 1;
+	ASSERT_EQ(iouring_init(&iou, 1), -1, "alloc1");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 2;
+	ASSERT_EQ(iouring_init(&iou, 1), -1, "alloc2");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 3;
+	ASSERT_EQ(iouring_init(&iou, 1), -1, "alloc3");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_fail_io_uring_setup = true;
+	ASSERT_EQ(iouring_init(&iou, 1), -1, "iouring setup err");
+	_debug_fail_io_uring_setup = false;
+}
+
+Test(sysext_errors) {
+	ASSERT_EQ(write_num(-1, 0), -1, "write_num");
+	_debug_pwrite_0 = true;
+	ASSERT_EQ(write_num(2, 0), -1, "write_num0");
+	_debug_pwrite_0 = false;
+}
