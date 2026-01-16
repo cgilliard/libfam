@@ -66,6 +66,6 @@
 	do {               \
 		errno = v; \
 		return -1; \
-	} while (0);
+	} while (0)
 
 #endif /* _UTILS_H */

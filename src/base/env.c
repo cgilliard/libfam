@@ -77,14 +77,10 @@ STATIC i32 env_rbtree_search(RbTreeNode *cur, const RbTreeNode *value,
 }
 
 PUBLIC char *getenv(const char *name) {
-	u8 *ret = NULL;
 	RbTreeNodePair pair = {0};
-	EnvNode node;
-	node.key = name;
-	node.key_len = faststrlen(name);
+	EnvNode node = {.key = name, .key_len = faststrlen(name)};
 	env_rbtree_search(__env_tree.root, (const RbTreeNode *)&node, &pair);
-	if (pair.self) ret = (u8 *)((EnvNode *)pair.self)->value;
-	return ret;
+	return pair.self ? (u8 *)((EnvNode *)pair.self)->value : NULL;
 }
 
 PUBLIC i32 init_environ(u8 **envp) {

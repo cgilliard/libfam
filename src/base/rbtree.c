@@ -132,20 +132,17 @@ STATIC void rbtree_insert_fixup(RbTree *tree, RbTreeNode *k) {
 STATIC i32 rbtree_put_impl(RbTree *tree, RbTreeNodePair *pair,
 			   RbTreeNode *value) {
 	if (pair->self) {
-		errno = EDUPLICATE;
-		return -1;
+		ERR(EDUPLICATE);
+	} else if (pair->parent == 0) {
+		SET_ROOT(tree, value);
+		tree->root->parent_color = 0;
+		tree->root->right = tree->root->left = 0;
 	} else {
-		if (pair->parent == 0) {
-			SET_ROOT(tree, value);
-			tree->root->parent_color = 0;
-			tree->root->right = tree->root->left = 0;
-		} else {
-			SET_NODE(value, RED, pair->parent, 0, 0);
-			if (pair->is_right)
-				SET_RIGHT(pair->parent, value);
-			else
-				SET_LEFT(pair->parent, value);
-		}
+		SET_NODE(value, RED, pair->parent, 0, 0);
+		if (pair->is_right)
+			SET_RIGHT(pair->parent, value);
+		else
+			SET_LEFT(pair->parent, value);
 	}
 	return 0;
 }
