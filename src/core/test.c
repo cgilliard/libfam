@@ -274,6 +274,55 @@ Test(format2) {
 	format_clear(&f);
 }
 
+Test(format_errs) {
+	Formatter f1 = FORMATTER_INIT;
+	Formatter f2 = FORMATTER_INIT;
+	Formatter f3 = FORMATTER_INIT;
+	Formatter f4 = FORMATTER_INIT;
+	Formatter f5 = FORMATTER_INIT;
+
+	_debug_alloc_count = 0;
+	FORMAT(&f1, "   ");
+	_debug_alloc_count = I64_MAX;
+	ASSERT(!strcmp(format_to_string(&f1), ""), "alloc failure1");
+
+	_debug_alloc_count = 0;
+	FORMAT(&f2, " {}    ", 1);
+	_debug_alloc_count = I64_MAX;
+	ASSERT(!strcmp(format_to_string(&f2), ""), "alloc failure2");
+
+	_debug_proc_format_all = true;
+	FORMAT(&f3, " {}    ", 1.1);
+	_debug_proc_format_all = false;
+	ASSERT(!strcmp(format_to_string(&f3), " "), "float");
+
+	_debug_proc_format_all = true;
+	FORMAT(&f4, " {}    ", 1);
+	_debug_proc_format_all = false;
+	ASSERT(!strcmp(format_to_string(&f4), " "), "int");
+
+	_debug_proc_format_all = true;
+	FORMAT(&f5, " {}    ", 1U);
+	_debug_proc_format_all = false;
+	ASSERT(!strcmp(format_to_string(&f5), " "), "uint");
+
+	format_clear(&f1);
+	format_clear(&f2);
+	format_clear(&f3);
+	format_clear(&f4);
+	format_clear(&f5);
+}
+
+Test(lru_errors) {
+	ASSERT(!lru_init(0, 0, 0), "einval");
+	_debug_alloc_count = 0;
+	ASSERT(!lru_init(1, 1, 1), "alloc1");
+	_debug_alloc_count = I64_MAX;
+	_debug_alloc_count = 1;
+	ASSERT(!lru_init(1, 1, 1), "alloc2");
+	_debug_alloc_count = I64_MAX;
+}
+
 Test(lru_cache) {
 	LruCache *cache = lru_init(1024, 2048, sizeof(u64));
 	ASSERT(cache, "cache");
@@ -394,6 +443,8 @@ Test(lru_cache_consistent) {
 		lru_put(cache, key, &value);
 	}
 
+	ASSERT(!memcmp(lru_tail(cache), &arr[4096].value, sizeof(u64)), "tail");
+
 	for (u32 i = 0; i < 4096; i++) {
 		void *value = lru_get(cache, arr[i].key);
 		ASSERT(!value, "!value");
@@ -418,6 +469,7 @@ Test(lru_cache_consistent) {
 	ASSERT(!lru_get(cache, arr[4999].key), "evicted");
 	u64 *check = lru_get(cache, arr[5000].key);
 	ASSERT_EQ(*check, arr[5000].value, "found");
+	ASSERT(!memcmp(lru_head(cache), &arr[5000].value, sizeof(u64)), "head");
 
 	lru_destroy(cache);
 }
@@ -465,5 +517,45 @@ Test(hashtable) {
 
 	ASSERT(!hashtable_get(h, &key), "key not found");
 
+	hashtable_destroy(h);
+}
+
+Test(hashtable_errs) {
+	Hashtable *h;
+	_debug_alloc_count = 0;
+	h = hashtable_init(512, sizeof(u64), sizeof(u32));
+	_debug_alloc_count = I64_MAX;
+	ASSERT(!h, "alloc");
+
+	_debug_alloc_count = 1;
+	h = hashtable_init(512, sizeof(u64), sizeof(u32));
+	_debug_alloc_count = I64_MAX;
+	ASSERT(!h, "alloc");
+}
+
+Test(hashtable_collisions) {
+	u64 key;
+	u32 value;
+	u8 kv[5][HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64) + sizeof(u32)];
+
+	Hashtable *h = hashtable_init(4, sizeof(u64), sizeof(u32));
+
+	ASSERT(h, "hashtable_init");
+
+	for (u64 i = 0; i < 5; i++) {
+		key = 1 + i;
+		value = 101 + i;
+		fastmemcpy(kv[i] + sizeof(HashtableKeyValue), &key,
+			   sizeof(u64));
+		fastmemcpy(kv[i] + sizeof(HashtableKeyValue) + sizeof(u64),
+			   &value, sizeof(u32));
+		hashtable_put(h, (HashtableKeyValue *)kv[i]);
+	}
+
+	for (u64 i = 0; i < 5; i++) {
+		key = 1 + i;
+		ASSERT(hashtable_get(h, &key), "found");
+		ASSERT(hashtable_remove(h, &key), "removed");
+	}
 	hashtable_destroy(h);
 }

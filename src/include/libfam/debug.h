@@ -32,6 +32,7 @@ extern bool _debug_no_exit;
 
 #if TEST == 1
 extern bool _debug_no_write;
+extern bool _debug_proc_format_all;
 extern i64 _debug_pwrite_fail;
 extern i64 _debug_pread_fail;
 extern i64 _debug_alloc_count;

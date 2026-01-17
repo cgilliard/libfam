@@ -30,6 +30,7 @@ bool _debug_no_exit = false;
 
 #if TEST == 1
 bool _debug_no_write = false;
+bool _debug_proc_format_all = false;
 i64 _debug_pwrite_fail = I64_MAX;
 i64 _debug_pread_fail = I64_MAX;
 i64 _debug_alloc_count = I64_MAX;

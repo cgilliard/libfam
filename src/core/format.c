@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/builtin.h>
+#include <libfam/debug.h>
 #include <libfam/format.h>
 #include <libfam/limits.h>
 #include <libfam/string.h>
@@ -205,6 +206,10 @@ STATIC i32 format_proc_uint(Formatter *f, const FormatSpec *spec, u128 value) {
 	Int128DisplayType idt = format_get_displayType(spec);
 	u64 raw_bytes;
 
+#if TEST == 1
+	if (_debug_proc_format_all) return -1;
+#endif /* TEST */
+
 	if (spec->t == FormatSpecTypeChar) {
 		buf[0] = value <= I8_MAX ? value : '?';
 		raw_bytes = 1;
@@ -218,6 +223,11 @@ STATIC i32 format_proc_int(Formatter *f, const FormatSpec *spec, i128 value) {
 	u8 buf[MAX_I128_STRING_LEN];
 	Int128DisplayType idt = format_get_displayType(spec);
 	u64 raw_bytes;
+
+#if TEST == 1
+	if (_debug_proc_format_all) return -1;
+#endif /* TEST */
+
 	if (spec->t == FormatSpecTypeChar) {
 		buf[0] = value <= I8_MAX ? value : '?';
 		raw_bytes = 1;
@@ -235,6 +245,10 @@ STATIC i32 format_proc_string(Formatter *f, const FormatSpec *spec,
 STATIC i32 format_proc_float(Formatter *f, const FormatSpec *spec, f64 value) {
 	u8 buf[MAX_F64_STRING_LEN];
 	u64 raw_bytes;
+
+#if TEST == 1
+	if (_debug_proc_format_all) return -1;
+#endif /* TEST */
 
 	raw_bytes =
 	    f64_to_string(buf, value, spec->has_precision ? spec->precision : 5,
