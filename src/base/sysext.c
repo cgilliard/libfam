@@ -255,7 +255,7 @@ PUBLIC i32 fstatx(i32 fd, struct statx *st) {
 }
 
 PUBLIC i64 fsize(i32 fd) {
-	struct statx st;
+	struct statx st = {0};
 	if (fstatx(fd, &st) < 0) return -1;
 	return st.stx_size;
 }

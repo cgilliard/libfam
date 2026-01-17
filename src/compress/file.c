@@ -176,6 +176,12 @@ PUBLIC i32 compress_file(i32 infd, u64 in_offset, i32 outfd, u64 out_offset) {
 	i32 ret = 0;
 	CompressState *state = NULL;
 	struct statx st, outst;
+#if TEST == 1
+	if (IS_VALGRIND()) {
+		fastmemset(&st, 0, sizeof(st));
+		fastmemset(&outst, 0, sizeof(outst));
+	}
+#endif /* TEST */
 	state = smap(sizeof(CompressState));
 	if (!state) return -1;
 	if (fstatx(infd, &st) < 0) return -1;
@@ -224,6 +230,13 @@ PUBLIC i32 decompress_file(i32 infd, u64 in_offset, i32 outfd, u64 out_offset) {
 	i32 ret = 0;
 	DecompressState *state = NULL;
 	struct statx st, outst;
+
+#if TEST == 1
+	if (IS_VALGRIND()) {
+		fastmemset(&st, 0, sizeof(st));
+		fastmemset(&outst, 0, sizeof(outst));
+	}
+#endif /* TEST */
 
 	state = smap(sizeof(DecompressState));
 	if (!state) {
