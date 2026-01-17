@@ -24,8 +24,8 @@
  *******************************************************************************/
 
 #include <libfam/compress.h>
-#include <libfam/flags.h>
 #include <libfam/format.h>
+#include <libfam/fstatx.h>
 #include <libfam/limits.h>
 #include <libfam/linux.h>
 #include <libfam/main.h>
