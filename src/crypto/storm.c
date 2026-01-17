@@ -102,39 +102,6 @@ STATIC void storm_init_neon(StormContext *ctx, const u8 key[32]) {
 	}
 	fastmemcpy(st->counter, ZERO256, 32);
 }
-
-STATIC void storm_xcrypt_buffer_neon(StormContext *ctx, u8 buf[32]) {
-	StormContextImpl *st = (StormContextImpl *)ctx;
-	uint8x16_t ctr_lo = *(uint8x16_t *)st->counter;
-	uint8x16_t ctr_hi = *(uint8x16_t *)((u8 *)st->counter + 16);
-
-	u8 ctr_block[32] __attribute__((aligned(16)));
-	vst1q_u8(ctr_block, ctr_lo);
-	vst1q_u8(ctr_block + 16, ctr_hi);
-
-	storm_next_block(ctx, ctr_block);
-
-	uint8x16_t keystream_lo = vld1q_u8(ctr_block);
-	uint8x16_t keystream_hi = vld1q_u8(ctr_block + 16);
-
-	uint8x16_t data_lo = vld1q_u8(buf);
-	uint8x16_t data_hi = vld1q_u8(buf + 16);
-
-	uint8x16_t out_lo = veorq_u8(data_lo, keystream_lo);
-	uint8x16_t out_hi = veorq_u8(data_hi, keystream_hi);
-
-	vst1q_u8(buf, out_lo);
-	vst1q_u8(buf + 16, out_hi);
-
-	uint64x2_t lo64 = vreinterpretq_u64_u8(ctr_lo);
-	uint64x2_t hi64 = vreinterpretq_u64_u8(ctr_hi);
-
-	uint64x2_t inc = vdupq_n_u64(1);
-
-	*(uint8x16_t *)st->counter = vreinterpretq_u8_u64(vaddq_u64(lo64, inc));
-	*(uint8x16_t *)((u8 *)st->counter + 16) =
-	    vreinterpretq_u8_u64(vaddq_u64(hi64, inc));
-}
 #else
 STATIC void storm_init_scalar(StormContext *ctx, const u8 key[32]) {
 	static const __attribute__((aligned(32))) u8 ZERO256[32] = {0};
