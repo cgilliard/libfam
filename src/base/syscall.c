@@ -261,6 +261,9 @@ __attribute__((naked)) void restorer(void) { SYSCALL_RESTORER; }
 
 PUBLIC i32 fstat(i32 fd, struct stat *st) {
 	i32 v;
+#if TEST == 1
+	if (_debug_fail_fstat) return -1;
+#endif /* TEST */
 	v = (i32)raw_syscall(SYS_fstat, (i64)fd, (i64)st, 0, 0, 0, 0);
 	RETURN_VALUE(v);
 }
