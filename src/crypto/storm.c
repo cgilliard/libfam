@@ -209,7 +209,11 @@ PUBLIC void storm_init(StormContext *ctx, const u8 key[32]) {
 
 PUBLIC void storm_next_block(StormContext *ctx, u8 block[32]) {
 #ifdef USE_AVX2
+#ifdef __VAES__
 	storm_next_block_avx2_vaes(ctx, block);
+#else
+	storm_next_block_avx2_aes(ctx, block);
+#endif /* !__VAES__ */
 #elif defined(USE_NEON)
 	storm_next_block_neon(ctx, block);
 #else
