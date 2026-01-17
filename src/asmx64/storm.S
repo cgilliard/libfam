@@ -1,11 +1,7 @@
 .section .note.GNU-stack,"",@progbits
 
 #ifndef NO_VECTOR
-#ifdef __AVX2__ 
 #define USE_AVX2
-#elif defined(__ARM_FEATURE_CRYPTO)
-#define USE_NEON
-#endif /* __ARM_FEATURE_CRYPTO */
 #endif /* NO_VECTOR */
 
 #ifdef USE_AVX2
