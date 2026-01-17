@@ -27,8 +27,8 @@
 #include <libfam/builtin.h>
 #include <libfam/compress.h>
 #include <libfam/env.h>
-#include <libfam/flags.h>
 #include <libfam/format.h>
+#include <libfam/fstatx.h>
 #include <libfam/limits.h>
 #include <libfam/syscall.h>
 #include <libfam/utils.h>

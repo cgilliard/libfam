@@ -35,7 +35,7 @@
 
 #include <libfam/bible.h>
 #include <libfam/compress.h>
-#include <libfam/flags.h>
+#include <libfam/fstatx.h>
 #include <libfam/storm.h>
 #include <libfam/string.h>
 #include <libfam/syscall.h>

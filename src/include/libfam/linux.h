@@ -26,7 +26,7 @@
 #ifndef _LINUX_H
 #define _LINUX_H
 
-#include <libfam/flags.h>
+#include <libfam/fstatx.h>
 #include <libfam/types.h>
 
 #define STATX_BASIC_STATS 0x07ffU
