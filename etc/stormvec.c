@@ -1,3 +1,4 @@
+#include <libfam/flags.h>
 #include <libfam/format.h>
 #include <libfam/main.h>
 #include <libfam/rng.h>
@@ -18,7 +19,7 @@ int main(i32 argc, u8 **argv, u8 **envp) {
 	rng_gen(&rng, inputs, sizeof(inputs));
 	println("Building storm vectors!");
 	unlink(VECTOR_FILE_PATH);
-	i32 fd = file(VECTOR_FILE_PATH);
+	i32 fd = open(VECTOR_FILE_PATH, O_CREAT | O_RDWR, 0600);
 	Formatter fmt = FORMATTER_INIT;
 	FORMAT(&fmt, "#ifndef _STORM_VECTORS_H\n");
 	FORMAT(&fmt, "#define _STORM_VECTORS_H\n");

@@ -26,8 +26,8 @@
 #include <libfam/builtin.h>
 #include <libfam/compress.h>
 #include <libfam/debug.h>
-#include <libfam/format.h>
 #include <libfam/limits.h>
+#include <libfam/string.h>
 #include <libfam/utils.h>
 
 #ifdef __AVX2__

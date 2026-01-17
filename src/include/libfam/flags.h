@@ -26,6 +26,8 @@
 #ifndef _FLAGS_H
 #define _FLAGS_H
 
+#include <libfam/types.h>
+
 #define S_IFMT 00170000
 #define S_IFSOCK 0140000
 #define S_IFLNK 0120000
