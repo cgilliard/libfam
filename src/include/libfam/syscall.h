@@ -55,9 +55,6 @@ i32 kill(i32 pid, i32 signal);
 i32 bind(i32 sockfd, const struct sockaddr *addr, i64 addrlen);
 i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
 	       i64 option_len);
-i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
-	       i64 option_len);
-i32 listen(i32 socket, i32 backlog);
 i32 getsockname(i32 sockfd, struct sockaddr *restrict addr,
 		i64 *restrict addrlen);
 

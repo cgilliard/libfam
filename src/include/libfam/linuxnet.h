@@ -31,6 +31,7 @@
 #define AF_INET 2
 #define SOCK_STREAM 1
 #define SOL_SOCKET 1
+#define SOCK_DGRAM 2
 #define SO_REUSEADDR 2
 #define INADDR_ANY 0x00000000U
 

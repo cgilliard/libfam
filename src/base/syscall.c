@@ -36,7 +36,6 @@
 
 #ifdef __aarch64__
 #define SYS_bind 49
-#define SYS_listen 50
 #define SYS_getsockname 204
 #define SYS_fchmod 52
 #define SYS_setsockopt 54
@@ -57,7 +56,6 @@
 #define SYS_rt_sigaction 13
 #define SYS_getpid 39
 #define SYS_bind 49
-#define SYS_listen 50
 #define SYS_getsockname 51
 #define SYS_setsockopt 54
 #define SYS_clone 56
@@ -168,12 +166,6 @@ i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
 	v = (i32)raw_syscall(SYS_setsockopt, (i64)socket, (i64)level,
 			     (i64)option_name, (i64)option_value, option_len,
 			     0);
-	RETURN_VALUE(v);
-}
-
-i32 listen(i32 socket, i32 backlog) {
-	i32 v;
-	v = (i32)raw_syscall(SYS_listen, (i64)socket, (i64)backlog, 0, 0, 0, 0);
 	RETURN_VALUE(v);
 }
 

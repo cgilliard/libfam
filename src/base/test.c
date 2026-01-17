@@ -868,6 +868,8 @@ Test(async_errs) {
 	ASSERT_EQ(statx("/tmp/abc", NULL), -1, "statx err");
 	ASSERT_EQ(waitpid(1), -1, "waitpid err");
 	ASSERT_EQ(fstatx(2, &stx), -1, "fstatx err");
+	ASSERT_EQ(socket(0, 0, 0), -1, "socket err");
+	ASSERT_EQ(connect(-1, NULL, 0), -1, "connect err");
 	async_sub_queue(__global_async);
 }
 
@@ -1105,7 +1107,7 @@ Test(socket) {
 				   .sin_addr = {htonl(INADDR_ANY)}};
 	i64 addrlen = sizeof(addr);
 	i32 res;
-	i32 fd = socket(AF_INET, SOCK_STREAM, 0);
+	i32 fd = socket(AF_INET, SOCK_DGRAM, 0);
 	ASSERT(fd > 0, "fd");
 
 	u64 one = 1;
@@ -1113,16 +1115,21 @@ Test(socket) {
 	ASSERT(!res, "setsockopt");
 	res = bind(fd, (struct sockaddr *)&addr, addrlen);
 	ASSERT(!res, "bind");
-	res = listen(fd, 10);
-	ASSERT(!res, "listen");
 
 	getsockname(fd, (void *)&addr, &addrlen);
 	ASSERT(addr.sin_port > 0, "port");
 
-	i32 cfd = socket(AF_INET, SOCK_STREAM, 0);
+	i32 cfd = socket(AF_INET, SOCK_DGRAM, 0);
 	ASSERT(cfd > 0, "socket");
 	res = connect(cfd, (void *)&addr, addrlen);
 	ASSERT(!res, "connect");
+
+	ASSERT_EQ(pwrite(cfd, "abcd", 4, 0), 4, "pwrite");
+	u8 buf[5];
+	res = pread(fd, buf, 5, 0);
+
+	ASSERT_EQ(res, 4, "pread");
+	ASSERT(!memcmp(buf, "abcd", 4), "result");
 
 	close(fd);
 	close(cfd);
