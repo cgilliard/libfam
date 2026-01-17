@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/aesenc.h>
+#include <libfam/aighthash.h>
 #include <libfam/rng.h>
 #include <libfam/storm.h>
 #include <libfam/storm_vectors.h>
@@ -321,5 +322,111 @@ Bench(rng) {
 		      false);
 	pwrite(2, fbuf, strlen(fbuf), 0);
 	pwrite(2, "\n", 1, 0);
+}
+
+Test(aighthash) {
+	u64 h1, h2, h3;
+
+	h1 = aighthash64("XXXXXXXXXXXXXXXXxyz", 19, 0);
+	h2 = aighthash64("XXXXXXXXXXXXXXXXxyz\0", 20, 0);
+	h3 = aighthash64("XXXXXXXXXXXXXXXXxyz", 19, 0);
+	ASSERT(h1 != h2, "h1 != h2");
+	ASSERT(h1 == h3, "h1 == h3");
+
+	h1 = aighthash64("012345678901234567890123456789012", 32, 0);
+	h2 = aighthash64("012345678901234567890123456789012\0", 33, 0);
+	h3 = aighthash64("012345678901234567890123456789012", 32, 0);
+	ASSERT(h1 != h2, "h1 != h2");
+	ASSERT(h1 == h3, "h1 == h3");
+}
+
+Test(aighthash_vector) {
+	u8 vector[1024] = {0};
+	u64 r;
+	for (u32 i = 0; i < 1024; i++) vector[i] = i % 256;
+	r = aighthash64(vector, 1024, 0);
+	ASSERT_EQ(r, 17797804553278143541ULL, "vector1");
+	r = aighthash64(vector, 1024, 1);
+	ASSERT_EQ(r, 10881699377260999209ULL, "vector2");
+}
+
+#define COUNT (1024ULL * 1024ULL)
+#define SIZE 8192ULL
+
+Bench(aighthash) {
+	Rng rng;
+	__attribute__((aligned(32))) u8 text[SIZE] = {0};
+	u64* v = (void*)text;
+	u64 cycle_sum = 0;
+
+	rng_init(&rng);
+
+	for (u32 i = 0; i < COUNT; i++) {
+		u64 timer;
+		rng_gen(&rng, text, SIZE);
+		timer = cycle_counter();
+		aighthash64(text, SIZE, 0);
+		cycle_sum += cycle_counter() - timer;
+		(*v)++;
+	}
+	pwrite(2, "cycles_per_byte=", 16, 0);
+	f64 cycle_per_byte = (f64)cycle_sum / (COUNT * SIZE);
+	u8 cpb[MAX_F64_STRING_LEN] = {0};
+	f64_to_string(cpb, cycle_per_byte, 8, false);
+	pwrite(2, cpb, strlen(cpb), 0);
+	pwrite(2, "\n", 1, 0);
+}
+
+Bench(aighthash_bitflips) {
+	Rng rng = {0};
+	__attribute__((aligned(32))) u8 a[8192] = {0};
+	__attribute__((aligned(32))) u8 b[8192] = {0};
+
+	rng_init(&rng);
+
+	int total_fail = 0;
+	int iter = 133;
+
+	for (u32 i = 0; i < iter; i++) {
+		int total_tests = 0;
+		int bias[64] = {0};
+		for (int trial = 0; trial < 10000; ++trial) {
+			rng_gen(&rng, a, 8192);
+			fastmemcpy(b, a, 8192);
+
+			u64 byte_pos = 0;
+			rng_gen(&rng, &byte_pos, sizeof(u64));
+			byte_pos %= 8192;
+			u8 bit_pos = 0;
+			rng_gen(&rng, &bit_pos, sizeof(u8));
+			bit_pos %= 8;
+
+			b[byte_pos] ^= (u8)(1 << bit_pos);
+
+			u64 v1 = aighthash64(a, 8192, 0);
+			u64 v2 = aighthash64(b, 8192, 0);
+			u64 diff = v1 ^ v2;
+			for (int bit = 0; bit < 64; ++bit) {
+				if (diff & (1ULL << bit)) {
+					bias[bit]++;
+				}
+			}
+
+			total_tests++;
+		}
+
+		i32 failed = 0;
+		for (u32 bit = 0; bit < 64; ++bit) {
+			f64 p = 100.0 * bias[bit] / total_tests;
+			if (p < 48.2 || p > 51.8) failed++;
+		}
+		total_fail += (failed != 0);
+	}
+	f64 fail_perc = (100.0 * total_fail) / (iter);
+	u8 fail_str[MAX_F64_STRING_LEN] = {0};
+	f64_to_string(fail_str, fail_perc, 2, false);
+	pwrite(2, "fail_rate=", 10, 0);
+	pwrite(2, fail_str, strlen(fail_str), 0);
+	pwrite(2, "%\n", 2, 0);
 }
 
