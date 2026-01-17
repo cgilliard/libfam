@@ -23,31 +23,30 @@
  *
  *******************************************************************************/
 
-#ifndef _SYSCALL_H
-#define _SYSCALL_H
+#ifndef _AESENC_H
+#define _AESENC_H
 
-#include <libfam/types.h>
+#ifdef __VAES__
+#define AESENC256(result, data, key) \
+	*(__m256i *)result =         \
+	    _mm256_aesenc_epi128(*(__m256i *)data, *(__m256i *)key);
+#else
+#define AESENC256(result, data, key)                                           \
+	do {                                                                   \
+		__m128i data_lo = _mm256_castsi256_si128(*(__m256i *)data);    \
+		__m128i data_hi =                                              \
+		    _mm256_extracti128_si256(*(__m256i *)data, 1);             \
+                                                                               \
+		__m128i key_lo = _mm256_castsi256_si128(*(__m256i *)key);      \
+		__m128i key_hi = _mm256_extracti128_si256(*(__m256i *)key, 1); \
+                                                                               \
+		data_lo = _mm_aesenc_si128(data_lo, key_lo);                   \
+		data_hi = _mm_aesenc_si128(data_hi, key_hi);                   \
+		fastmemcpy(result, &data_lo, 16);                              \
+		fastmemcpy((u8 *)result + 16, &data_hi, 16);                   \
+	} while (0);
+#endif /* !__VAES__ */
 
-struct rt_sigaction;
-struct io_uring_params;
-struct timespec;
-struct timeval;
+void aesenc256(void *data, const void *key);
 
-i32 clock_gettime(i32 clockid, struct timespec *tp);
-void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset);
-i32 munmap(void *addr, u64 len);
-i32 clone(i64 flags, void *sp);
-void exit_group(i32 status);
-i32 io_uring_setup(u32 entries, struct io_uring_params *params);
-i32 io_uring_enter2(u32 fd, u32 to_submit, u32 min_complete, u32 flags,
-		    void *arg, u64 sz);
-i32 io_uring_register(u32 fd, u32 opcode, void *arg, u32 nr_args);
-i32 fchmod(i32 fd, u32 mode);
-i32 utimesat(i32 dirfd, const u8 *path, const struct timeval *times, i32 flags);
-i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
-		 struct rt_sigaction *oldact, u64 sigsetsize);
-void restorer(void);
-i32 getpid(void);
-i32 kill(i32 pid, i32 signal);
-
-#endif /* _SYSCALL_H */
+#endif /* _AESENC_H */

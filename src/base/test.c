@@ -1084,4 +1084,5 @@ Test(misc) {
 	unlink("/tmp/misc1");
 	ASSERT_EQ(io_uring_register(-1, 0, NULL, 0), -1, "reg err");
 	close(f1);
+	ASSERT_EQ(munmap((void *)1, 1), -1, "invalid unmap");
 }

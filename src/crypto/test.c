@@ -23,31 +23,21 @@
  *
  *******************************************************************************/
 
-#ifndef _SYSCALL_H
-#define _SYSCALL_H
+#include <libfam/aesenc.h>
+#include <libfam/test_base.h>
 
-#include <libfam/types.h>
+Test(aesenc) {
+	__attribute__((aligned(32))) u8 data[32] = {
+	    1,	2,  3,	4,  5,	6,  7,	8,  9,	10, 11, 12, 13, 14, 15, 16,
+	    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+	__attribute__((aligned(32))) u8 key[32] = {
+	    100, 200, 103, 104, 5,  6,	7,  8,	9,  10, 11, 12, 13, 14, 15, 16,
+	    17,	 18,  19,  20,	21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+	aesenc256(data, key);
 
-struct rt_sigaction;
-struct io_uring_params;
-struct timespec;
-struct timeval;
+	u8 expected[] = {204, 221, 103, 39, 254, 203, 234, 91,	166, 251, 7,
+			 191, 26,  157, 39, 39,	 11,  151, 54,	167, 96,  177,
+			 98,  126, 236, 0,  171, 53,  98,  164, 54,  237};
+	ASSERT(!memcmp(data, expected, 32), "expected");
+}
 
-i32 clock_gettime(i32 clockid, struct timespec *tp);
-void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset);
-i32 munmap(void *addr, u64 len);
-i32 clone(i64 flags, void *sp);
-void exit_group(i32 status);
-i32 io_uring_setup(u32 entries, struct io_uring_params *params);
-i32 io_uring_enter2(u32 fd, u32 to_submit, u32 min_complete, u32 flags,
-		    void *arg, u64 sz);
-i32 io_uring_register(u32 fd, u32 opcode, void *arg, u32 nr_args);
-i32 fchmod(i32 fd, u32 mode);
-i32 utimesat(i32 dirfd, const u8 *path, const struct timeval *times, i32 flags);
-i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
-		 struct rt_sigaction *oldact, u64 sigsetsize);
-void restorer(void);
-i32 getpid(void);
-i32 kill(i32 pid, i32 signal);
-
-#endif /* _SYSCALL_H */

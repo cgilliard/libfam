@@ -352,11 +352,6 @@ struct timeval {
 	u64 tv_usec;
 };
 
-struct timezone {
-	i32 tz_minuteswest;
-	i32 tz_dsttime;
-};
-
 /* MMAP */
 #define PROT_READ 0x01
 #define PROT_WRITE 0x02
@@ -455,18 +450,6 @@ struct timezone {
 #define O_DIRECT 00040000
 #endif /* __x86_64__ */
 
-#define FALLOC_FL_KEEP_SIZE 0x01     /* default is extend size */
-#define FALLOC_FL_PUNCH_HOLE 0x02    /* de-allocates range */
-#define FALLOC_FL_NO_HIDE_STALE 0x04 /* reserved codepoint */
-
-/* Lseek consts */
-#define SEEK_SET 0  /* seek relative to beginning of file */
-#define SEEK_CUR 1  /* seek relative to current file position */
-#define SEEK_END 2  /* seek relative to end of file */
-#define SEEK_DATA 3 /* seek to the next data */
-#define SEEK_HOLE 4 /* seek to the next hole */
-#define SEEK_MAX SEEK_HOLE
-
 /* SA_RESTORER - rt_sigaction */
 #define SA_RESTORER 0x04000000
 
@@ -493,51 +476,5 @@ struct timezone {
 #define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
 #define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
 #define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
-
-#ifdef __x86_64__
-struct stat {
-	u64 st_dev;
-	u64 st_ino;
-	u64 st_nlink;
-	u32 st_mode;
-	u32 st_uid;
-	u32 st_gid;
-	u32 __pad0;
-	u64 st_rdev;
-	i64 st_size;
-	i64 st_blksize;
-	i64 st_blocks;
-	u64 st_atime;
-	u64 st_atimensec;
-	u64 st_mtime;
-	u64 st_mtimensec;
-	u64 st_ctime;
-	u64 st_ctimensec;
-	i64 __unused[3];
-};
-#elif defined(__aarch64__)
-struct stat {
-	u64 st_dev;
-	u64 st_ino;
-	u32 st_mode;
-	u32 st_nlink;
-	u32 st_uid;
-	u32 st_gid;
-	u64 st_rdev;
-	u64 __pad1;
-	i64 st_size;
-	i32 st_blksize;
-	i32 __pad2;
-	i64 st_blocks;
-	i64 st_atime;
-	u64 st_atime_nsec;
-	i64 st_mtime;
-	i64 st_mtime_nsec;
-	i64 st_ctime;
-	u64 st_ctime_nsec;
-	u32 __unused4;
-	u32 __unused5;
-};
-#endif /* __aarch64__ */
 
 #endif /* _LINUX_H */
