@@ -23,30 +23,19 @@
  *
  *******************************************************************************/
 
-#ifndef _DEBUG_H
-#define _DEBUG_H
+#ifndef _COMPRESS_H
+#define _COMPRESS_H
 
 #include <libfam/types.h>
 
-extern bool _debug_no_exit;
+#define MAX_COMPRESS_LEN (1 << 18)
 
-#if TEST == 1
-extern bool _debug_fork_fail;
-extern bool _debug_fail_fstat;
-extern bool _debug_compress_fail;
-extern bool _debug_no_write;
-extern bool _debug_proc_format_all;
-extern i64 _debug_pwrite_fail;
-extern i64 _debug_pread_fail;
-extern i64 _debug_alloc_count;
-extern i64 open_fds;
-extern u64 heap_bytes;
+u64 compress_bound(u64 source_len);
+i32 compress_block(const u8 *in, u32 len, u8 *out, u32 capacity);
+i32 decompress_block(const u8 *in, u32 len, u8 *out, u32 capacity);
+i32 compress_file(i32 infd, u64 in_offset, i32 outfd, u64 out_offset);
+i32 decompress_file(i32 infd, u64 in_offset, i32 outfd, u64 out_offset);
+i32 compress_stream(i32 infd, u64 in_offset, i32 outfd, u64 out_offset);
+i32 decompress_stream(i32 infd, u64 in_offset, i32 outfd, u64 out_offset);
 
-u64 get_heap_bytes(void);
-void heap_bytes_reset(void);
-u64 get_open_fds(void);
-void open_fds_reset(void);
-#endif /* TEST */
-
-#endif /* _DEBUG_H */
-
+#endif /* _COMPRESS_H */

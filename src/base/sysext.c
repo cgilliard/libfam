@@ -284,6 +284,10 @@ PUBLIC u64 cycle_counter(void) {
 }
 
 PUBLIC i32 fork(void) {
+#if TEST == 1
+	if (_debug_fork_fail) return -1;
+#endif /* TEST */
+
 	i32 ret = clone(SIGCHLD, 0);
 	if (!ret) __global_async = NULL;
 	return ret;
@@ -296,6 +300,12 @@ PUBLIC i32 exists(const u8 *pathname) {
 		return 1;
 	}
 	return 0;
+}
+
+PUBLIC i64 fsize(i32 fd) {
+	struct stat st;
+	if (fstat(fd, &st) < 0) return -1;
+	return st.st_size;
 }
 
 i64 write_num(i32 fd, u64 num) {

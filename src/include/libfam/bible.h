@@ -23,30 +23,26 @@
  *
  *******************************************************************************/
 
-#ifndef _DEBUG_H
-#define _DEBUG_H
+#ifndef _BIBLE_H
+#define _BIBLE_H
 
 #include <libfam/types.h>
 
-extern bool _debug_no_exit;
+#define HASH_INPUT_LEN 128
+#define BIBLE_UNCOMPRESSED_SIZE 4634229
 
-#if TEST == 1
-extern bool _debug_fork_fail;
-extern bool _debug_fail_fstat;
-extern bool _debug_compress_fail;
-extern bool _debug_no_write;
-extern bool _debug_proc_format_all;
-extern i64 _debug_pwrite_fail;
-extern i64 _debug_pread_fail;
-extern i64 _debug_alloc_count;
-extern i64 open_fds;
-extern u64 heap_bytes;
+typedef struct Bible Bible;
 
-u64 get_heap_bytes(void);
-void heap_bytes_reset(void);
-u64 get_open_fds(void);
-void open_fds_reset(void);
-#endif /* TEST */
+const Bible *bible_gen(bool print_status);
+const Bible *bible_load(const u8 *path);
+i32 bible_store(const Bible *b, const u8 *path);
+void bible_expand(const Bible *b, u8 bible[BIBLE_UNCOMPRESSED_SIZE]);
+void bible_sbox8_64(u64 sbox[256]);
+void bible_hash(const Bible *b, const u8 input[HASH_INPUT_LEN], u8 out[32],
+		const u64 sbox[256]);
+i32 mine_block(const Bible *bible, const u8 header[HASH_INPUT_LEN],
+	       const u8 target[32], u8 out[32], u32 *nonce, u32 max_iter,
+	       u64 sbox[256]);
+void bible_destroy(const Bible *b);
 
-#endif /* _DEBUG_H */
-
+#endif /* _BIBLE_H */

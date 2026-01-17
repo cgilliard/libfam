@@ -64,6 +64,52 @@ struct statx {
 	u64 __spare3[12];
 };
 
+#ifdef __x86_64__
+struct stat {
+	u64 st_dev;
+	u64 st_ino;
+	u64 st_nlink;
+	u32 st_mode;
+	u32 st_uid;
+	u32 st_gid;
+	u32 __pad0;
+	u64 st_rdev;
+	i64 st_size;
+	i64 st_blksize;
+	i64 st_blocks;
+	u64 st_atime;
+	u64 st_atimensec;
+	u64 st_mtime;
+	u64 st_mtimensec;
+	u64 st_ctime;
+	u64 st_ctimensec;
+	i64 __unused[3];
+};
+#elif defined(__aarch64__)
+struct stat {
+	u64 st_dev;
+	u64 st_ino;
+	u32 st_mode;
+	u32 st_nlink;
+	u32 st_uid;
+	u32 st_gid;
+	u64 st_rdev;
+	u64 __pad1;
+	i64 st_size;
+	i32 st_blksize;
+	i32 __pad2;
+	i64 st_blocks;
+	i64 st_atime;
+	u64 st_atime_nsec;
+	i64 st_mtime;
+	i64 st_mtime_nsec;
+	i64 st_ctime;
+	u64 st_ctime_nsec;
+	u32 __unused4;
+	u32 __unused5;
+};
+#endif /* __aarch64__ */
+
 struct timespec {
 	u64 tv_sec;
 	u64 tv_nsec;

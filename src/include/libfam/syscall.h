@@ -32,6 +32,7 @@ struct rt_sigaction;
 struct io_uring_params;
 struct timespec;
 struct timeval;
+struct stat;
 
 i32 clock_gettime(i32 clockid, struct timespec *tp);
 void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset);
@@ -49,5 +50,6 @@ i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
 void restorer(void);
 i32 getpid(void);
 i32 kill(i32 pid, i32 signal);
+i32 fstat(i32 fd, struct stat *st);
 
 #endif /* _SYSCALL_H */
