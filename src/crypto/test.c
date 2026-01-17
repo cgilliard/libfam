@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/aesenc.h>
+#include <libfam/rng.h>
 #include <libfam/storm.h>
 #include <libfam/storm_vectors.h>
 #include <libfam/test_base.h>
@@ -128,7 +129,33 @@ Test(storm_vectors) {
 	}
 }
 
-Bench(storm_perf) {
+Test(storm_cipher_vector) {
+	StormContext ctx;
+	__attribute__((aligned(32))) const u8 SEED[32] = {1, 2, 3};
+	__attribute__((aligned(32))) u8 buffer1[32] = {0};
+	__attribute__((aligned(32))) u8 buffer2[32] = {0};
+
+	storm_init(&ctx, SEED);
+	faststrcpy(buffer1, "test1");
+	storm_xcrypt_buffer(&ctx, buffer1);
+	faststrcpy(buffer2, "test2");
+	storm_xcrypt_buffer(&ctx, buffer2);
+
+	u8 expected1[32] = {71,	 133, 192, 11,	194, 23,  27,  203,
+			    173, 163, 182, 59,	31,  226, 177, 116,
+			    41,	 37,  219, 150, 175, 113, 190, 203,
+			    53,	 124, 138, 254, 177, 111, 150, 212};
+
+	ASSERT(!memcmp(buffer1, expected1, 32), "expected1");
+	u8 expected2[32] = {122, 32,  132, 154, 196, 43,  248, 248,
+			    88,	 71,  69,  196, 204, 27,  199, 135,
+			    145, 59,  148, 51,	239, 220, 75,  82,
+			    111, 186, 138, 31,	242, 105, 162, 235};
+
+	ASSERT(!memcmp(buffer2, expected2, 32), "expected2");
+}
+
+Bench(storm) {
 #define STORM_COUNT (10000000000 / 32)
 	static __attribute__((aligned(32))) u8 ZERO_SEED[32] = {0};
 	static __attribute__((aligned(32))) u8 ONE_SEED[32] = {1};
@@ -187,29 +214,112 @@ Bench(storm_perf) {
 	pwrite(2, "ps\n", 3, 0);
 }
 
-Test(storm_cipher_vector) {
-	StormContext ctx;
-	__attribute__((aligned(32))) const u8 SEED[32] = {1, 2, 3};
+Bench(storm_preimage) {
+	StormContext ctx1;
+	StormContext ctx2;
+	Rng rng;
+	__attribute__((aligned(32))) u8 input[32] = {0};
+	__attribute__((aligned(32))) u8 flipped[32] = {0};
+	static const __attribute__((aligned(32))) u8 ZERO[32] = {0};
+	u32 max_dist = 0;
+	u32 hamm_sum, hamm_dist;
+	u32 trials = 1 << 28;
+
+	rng_init(&rng);
+	for (u32 i = 0; i < trials; i++) {
+		rng_gen(&rng, input, 32);
+		u64 byte_pos = i % 32;
+		u8 bit_pos = input[0] % 8;
+		fastmemcpy(flipped, input, 32);
+		flipped[byte_pos] ^= (1 << bit_pos);
+
+		storm_init(&ctx1, ZERO);
+		storm_init(&ctx2, ZERO);
+		storm_next_block(&ctx1, input);
+		storm_next_block(&ctx2, flipped);
+		hamm_sum = 0;
+
+		for (u32 i = 0; i < 32; i++) {
+			u32 hamm = input[i] ^ flipped[i];
+			hamm_sum += __builtin_popcountll(hamm);
+		}
+		hamm_dist = hamm_sum > 128 ? hamm_sum - 128 : 128 - hamm_sum;
+		if (hamm_dist > max_dist) max_dist = hamm_dist;
+	}
+
+	ASSERT(max_dist > 40, "max_dist > 40");
+	ASSERT(max_dist < 60, "max_dist < 60");
+	pwrite(2, "trials=", 7, 0);
+	write_num(2, trials);
+	pwrite(2, ",max_distance=", 14, 0);
+	write_num(2, max_dist);
+	pwrite(2, "\n", 1, 0);
+}
+
+Test(rng) {
+	u64 x = 0, y = 0;
+	__attribute__((aligned(32))) u8 z[64] = {0};
+	Rng rng;
+	__attribute__((aligned(32))) u8 key[32] = {5, 5, 5, 5};
+	rng_init(&rng);
+	rng_gen(&rng, &x, sizeof(x));
+	rng_init(&rng);
+	rng_gen(&rng, &y, sizeof(y));
+	ASSERT(x != y, "x!=y");
+
+	rng_test_seed(&rng, key);
+	rng_gen(&rng, z, sizeof(z));
+
+	u8 expected[64] = {
+	    129, 70,  31,  219, 220, 182, 37,  117, 150, 255, 230, 81,	51,
+	    150, 154, 197, 59,	81,  226, 159, 151, 74,	 159, 253, 239, 120,
+	    28,	 108, 132, 195, 190, 175, 36,  235, 239, 201, 63,  55,	175,
+	    172, 47,  28,  89,	241, 175, 127, 4,   86,	 30,  251, 182, 32,
+	    211, 60,  62,  192, 232, 15,  165, 39,  153, 225, 119, 227};
+	ASSERT_EQ(memcmp(z, expected, 64), 0, "z");
+}
+
+#define RNG_BYTES (32 * 1000000ULL)
+
+Bench(rng) {
+	u8 fbuf[1024] = {0};
 	__attribute__((aligned(32))) u8 buffer1[32] = {0};
 	__attribute__((aligned(32))) u8 buffer2[32] = {0};
+	__attribute__((aligned(32))) u8 buffer3[32] = {0};
+	__attribute__((aligned(32))) u8 buffer4[32] = {0};
+	__attribute__((aligned(32))) u8 buffer5[32] = {0};
+	__attribute__((aligned(32))) u8 buffer6[32] = {0};
 
-	storm_init(&ctx, SEED);
-	faststrcpy(buffer1, "test1");
-	storm_xcrypt_buffer(&ctx, buffer1);
-	faststrcpy(buffer2, "test2");
-	storm_xcrypt_buffer(&ctx, buffer2);
+	i64 needed = RNG_BYTES;
+	Rng rng1, rng2, rng3, rng4, rng5, rng6;
+	u64 total_cycles = 0;
 
-	u8 expected1[32] = {71,	 133, 192, 11,	194, 23,  27,  203,
-			    173, 163, 182, 59,	31,  226, 177, 116,
-			    41,	 37,  219, 150, 175, 113, 190, 203,
-			    53,	 124, 138, 254, 177, 111, 150, 212};
+	rng_init(&rng1);
+	rng_init(&rng2);
+	rng_init(&rng3);
+	rng_init(&rng4);
+	rng_init(&rng5);
+	rng_init(&rng6);
 
-	ASSERT(!memcmp(buffer1, expected1, 32), "expected1");
-	u8 expected2[32] = {122, 32,  132, 154, 196, 43,  248, 248,
-			    88,	 71,  69,  196, 204, 27,  199, 135,
-			    145, 59,  148, 51,	239, 220, 75,  82,
-			    111, 186, 138, 31,	242, 105, 162, 235};
+	while (needed > 0) {
+		u64 start;
+		start = cycle_counter();
+		rng_gen(&rng1, buffer1, 32);
+		rng_gen(&rng2, buffer2, 32);
+		rng_gen(&rng3, buffer3, 32);
+		rng_gen(&rng4, buffer4, 32);
+		rng_gen(&rng5, buffer5, 32);
+		rng_gen(&rng6, buffer6, 32);
+		total_cycles += cycle_counter() - start;
 
-	ASSERT(!memcmp(buffer2, expected2, 32), "expected2");
+		needed -= 32;
+	}
+	const u8 msg[] = "cycles_per_byte=";
+	pwrite(2, msg, strlen(msg), 0);
+	f64_to_string(fbuf,
+		      (f64)(total_cycles * 100 / (6 * RNG_BYTES)) / (f64)100, 2,
+		      false);
+	pwrite(2, fbuf, strlen(fbuf), 0);
+	pwrite(2, "\n", 1, 0);
 }
 
