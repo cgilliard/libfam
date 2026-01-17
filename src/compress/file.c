@@ -175,19 +175,19 @@ STATIC i32 compress_setup_offsets(DecompressState *state, u64 st_size) {
 PUBLIC i32 compress_file(i32 infd, u64 in_offset, i32 outfd, u64 out_offset) {
 	i32 ret = 0;
 	CompressState *state = NULL;
-	struct stat st, outst;
+	struct statx st, outst;
 	state = smap(sizeof(CompressState));
 	if (!state) return -1;
-	if (fstat(infd, &st) < 0) return -1;
-	if (fstat(outfd, &outst) < 0) return -1;
-	if (st.st_size <= in_offset || !S_ISREG(st.st_mode) ||
-	    !S_ISREG(outst.st_mode)) {
+	if (fstatx(infd, &st) < 0) return -1;
+	if (fstatx(outfd, &outst) < 0) return -1;
+	if (st.stx_size <= in_offset || !S_ISREG(st.stx_mode) ||
+	    !S_ISREG(outst.stx_mode)) {
 		errno = EINVAL;
 		ret = -1;
 		goto cleanup;
 	}
 
-	state->chunks = ((st.st_size - in_offset) + MAX_COMPRESS_LEN - 1) /
+	state->chunks = ((st.stx_size - in_offset) + MAX_COMPRESS_LEN - 1) /
 			MAX_COMPRESS_LEN;
 	state->procs = min(get_physical_cores_cpuid(), state->chunks);
 	state->procs = min(state->procs, MAX_PROCS);
@@ -223,19 +223,19 @@ cleanup:
 PUBLIC i32 decompress_file(i32 infd, u64 in_offset, i32 outfd, u64 out_offset) {
 	i32 ret = 0;
 	DecompressState *state = NULL;
-	struct stat st, outst;
+	struct statx st, outst;
 
 	state = smap(sizeof(DecompressState));
 	if (!state) {
 		ret = -1;
 		goto cleanup;
 	}
-	if (fstat(infd, &st) < 0 || fstat(outfd, &outst) < 0) {
+	if (fstatx(infd, &st) < 0 || fstatx(outfd, &outst) < 0) {
 		ret = -1;
 		goto cleanup;
 	}
-	if (!st.st_size || st.st_size <= in_offset || !S_ISREG(st.st_mode) ||
-	    !S_ISREG(outst.st_mode)) {
+	if (!st.stx_size || st.stx_size <= in_offset || !S_ISREG(st.stx_mode) ||
+	    !S_ISREG(outst.stx_mode)) {
 		errno = EINVAL;
 		ret = -1;
 		goto cleanup;
@@ -243,15 +243,15 @@ PUBLIC i32 decompress_file(i32 infd, u64 in_offset, i32 outfd, u64 out_offset) {
 
 	state->procs =
 	    min(get_physical_cores_cpuid(),
-		(st.st_size + (MAX_COMPRESS_LEN - 1) / MAX_COMPRESS_LEN));
+		(st.stx_size + (MAX_COMPRESS_LEN - 1) / MAX_COMPRESS_LEN));
 	state->procs = min(state->procs, MAX_PROCS);
 	state->infd = infd;
 	state->in_offset = in_offset;
-	state->in_len = st.st_size;
+	state->in_len = st.stx_size;
 	state->outfd = outfd;
 	state->out_offset = out_offset;
 
-	if (compress_setup_offsets(state, st.st_size) < 0) {
+	if (compress_setup_offsets(state, st.stx_size) < 0) {
 		ret = -1;
 		goto cleanup;
 	}

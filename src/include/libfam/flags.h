@@ -46,51 +46,38 @@
 #define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
 #define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 
-#ifdef __x86_64__
-struct stat {
-	u64 st_dev;
-	u64 st_ino;
-	u64 st_nlink;
-	u32 st_mode;
-	u32 st_uid;
-	u32 st_gid;
-	u32 __pad0;
-	u64 st_rdev;
-	i64 st_size;
-	i64 st_blksize;
-	i64 st_blocks;
-	u64 st_atime;
-	u64 st_atimensec;
-	u64 st_mtime;
-	u64 st_mtimensec;
-	u64 st_ctime;
-	u64 st_ctimensec;
-	i64 __unused[3];
+struct statx_timestamp {
+	i64 tv_sec;
+	u32 tv_nsec;
+	i32 __reserved;
 };
-#elif defined(__aarch64__)
-struct stat {
-	u64 st_dev;
-	u64 st_ino;
-	u32 st_mode;
-	u32 st_nlink;
-	u32 st_uid;
-	u32 st_gid;
-	u64 st_rdev;
-	u64 __pad1;
-	i64 st_size;
-	i32 st_blksize;
-	i32 __pad2;
-	i64 st_blocks;
-	i64 st_atime;
-	u64 st_atime_nsec;
-	i64 st_mtime;
-	i64 st_mtime_nsec;
-	i64 st_ctime;
-	u64 st_ctime_nsec;
-	u32 __unused4;
-	u32 __unused5;
+
+struct statx {
+	u32 stx_mask;
+	u32 stx_blksize;
+	u64 stx_attributes;
+	u32 stx_nlink;
+	u32 stx_uid;
+	u32 stx_gid;
+	u16 stx_mode;
+	u16 __spare0[1];
+	u64 stx_ino;
+	u64 stx_size;
+	u64 stx_blocks;
+	u64 stx_attributes_mask;
+	struct statx_timestamp stx_atime;
+	struct statx_timestamp stx_btime;
+	struct statx_timestamp stx_ctime;
+	struct statx_timestamp stx_mtime;
+	u32 stx_rdev_major;
+	u32 stx_rdev_minor;
+	u32 stx_dev_major;
+	u32 stx_dev_minor;
+	u64 stx_mnt_id;
+	u32 stx_dio_mem_align;
+	u32 stx_dio_offset_align;
+	u64 __spare3[12];
 };
-#endif /* __aarch64__ */
 
 #define AT_FDCWD -100
 

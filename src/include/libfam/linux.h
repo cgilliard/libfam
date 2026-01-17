@@ -32,39 +32,6 @@
 #define STATX_BASIC_STATS 0x07ffU
 #define AT_EMPTY_PATH 0x1000
 
-struct statx_timestamp {
-	i64 tv_sec;
-	u32 tv_nsec;
-	i32 __reserved;
-};
-
-struct statx {
-	u32 stx_mask;
-	u32 stx_blksize;
-	u64 stx_attributes;
-	u32 stx_nlink;
-	u32 stx_uid;
-	u32 stx_gid;
-	u16 stx_mode;
-	u16 __spare0[1];
-	u64 stx_ino;
-	u64 stx_size;
-	u64 stx_blocks;
-	u64 stx_attributes_mask;
-	struct statx_timestamp stx_atime;
-	struct statx_timestamp stx_btime;
-	struct statx_timestamp stx_ctime;
-	struct statx_timestamp stx_mtime;
-	u32 stx_rdev_major;
-	u32 stx_rdev_minor;
-	u32 stx_dev_major;
-	u32 stx_dev_minor;
-	u64 stx_mnt_id;
-	u32 stx_dio_mem_align;
-	u32 stx_dio_offset_align;
-	u64 __spare3[12];
-};
-
 struct timespec {
 	u64 tv_sec;
 	u64 tv_nsec;

@@ -50,6 +50,5 @@ i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
 void restorer(void);
 i32 getpid(void);
 i32 kill(i32 pid, i32 signal);
-i32 fstat(i32 fd, struct stat *st);
 
 #endif /* _SYSCALL_H */

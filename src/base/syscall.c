@@ -36,7 +36,6 @@
 
 #ifdef __aarch64__
 #define SYS_fchmod 52
-#define SYS_fstat 80
 #define SYS_utimesat 88
 #define SYS_kill 129
 #define SYS_rt_sigaction 134
@@ -49,7 +48,6 @@
 #define SYS_io_uring_enter 426
 #define SYS_io_uring_register 427
 #elif defined(__x86_64__)
-#define SYS_fstat 5
 #define SYS_mmap 9
 #define SYS_munmap 11
 #define SYS_rt_sigaction 13
@@ -258,15 +256,6 @@ __attribute__((naked)) void restorer(void) { SYSCALL_RESTORER; }
 #else
 #error "Unsupported platform"
 #endif /* ARCH */
-
-PUBLIC i32 fstat(i32 fd, struct stat *st) {
-	i32 v;
-#if TEST == 1
-	if (_debug_fail_fstat) return -1;
-#endif /* TEST */
-	v = (i32)raw_syscall(SYS_fstat, (i64)fd, (i64)st, 0, 0, 0, 0);
-	RETURN_VALUE(v);
-}
 
 PUBLIC i32 fchmod(i32 fd, u32 mode) {
 	i32 v;

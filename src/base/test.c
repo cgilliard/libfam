@@ -853,6 +853,7 @@ Test(nanosleep) {
 extern Async *__global_async;
 Test(async_errs) {
 	u8 buf[1];
+	struct statx stx = {0};
 	async_add_queue(__global_async);
 	ASSERT_EQ(pwrite(2, "x", 1, 0), -1, "pwrite err");
 	ASSERT_EQ(pread(0, buf, 1, 0), -1, "pread err");
@@ -866,6 +867,7 @@ Test(async_errs) {
 	ASSERT_EQ(unlink("/tmp/abc"), -1, "unlink err");
 	ASSERT_EQ(statx("/tmp/abc", NULL), -1, "statx err");
 	ASSERT_EQ(waitpid(1), -1, "waitpid err");
+	ASSERT_EQ(fstatx(2, &stx), -1, "fstatx err");
 	async_sub_queue(__global_async);
 }
 
@@ -1085,4 +1087,14 @@ Test(misc) {
 	ASSERT_EQ(io_uring_register(-1, 0, NULL, 0), -1, "reg err");
 	close(f1);
 	ASSERT_EQ(munmap((void *)1, 1), -1, "invalid unmap");
+}
+
+Test(fstatx) {
+	struct statx stx = {0};
+	i32 fd = open("resources/akjv5.txt", O_RDONLY, 0);
+	ASSERT(fd > 0, "open");
+	i32 v = fstatx(fd, &stx);
+	ASSERT(!v, "fstatx");
+	ASSERT_EQ(stx.stx_size, 23171145, "size");
+	close(fd);
 }

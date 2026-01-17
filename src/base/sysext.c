@@ -233,6 +233,33 @@ PUBLIC i32 waitpid(i32 pid) {
 	return __global_res;
 }
 
+PUBLIC i32 fstatx(i32 fd, struct statx *st) {
+	struct io_uring_sqe sqe = {.opcode = IORING_OP_STATX,
+				   .fd = fd,
+				   .addr = (u64) "",
+				   .len = STATX_BASIC_STATS,
+				   .off = (u64)st,
+				   .rw_flags = AT_EMPTY_PATH,
+				   .user_data = 1};
+
+#if TEST == 1
+	if (_debug_fail_fstat) return -1;
+#endif /* TEST */
+
+	if (global_async_init() < 0) return -1;
+	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
+			  true) < 0)
+		return -1;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
+}
+
+PUBLIC i64 fsize(i32 fd) {
+	struct statx st;
+	if (fstatx(fd, &st) < 0) return -1;
+	return st.stx_size;
+}
+
 PUBLIC void *map(u64 length) {
 	void *v = mmap(NULL, length, PROT_READ | PROT_WRITE,
 		       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -300,12 +327,6 @@ PUBLIC i32 exists(const u8 *pathname) {
 		return 1;
 	}
 	return 0;
-}
-
-PUBLIC i64 fsize(i32 fd) {
-	struct stat st;
-	if (fstat(fd, &st) < 0) return -1;
-	return st.st_size;
 }
 
 i64 write_num(i32 fd, u64 num) {
