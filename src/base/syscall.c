@@ -35,15 +35,15 @@
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 
 #ifdef __aarch64__
-#define SYS_bind 49
-#define SYS_listen 50
-#define SYS_getsockname 204
 #define SYS_fchmod 52
-#define SYS_setsockopt 54
 #define SYS_utimesat 88
 #define SYS_kill 129
 #define SYS_rt_sigaction 134
 #define SYS_getpid 172
+#define SYS_bind 200
+#define SYS_listen 201
+#define SYS_getsockname 204
+#define SYS_setsockopt 208
 #define SYS_munmap 215
 #define SYS_clone 220
 #define SYS_mmap 222
@@ -132,11 +132,11 @@ void __gcov_dump(void);
 	SYSCALL_EXIT
 #endif /* COVERAGE */
 
-PUBLIC void exit_group(i32 status) {
+PUBLIC void exit_group(i32 status){
 #ifdef COVERAGE
-	SYSCALL_EXIT_COV
+    SYSCALL_EXIT_COV
 #else
-	SYSCALL_EXIT
+    SYSCALL_EXIT
 #endif
 }
 
