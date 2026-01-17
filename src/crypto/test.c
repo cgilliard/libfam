@@ -29,6 +29,7 @@
 #include <libfam/storm.h>
 #include <libfam/storm_vectors.h>
 #include <libfam/test_base.h>
+#include <libfam/wots.h>
 
 Test(aesenc) {
 	__attribute__((aligned(32))) u8 data[32] = {
@@ -428,5 +429,79 @@ Bench(aighthash_bitflips) {
 	pwrite(2, "fail_rate=", 10, 0);
 	pwrite(2, fail_str, strlen(fail_str), 0);
 	pwrite(2, "%\n", 2, 0);
+}
+
+Test(wots) {
+	__attribute__((aligned(32))) u8 key[32] = {1, 2, 3, 4, 5};
+	WotsPubKey pk;
+	WotsSecKey sk;
+	WotsSig sig;
+	u8 msg[32] = {9, 9, 9, 9, 9, 4};
+
+	wots_keyfrom(key, &pk, &sk);
+	wots_sign(&sk, msg, &sig);
+	for (u32 i = 0; i < 32; i++) {
+		msg[i]++;
+		ASSERT(wots_verify(&pk, &sig, msg), "!verify");
+		msg[i]--;
+	}
+	ASSERT(!wots_verify(&pk, &sig, msg), "verify");
+}
+
+#define WOTS_COUNT 1000
+
+Bench(wots) {
+	__attribute__((aligned(32))) u8 key[32] = {0};
+	__attribute__((aligned(32))) u8 msg[32] = {0};
+	WotsPubKey pk;
+	WotsSecKey sk;
+	WotsSig sig;
+
+	Rng rng;
+	u64 keygen_sum = 0;
+	u64 sign_sum = 0;
+	u64 verify_sum = 0;
+
+	rng_init(&rng);
+
+	for (u32 i = 0; i < WOTS_COUNT; i++) {
+		rng_gen(&rng, key, 32);
+		rng_gen(&rng, msg, 32);
+
+		u64 start = cycle_counter();
+		wots_keyfrom(key, &pk, &sk);
+		keygen_sum += cycle_counter() - start;
+		start = cycle_counter();
+		wots_sign(&sk, msg, &sig);
+		sign_sum += cycle_counter() - start;
+		start = cycle_counter();
+		i32 res = wots_verify(&pk, &sig, msg);
+		verify_sum += cycle_counter() - start;
+		ASSERT(!res, "verify");
+		for (u32 i = 0; i < 32; i++) {
+			msg[i]++;
+			ASSERT(wots_verify(&pk, &sig, msg), "!verify");
+			msg[i]--;
+		}
+		for (u32 i = 0; i < WOTS_SIG_SIZE; i++) {
+			sig.data[i]++;
+			ASSERT(wots_verify(&pk, &sig, msg), "!verify");
+			sig.data[i]--;
+		}
+		for (u32 i = 0; i < WOTS_PUBKEY_SIZE; i++) {
+			pk.data[i]++;
+			ASSERT(wots_verify(&pk, &sig, msg), "!verify");
+			pk.data[i]--;
+		}
+
+		ASSERT(!wots_verify(&pk, &sig, msg), "verify");
+	}
+	pwrite(2, "keygen=", 7, 0);
+	write_num(2, keygen_sum / WOTS_COUNT);
+	pwrite(2, ",sign=", 6, 0);
+	write_num(2, sign_sum / WOTS_COUNT);
+	pwrite(2, ",verify=", 8, 0);
+	write_num(2, verify_sum / WOTS_COUNT);
+	pwrite(2, "\n", 1, 0);
 }
 
