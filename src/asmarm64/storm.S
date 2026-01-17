@@ -1,3 +1,5 @@
+
+#ifndef NO_VECTOR
 .global storm_next_block
 storm_next_block:
     ldp	q0, q3, [x1]
@@ -90,4 +92,4 @@ storm_xcrypt_buffer:
     stp	q2, q3, [x1]
     stp	q1, q0, [x0, #160]
     ret
-
+#endif /* !NO_VECTOR */

@@ -1,10 +1,6 @@
 .section .note.GNU-stack,"",@progbits
 
 #ifndef NO_VECTOR
-#define USE_AVX2
-#endif /* NO_VECTOR */
-
-#ifdef USE_AVX2
 .text
 #ifdef __VAES__
 .global storm_next_block
@@ -106,4 +102,4 @@ storm_xcrypt_buffer:
 
 
 #endif /* !__VAES__ */
-#endif /* USE_AVX2 */
+#endif /* !NO_VECTOR */
