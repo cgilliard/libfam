@@ -38,12 +38,9 @@
 
 #ifdef USE_NEON
 #include <arm_neon.h>
-void storm_next_block_neon(StormContext *ctx, u8 block[32]);
 #endif /* USE_NEON */
 #ifdef USE_AVX2
 #include <immintrin.h>
-void storm_next_block_avx2_vaes(StormContext *ctx, u8 block[32]);
-void storm_next_block_avx2_aes(StormContext *ctx, u8 block[32]);
 #endif /* USE_AVX2 */
 
 const __attribute__((aligned(32))) u64 STORM_NUMS[] = {
