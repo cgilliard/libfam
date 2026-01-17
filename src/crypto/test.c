@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/aesenc.h>
+#include <libfam/storm.h>
 #include <libfam/test_base.h>
 
 Test(aesenc) {
@@ -39,5 +40,50 @@ Test(aesenc) {
 			 191, 26,  157, 39, 39,	 11,  151, 54,	167, 96,  177,
 			 98,  126, 236, 0,  171, 53,  98,  164, 54,  237};
 	ASSERT(!memcmp(data, expected, 32), "expected");
+}
+
+Test(storm_cipher) {
+	StormContext ctx;
+	__attribute__((aligned(32))) const u8 SEED[32] = {1, 2, 3};
+	__attribute__((aligned(32))) u8 buffer1[32] = {0};
+	__attribute__((aligned(32))) u8 buffer2[32] = {0};
+	__attribute__((aligned(32))) u8 buffer3[32] = {0};
+	__attribute__((aligned(32))) u8 buffer4[32] = {0};
+	__attribute__((aligned(32))) u8 buffer5[32] = {0};
+
+	storm_init(&ctx, SEED);
+	faststrcpy(buffer1, "test1");
+	storm_xcrypt_buffer(&ctx, buffer1);
+	faststrcpy(buffer2, "test2");
+	storm_xcrypt_buffer(&ctx, buffer2);
+	faststrcpy(buffer3, "blahblah");
+	storm_xcrypt_buffer(&ctx, buffer3);
+	faststrcpy(buffer4, "ok");
+	storm_xcrypt_buffer(&ctx, buffer4);
+	faststrcpy(buffer5, "x");
+	storm_xcrypt_buffer(&ctx, buffer5);
+
+	ASSERT(memcmp(buffer1, "test1", 5), "ne1");
+	ASSERT(memcmp(buffer2, "test2", 5), "ne2");
+	ASSERT(memcmp(buffer3, "blahblah", 8), "ne3");
+	ASSERT(memcmp(buffer4, "ok", 2), "ne4");
+	ASSERT(memcmp(buffer5, "x", 1), "ne5");
+
+	StormContext ctx2;
+	storm_init(&ctx2, SEED);
+
+	storm_xcrypt_buffer(&ctx2, buffer1);
+	ASSERT(!memcmp(buffer1, "test1", 5), "eq1");
+	storm_xcrypt_buffer(&ctx2, buffer2);
+	ASSERT(!memcmp(buffer2, "test2", 5), "eq2");
+
+	storm_xcrypt_buffer(&ctx2, buffer3);
+	ASSERT(!memcmp(buffer3, "blahblah", 8), "eq3");
+
+	storm_xcrypt_buffer(&ctx2, buffer4);
+	ASSERT(!memcmp(buffer4, "ok", 2), "eq4");
+
+	storm_xcrypt_buffer(&ctx2, buffer5);
+	ASSERT(!memcmp(buffer5, "x", 1), "eq5");
 }
 

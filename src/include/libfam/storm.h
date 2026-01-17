@@ -23,9 +23,19 @@
  *
  *******************************************************************************/
 
-#ifndef _AESENC_H
-#define _AESENC_H
+#ifndef _STORM_H
+#define _STORM_H
 
-void aesenc256(void *data, const void *key);
+#include <libfam/types.h>
 
-#endif /* _AESENC_H */
+#define STORM_CONTEXT_SIZE 192
+
+typedef struct {
+	__attribute__((aligned(32))) u8 _data[STORM_CONTEXT_SIZE];
+} StormContext;
+
+void storm_init(StormContext *ctx, const u8 key[32]);
+void storm_next_block(StormContext *ctx, u8 buf[32]);
+void storm_xcrypt_buffer(StormContext *s, u8 buf[32]);
+
+#endif /* _STORM_H */

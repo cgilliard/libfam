@@ -27,26 +27,10 @@
 #include <libfam/string.h>
 #include <libfam/types.h>
 
-#ifndef NO_VECTOR
-#ifdef __AVX2__
-#define USE_AVX2
-#elif defined(__ARM_FEATURE_CRYPTO)
-#define USE_NEON
-#endif /* __ARM_FEATURE_CRYPTO */
-#endif /* NO_VECTOR */
-
-#ifdef USE_NEON
-#include <arm_neon.h>
-#endif /* USE_NEON */
-#ifdef USE_AVX2
-#include <immintrin.h>
-#endif /* USE_AVX2 */
-
 #define Nb 4
 
 typedef u8 state_t[4][4];
 
-#if !defined(USE_AVX2) && !defined(USE_NEON)
 static const u8 sbox[256] = {
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b,
     0xfe, 0xd7, 0xab, 0x76, 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0,
@@ -145,31 +129,8 @@ STATIC __attribute__((unused)) void aesenc128(u8 state[16],
 	aesenc_add_round_key(0, s, RoundKey);
 }
 
-#endif /* !USE_AVX2 && !USE_NEON */
-
 void aesenc256(void *data, const void *key) {
-#ifdef USE_AVX2
-	AESENC256(data, data, key);
-#elif defined(USE_NEON)
-	uint8x16_t d_lo = *(const uint8x16_t *)data;
-	uint8x16_t d_hi = *(const uint8x16_t *)((const u8 *)data + 16);
-	uint8x16_t k_lo = *(const uint8x16_t *)key;
-	uint8x16_t k_hi = *(const uint8x16_t *)((const u8 *)key + 16);
-
-	uint8x16_t zero = vdupq_n_u8(0);
-	uint8x16_t tmp_lo = vaeseq_u8(d_lo, zero);
-	tmp_lo = vaesmcq_u8(tmp_lo);
-	uint8x16_t out_lo = veorq_u8(tmp_lo, k_lo);
-
-	uint8x16_t tmp_hi = vaeseq_u8(d_hi, zero);
-	tmp_hi = vaesmcq_u8(tmp_hi);
-	uint8x16_t out_hi = veorq_u8(tmp_hi, k_hi);
-
-	*(uint8x16_t *)data = out_lo;
-	*(uint8x16_t *)((u8 *)data + 16) = out_hi;
-#else
 	aesenc128(data, key);
 	aesenc128((u8 *)data + 16, (u8 *)key + 16);
-#endif
 }
 

@@ -39,7 +39,7 @@ build_asm() {
     mkdir -p "$objdir"
 
     if [ "${ARCH}" = "x86_64" ]; then
-        local srcdir="$PROJECT_DIR/src/asm"
+        local srcdir="$PROJECT_DIR/src/asmx64"
         for src in "$srcdir"/*.S; do
             [ -f "$src" ] || continue
             basename="${src##*/}"
@@ -53,7 +53,7 @@ build_asm() {
             fi
         done
     else
-	 local srcdir="$PROJECT_DIR/src/armasm"
+	 local srcdir="$PROJECT_DIR/src/asmarm64"
          for src in "$srcdir"/*.S; do
             [ -f "$src" ] || continue
             basename="${src##*/}"
