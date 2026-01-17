@@ -25,6 +25,7 @@
 
 #include <libfam/aesenc.h>
 #include <libfam/storm.h>
+#include <libfam/storm_vectors.h>
 #include <libfam/test_base.h>
 
 Test(aesenc) {
@@ -85,5 +86,45 @@ Test(storm_cipher) {
 
 	storm_xcrypt_buffer(&ctx2, buffer5);
 	ASSERT(!memcmp(buffer5, "x", 1), "eq5");
+}
+
+extern u64 STORM_NUMS[20];
+
+Test(verify_nums) {
+	u64 v[] = {0x2d358dccaa6c78a5, 0x8bb84b93962eacc9, 0x4b33a62ed433d4a3,
+		   0x4d5a2da51de1aa47};
+	u64 vext[20];
+	fastmemcpy(vext, v, sizeof(v));
+	u64 state = v[0] ^ v[1] ^ v[2] ^ v[3];
+	for (u32 i = 4; i < 20; i++) {
+		vext[i] = state;
+		state ^= vext[i - 1] * vext[i - 2];
+	}
+	for (u32 i = 0; i < 20; i++)
+		ASSERT_EQ(STORM_NUMS[i], vext[i], "storm nums");
+}
+
+Test(storm_vectors) {
+	StormContext ctx;
+	for (u32 i = 0; i < sizeof(storm_vectors) / sizeof(storm_vectors[0]);
+	     i++) {
+		storm_init(&ctx, storm_vectors[i].key);
+		for (u32 j = 0; j < sizeof(storm_vectors[i].input) /
+					sizeof(storm_vectors[i].input[0]);
+		     j++) {
+			__attribute__((aligned(32))) u8 tmp[32];
+			fastmemcpy(tmp, storm_vectors[i].input[j], 32);
+			storm_next_block(&ctx, tmp);
+			i32 res = memcmp(tmp, storm_vectors[i].expected[j], 32);
+			if (res) {
+				pwrite(2, "i=", 2, 0);
+				write_num(2, i);
+				pwrite(2, ",j=", 3, 0);
+				write_num(2, j);
+				pwrite(2, "\n", 1, 0);
+			}
+			ASSERT(!res, "vector");
+		}
+	}
 }
 
