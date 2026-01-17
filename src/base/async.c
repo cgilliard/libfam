@@ -133,9 +133,6 @@ i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
 	u32 depth = async->params.sq_entries;
 	u32 mask = *async->cq_mask;
 
-	(void)drained;
-	(void)mask;
-
 	if (__builtin_expect(count > depth, 0)) {
 		errno = EINVAL;
 		return -1;

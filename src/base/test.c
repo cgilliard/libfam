@@ -1098,3 +1098,32 @@ Test(fstatx) {
 	ASSERT_EQ(stx.stx_size, 23171145, "size");
 	close(fd);
 }
+
+Test(socket) {
+	struct sockaddr_in addr = {.sin_family = AF_INET,
+				   .sin_port = htons(0),
+				   .sin_addr = {htonl(INADDR_ANY)}};
+	i64 addrlen = sizeof(addr);
+	i32 res;
+	i32 fd = socket(AF_INET, SOCK_STREAM, 0);
+	ASSERT(fd > 0, "fd");
+
+	u64 one = 1;
+	res = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+	ASSERT(!res, "setsockopt");
+	res = bind(fd, (struct sockaddr *)&addr, addrlen);
+	ASSERT(!res, "bind");
+	res = listen(fd, 10);
+	ASSERT(!res, "listen");
+
+	getsockname(fd, (void *)&addr, &addrlen);
+	ASSERT(addr.sin_port > 0, "port");
+
+	i32 cfd = socket(AF_INET, SOCK_STREAM, 0);
+	ASSERT(cfd > 0, "socket");
+	res = connect(cfd, (void *)&addr, addrlen);
+	ASSERT(!res, "connect");
+
+	close(fd);
+	close(cfd);
+}

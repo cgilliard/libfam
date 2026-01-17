@@ -27,6 +27,7 @@
 #define _LINUX_H
 
 #include <libfam/fstatx.h>
+#include <libfam/linuxnet.h>
 #include <libfam/types.h>
 
 #define STATX_BASIC_STATS 0x07ffU

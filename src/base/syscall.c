@@ -35,7 +35,11 @@
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 
 #ifdef __aarch64__
+#define SYS_bind 49
+#define SYS_listen 50
+#define SYS_getsockname 204
 #define SYS_fchmod 52
+#define SYS_setsockopt 54
 #define SYS_utimesat 88
 #define SYS_kill 129
 #define SYS_rt_sigaction 134
@@ -52,6 +56,10 @@
 #define SYS_munmap 11
 #define SYS_rt_sigaction 13
 #define SYS_getpid 39
+#define SYS_bind 49
+#define SYS_listen 50
+#define SYS_getsockname 51
+#define SYS_setsockopt 54
 #define SYS_clone 56
 #define SYS_kill 62
 #define SYS_fchmod 91
@@ -144,6 +152,36 @@ PUBLIC void exit_group(i32 status) {
 i32 getpid(void) {
 	i32 v;
 	v = (i32)raw_syscall(SYS_getpid, 0, 0, 0, 0, 0, 0);
+	RETURN_VALUE(v);
+}
+
+i32 bind(i32 sockfd, const struct sockaddr *addr, i64 addrlen) {
+	i32 v;
+	v = (i32)raw_syscall(SYS_bind, (i64)sockfd, (i64)addr, addrlen, 0, 0,
+			     0);
+	RETURN_VALUE(v);
+}
+
+i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
+	       i64 option_len) {
+	i32 v;
+	v = (i32)raw_syscall(SYS_setsockopt, (i64)socket, (i64)level,
+			     (i64)option_name, (i64)option_value, option_len,
+			     0);
+	RETURN_VALUE(v);
+}
+
+i32 listen(i32 socket, i32 backlog) {
+	i32 v;
+	v = (i32)raw_syscall(SYS_listen, (i64)socket, (i64)backlog, 0, 0, 0, 0);
+	RETURN_VALUE(v);
+}
+
+i32 getsockname(i32 sockfd, struct sockaddr *restrict addr,
+		i64 *restrict addrlen) {
+	i32 v;
+	v = (i32)raw_syscall(SYS_getsockname, (i64)sockfd, (i64)addr,
+			     (i64)addrlen, 0, 0, 0);
 	RETURN_VALUE(v);
 }
 

@@ -23,38 +23,44 @@
  *
  *******************************************************************************/
 
-#ifndef _SYSEXT_H
-#define _SYSEXT_H
+#ifndef _LINUXNET_H
+#define _LINUXNET_H
 
 #include <libfam/types.h>
 
-struct statx;
-struct sockaddr;
+#define AF_INET 2
+#define SOCK_STREAM 1
+#define SOL_SOCKET 1
+#define SO_REUSEADDR 2
+#define INADDR_ANY 0x00000000U
 
-void yield(void);
-u64 cycle_counter(void);
-i64 write_num(i32 fd, u64 value);
-i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset);
-i64 pread(i32 fd, void *buf, u64 len, u64 offset);
-i32 open(const u8 *path, i32 flags, u32 mode);
-i32 fallocate(i32 fd, u64 new_size);
-i32 fsync(i32 fd);
-i32 fstatx(i32 fd, struct statx *st);
-i64 fsize(i32 fd);
-i32 fdatasync(i32 fd);
-i32 close(i32 fd);
-i64 micros(void);
-i32 nsleep(u64 nsec);
-i32 usleep(u64 usec);
-i32 fork(void);
-i32 unlink(const u8 *path);
-i32 waitpid(i32 pid);
-void *map(u64 length);
-void *fmap(i32 fd, i64 size, i64 offset);
-void *smap(u64 length);
-i32 exists(const u8 *path);
-i32 statx(const u8 *pathname, struct statx *st);
-i32 socket(i32 domain, i32 type, i32 protocol);
-i32 connect(i32 sockfd, const struct sockaddr *addr, i64 addrlen);
+struct sockaddr {
+	u16 sa_family;
+	char sa_data[14];
+};
 
-#endif /* _SYSEXT_H */
+struct in_addr {
+	u32 s_addr;
+};
+
+struct sockaddr_in {
+	u16 sin_family;
+	u16 sin_port;
+	struct in_addr sin_addr;
+	u8 sin_zero[8];
+};
+
+static inline u16 htons(u16 hostshort) {
+	return (hostshort << 8) | (hostshort >> 8);
+}
+
+static inline u32 htonl(u32 hostlong) {
+	return ((hostlong & 0xFF000000U) >> 24) |
+	       ((hostlong & 0x00FF0000U) >> 8) |
+	       ((hostlong & 0x0000FF00U) << 8) |
+	       ((hostlong & 0x000000FFU) << 24);
+}
+
+#define ntohs(x) htons(x)
+
+#endif /* _LINUXNET_H */

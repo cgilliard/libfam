@@ -152,6 +152,43 @@ PUBLIC i32 fdatasync(i32 fd) {
 	return __global_res;
 }
 
+PUBLIC i32 socket(i32 domain, i32 type, i32 protocol) {
+	struct io_uring_sqe sqe = {
+	    .opcode = IORING_OP_SOCKET,
+	    .fd = domain,
+	    .off = type,
+	    .len = protocol,
+	    .user_data = 1,
+	};
+	if (global_async_init() < 0) return -1;
+	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
+			  true) < 0)
+		return -1;
+	if (__global_res < 0) ERR(-__global_res);
+
+#if TEST == 1
+	__aadd64(&open_fds, 1);
+#endif /* TEST */
+
+	return __global_res;
+}
+
+PUBLIC i32 connect(i32 sockfd, const struct sockaddr *addr, i64 addrlen) {
+	struct io_uring_sqe sqe = {
+	    .opcode = IORING_OP_CONNECT,
+	    .fd = sockfd,
+	    .addr = (u64)addr,
+	    .off = addrlen,
+	    .user_data = 1,
+	};
+	if (global_async_init() < 0) return -1;
+	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
+			  true) < 0)
+		return -1;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
+}
+
 PUBLIC i32 nsleep(u64 nanos) {
 	struct timespec ts = {.tv_nsec = nanos};
 	struct io_uring_sqe sqe = {.opcode = IORING_OP_TIMEOUT,

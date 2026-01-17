@@ -23,38 +23,19 @@
  *
  *******************************************************************************/
 
-#ifndef _SYSEXT_H
-#define _SYSEXT_H
+#ifndef _SERVER_H
+#define _SERVER_H
 
 #include <libfam/types.h>
 
-struct statx;
-struct sockaddr;
+typedef struct Server Server;
+typedef struct {
+	u16 port;
+} ServerConfig;
 
-void yield(void);
-u64 cycle_counter(void);
-i64 write_num(i32 fd, u64 value);
-i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset);
-i64 pread(i32 fd, void *buf, u64 len, u64 offset);
-i32 open(const u8 *path, i32 flags, u32 mode);
-i32 fallocate(i32 fd, u64 new_size);
-i32 fsync(i32 fd);
-i32 fstatx(i32 fd, struct statx *st);
-i64 fsize(i32 fd);
-i32 fdatasync(i32 fd);
-i32 close(i32 fd);
-i64 micros(void);
-i32 nsleep(u64 nsec);
-i32 usleep(u64 usec);
-i32 fork(void);
-i32 unlink(const u8 *path);
-i32 waitpid(i32 pid);
-void *map(u64 length);
-void *fmap(i32 fd, i64 size, i64 offset);
-void *smap(u64 length);
-i32 exists(const u8 *path);
-i32 statx(const u8 *pathname, struct statx *st);
-i32 socket(i32 domain, i32 type, i32 protocol);
-i32 connect(i32 sockfd, const struct sockaddr *addr, i64 addrlen);
+i32 server_init(Server **server, ServerConfig *config);
+i32 server_start(Server *server);
+i32 server_stop(Server *server);
+i32 server_destroy(Server *server);
 
-#endif /* _SYSEXT_H */
+#endif /* _SERVER_H */
