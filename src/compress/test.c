@@ -411,3 +411,12 @@ Test(bible_dat) {
 	bible_destroy(b);
 	munmap(bible, BIBLE_UNCOMPRESSED_SIZE);
 }
+
+Test(bible_store_fail) {
+	if (IS_VALGRIND()) return;
+	const Bible *bible = bible_load(BIBLE_PATH);
+	_debug_pwrite_fail = 0;
+	ASSERT_EQ(bible_store(bible, "/tmp/bible_err"), -1, "pwrite_fail");
+	_debug_pwrite_fail = I64_MAX;
+	bible_destroy(bible);
+}
