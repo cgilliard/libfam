@@ -47,7 +47,7 @@ build_asm() {
             obj="$objdir/${basename%.S}.o"
 
             if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ]; then
-                COMMAND="$CC -I$PROJECT_DIR/$INCDIR -c $src -o $obj";
+                COMMAND="$CC $MARCH_EXTRA -I$PROJECT_DIR/$INCDIR -c $src -o $obj";
                 [ "$SILENT" != "1" ] && echo ${COMMAND};
                 ${COMMAND} || exit $?;
             fi
@@ -61,7 +61,7 @@ build_asm() {
             obj="$objdir/${basename%.S}.o"
 
             if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ]; then
-                COMMAND="$CC -march=armv8-a+crypto -I$PROJECT_DIR/$INCDIR -c $src -o $obj";
+                COMMAND="$CC $MARCH_EXTRA -march=armv8-a+crypto -I$PROJECT_DIR/$INCDIR -c $src -o $obj";
                 [ "$SILENT" != "1" ] && echo ${COMMAND};
                 ${COMMAND} || exit $?;
             fi

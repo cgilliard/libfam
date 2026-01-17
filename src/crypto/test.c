@@ -128,3 +128,62 @@ Test(storm_vectors) {
 	}
 }
 
+Bench(storm_perf) {
+#define STORM_COUNT (10000000000 / 32)
+	static __attribute__((aligned(32))) u8 ZERO_SEED[32] = {0};
+	static __attribute__((aligned(32))) u8 ONE_SEED[32] = {1};
+	static __attribute__((aligned(32))) u8 TWO_SEED[32] = {2};
+	static __attribute__((aligned(32))) u8 THREE_SEED[32] = {3};
+	static __attribute__((aligned(32))) u8 FOUR_SEED[32] = {4};
+	static __attribute__((aligned(32))) u8 FIVE_SEED[32] = {5};
+
+	i64 timer;
+	__attribute__((aligned(32))) u8 buf1[64] = {11};
+	__attribute__((aligned(32))) u8 buf2[64] = {23};
+	__attribute__((aligned(32))) u8 buf3[64] = {56};
+	__attribute__((aligned(32))) u8 buf4[64] = {67};
+	__attribute__((aligned(32))) u8 buf5[64] = {78};
+	__attribute__((aligned(32))) u8 buf6[64] = {99};
+
+	StormContext ctx1;
+	StormContext ctx2;
+	StormContext ctx3;
+	StormContext ctx4;
+	StormContext ctx5;
+	StormContext ctx6;
+
+	storm_init(&ctx1, ZERO_SEED);
+	storm_init(&ctx2, ONE_SEED);
+	storm_init(&ctx3, TWO_SEED);
+	storm_init(&ctx4, THREE_SEED);
+	storm_init(&ctx5, FOUR_SEED);
+	storm_init(&ctx6, FIVE_SEED);
+	timer = micros();
+	for (u32 i = 0; i < STORM_COUNT; i++) {
+		u8* block1 = buf1 + (i & 32);
+		u8* block2 = buf2 + (i & 32);
+		u8* block3 = buf3 + (i & 32);
+		u8* block4 = buf4 + (i & 32);
+		u8* block5 = buf5 + (i & 32);
+		u8* block6 = buf6 + (i & 32);
+
+		storm_xcrypt_buffer(&ctx1, block1);
+		storm_xcrypt_buffer(&ctx2, block2);
+		storm_xcrypt_buffer(&ctx3, block3);
+		storm_xcrypt_buffer(&ctx4, block4);
+		storm_xcrypt_buffer(&ctx5, block5);
+		storm_xcrypt_buffer(&ctx6, block6);
+	}
+	timer = micros() - timer;
+	f64 secs = timer / 1000000.0;
+	f64 gbps = 60.0 / secs;
+	u8 gbps_str[MAX_F64_STRING_LEN] = {0};
+	f64_to_string(gbps_str, gbps, 3, false);
+
+	pwrite(2, "gbps=", 5, 0);
+	pwrite(2, gbps_str, strlen(gbps_str), 0);
+	pwrite(2, ",avg=", 5, 0);
+	write_num(2, (timer * 1000 * 1000) / (STORM_COUNT * 6));
+	pwrite(2, "ps\n", 3, 0);
+}
+
