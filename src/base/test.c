@@ -1101,6 +1101,7 @@ Test(fstatx) {
 	close(fd);
 }
 
+#include <libfam/format.h>
 Test(socket) {
 	struct sockaddr_in addr = {.sin_family = AF_INET,
 				   .sin_port = htons(0),
@@ -1125,11 +1126,29 @@ Test(socket) {
 	ASSERT(!res, "connect");
 
 	ASSERT_EQ(pwrite(cfd, "abcd", 4, 0), 4, "pwrite");
-	u8 buf[5];
+	u8 buf[5] = {0};
 	res = pread(fd, buf, 5, 0);
 
 	ASSERT_EQ(res, 4, "pread");
 	ASSERT(!memcmp(buf, "abcd", 4), "result");
+
+	/*
+
+	i64 src_addrlen;
+	struct sockaddr_in dst_addr = {.sin_family = AF_INET,
+				       .sin_port = htons(addr.sin_port),
+				       .sin_addr = {htonl(INADDR_ANY)}};
+	struct sockaddr src_addr;
+	res = sendto(cfd, "abcd", 4, 0, (void *)&dst_addr, sizeof(dst_addr));
+	ASSERT_EQ(res, 4, "sendto");
+
+	u8 buf[5] = {0};
+	res = recvfrom(fd, buf, 5, 0, &src_addr, &src_addrlen);
+	perror("recvfrom");
+	println("res={}", res);
+	ASSERT_EQ(res, 4, "recvfrom");
+	ASSERT(!memcmp(buf, "abcd", 4), "recv msg");
+	*/
 
 	close(fd);
 	close(cfd);

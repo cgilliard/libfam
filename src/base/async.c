@@ -126,6 +126,35 @@ i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 	return 0;
 }
 
+i32 async_execute_only(Async *async, struct io_uring_sqe *events, u32 count) {
+	i32 res;
+	u32 tail = *async->sq_tail;
+	u32 head = *async->cq_head;
+	u32 depth = async->params.sq_entries;
+
+	if (__builtin_expect(count > depth, 0)) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (__builtin_expect(tail - head >= (depth - (count - 1)), 0)) {
+		errno = EBUSY;
+		return -1;
+	}
+
+	for (u64 i = 0; i < count; i++) {
+		u32 index = (tail + i) & *async->sq_mask;
+		async->sq_array[index] = index;
+		fastmemcpy(&async->sqes[index], &events[i],
+			   sizeof(struct io_uring_sqe));
+	}
+
+	__aadd32(async->sq_tail, count);
+	res = io_uring_enter2(async->ring_fd, count, 0, IORING_ENTER_GETEVENTS,
+			      NULL, 0);
+	return res < 0 ? -1 : 0;
+}
+
 i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
 		  bool wait) {
 	u32 tail = *async->sq_tail, drained;

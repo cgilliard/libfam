@@ -37,6 +37,7 @@ i32 async_init(Async **async, u32 queue_depth, AsyncCallback callback,
 	       void *ctx);
 i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
 		  bool wait);
+i32 async_execute_only(Async *async, struct io_uring_sqe *events, u32 count);
 void async_destroy(Async *async);
 
 #if TEST == 1

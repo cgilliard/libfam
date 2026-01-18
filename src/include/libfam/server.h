@@ -31,11 +31,13 @@
 typedef struct Server Server;
 typedef struct {
 	u16 port;
+	u32 async_queue_depth;
 } ServerConfig;
 
 i32 server_init(Server **server, ServerConfig *config);
 i32 server_start(Server *server);
 i32 server_stop(Server *server);
-i32 server_destroy(Server *server);
+void server_destroy(Server *server);
+u16 server_port(Server *server);
 
 #endif /* _SERVER_H */
