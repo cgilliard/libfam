@@ -55,7 +55,6 @@ void *smap(u64 length);
 i32 exists(const u8 *path);
 i32 statx(const u8 *pathname, struct statx *st);
 i32 socket(i32 domain, i32 type, i32 protocol);
-i32 connect(i32 sockfd, const struct sockaddr *addr, i64 addrlen);
 i64 sendmsg(i32 socket, const struct msghdr *message, i32 flags);
 i64 recvmsg(i32 socket, struct msghdr *message, i32 flags);
 

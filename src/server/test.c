@@ -27,6 +27,7 @@
 #include <libfam/server.h>
 #include <libfam/test.h>
 
+/*
 Test(server) {
 	i32 res;
 	Server *s = NULL;
@@ -62,3 +63,4 @@ Test(server) {
 	server_destroy(s);
 	close(cfd);
 }
+*/

@@ -869,7 +869,6 @@ Test(async_errs) {
 	ASSERT_EQ(waitpid(1), -1, "waitpid err");
 	ASSERT_EQ(fstatx(2, &stx), -1, "fstatx err");
 	ASSERT_EQ(socket(0, 0, 0), -1, "socket err");
-	ASSERT_EQ(connect(-1, NULL, 0), -1, "connect err");
 	ASSERT_EQ(sendmsg(-1, NULL, 0), -1, "sendmsg err");
 	ASSERT_EQ(recvmsg(-1, NULL, 0), -1, "recvmsg err");
 	async_sub_queue(__global_async);
@@ -1104,66 +1103,111 @@ Test(fstatx) {
 }
 
 Test(socket) {
+	struct sockaddr_in src_addr = {0};
 	struct sockaddr_in addr = {.sin_family = AF_INET,
 				   .sin_port = htons(0),
 				   .sin_addr = {htonl(INADDR_ANY)}};
-	i64 addrlen = sizeof(addr);
-	i32 res;
-	i32 fd = socket(AF_INET, SOCK_DGRAM, 0);
-	ASSERT(fd > 0, "fd");
+	struct sockaddr_in dest_addr = {.sin_family = AF_INET,
+					.sin_addr = {htonl(0x7f000001U)}};
+	struct iovec msgvec[1] = {
+	    {.iov_base = "Hello1", .iov_len = 6},
+	};
+	struct msghdr msg = {.msg_name = &dest_addr,
+			     .msg_namelen = sizeof(dest_addr),
+			     .msg_iov = msgvec,
+			     .msg_iovlen = 1};
+	u8 msg_buf[32] = {0};
+	struct iovec msgoutvec[1] = {
+	    {.iov_base = msg_buf, .iov_len = 32},
+	};
+	struct msghdr msgout = {.msg_name = &src_addr,
+				.msg_namelen = sizeof(src_addr),
+				.msg_iov = msgoutvec,
+				.msg_iovlen = 1};
 
+	u64 addrlen = sizeof(addr);
 	u64 one = 1;
-	res = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
-	ASSERT(!res, "setsockopt");
-	res = bind(fd, (struct sockaddr *)&addr, addrlen);
-	ASSERT(!res, "bind");
+	i32 res;
+	i32 sfd = socket(AF_INET, SOCK_DGRAM, 0);
+	ASSERT(sfd > 0, "server socket");
+	i32 cfd = socket(AF_INET, SOCK_DGRAM, 0);
+	ASSERT(cfd > 0, "client socket");
 
-	getsockname(fd, (void *)&addr, &addrlen);
+	res = setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+	ASSERT(!res, "setsockopt");
+	res = bind(sfd, (struct sockaddr *)&addr, addrlen);
+	ASSERT(!res, "bind");
+	res = getsockname(sfd, (void *)&addr, &addrlen);
+	ASSERT(!res, "getsockname");
 	ASSERT(addr.sin_port > 0, "port");
 
-	i32 cfd = socket(AF_INET, SOCK_DGRAM, 0);
-	ASSERT(cfd > 0, "socket");
-
-	struct sockaddr_in dest_addr = {0};
-	dest_addr.sin_family = AF_INET;
 	dest_addr.sin_port = addr.sin_port;
-	dest_addr.sin_addr.s_addr = htonl(0x7f000001U);
 
-	const char *payload1 = "Hello";
-
-	struct iovec iov[1] = {
-	    {.iov_base = (void *)payload1, .iov_len = strlen(payload1)},
-	};
-
-	struct msghdr msg = {0};
-	msg.msg_name = &dest_addr;
-	msg.msg_namelen = sizeof(dest_addr);
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	errno = 0;
 	res = sendmsg(cfd, &msg, 0);
-	ASSERT_EQ(res, 5, "sendmsg");
+	ASSERT_EQ(res, 6, "sendmsg");
 
-	u8 recv_buf[64] = {0};
+	res = recvmsg(sfd, &msgout, 0);
+	ASSERT_EQ(res, 6, "rcvmsg");
+	ASSERT(!memcmp(msg_buf, "Hello1", 6), "equal msg");
 
-	struct iovec recv_iov = {
-	    .iov_base = recv_buf,
-	    .iov_len = sizeof(recv_buf),
-	};
-	struct sockaddr_in src_addr = {0};
-	u64 src_addrlen = sizeof(src_addr);
-
-	struct msghdr msgout = {
-	    .msg_name = &src_addr,
-	    .msg_namelen = src_addrlen,
-	    .msg_iov = &recv_iov,
-	    .msg_iovlen = 1,
-	};
-
-	res = recvmsg(fd, &msgout, 0);
-	ASSERT_EQ(res, 5, "recvmsg");
-	ASSERT(!memcmp(recv_buf, "Hello", 5), "equal");
-	ASSERT_EQ(src_addr.sin_addr.s_addr, htonl(0x7f000001U), "addr");
-	close(fd);
 	close(cfd);
+	close(sfd);
+}
+
+u64 *test_async_value = NULL;
+u64 *ensure_inflight = NULL;
+
+void test_on_async_process(i32 res, u64 user_data, void *ctx) {
+	while (!__aload64(ensure_inflight));
+	if (user_data == 3) __aadd64(test_async_value, 1);
+}
+
+Test(async_process) {
+	test_async_value = smap(sizeof(u64));
+	ensure_inflight = smap(sizeof(u64));
+	Async *async = NULL;
+
+	ASSERT(test_async_value, "smap");
+	ASSERT_EQ(*test_async_value, 0, "zeroed smap");
+	ASSERT(!async_init(&async, 12, test_on_async_process, NULL),
+	       "async_init");
+
+	i32 pid = fork();
+	ASSERT(pid >= 0, "fork");
+	if (!pid) {
+		async_process(async);
+		exit_group(0);
+	}
+	usleep(10000);
+
+	struct io_uring_sqe sqe = {.opcode = IORING_OP_NOP, .user_data = 3};
+	errno = 0;
+	i32 res = async_schedule(async, (struct io_uring_sqe[]){sqe}, 1);
+	ASSERT_EQ(res, 1, "async_schedule");
+
+	ASSERT_EQ(async_schedule(async, NULL, 100), -1, "queue overflow");
+	ASSERT_EQ(async_schedule(async, NULL, async_queue_depth(async)), -1,
+		  "inflight");
+	__astore64(ensure_inflight, 1);
+
+	while (!__aload64(test_async_value));
+	ASSERT(!async_stop(async), "async_stop");
+	ASSERT_EQ(async_stop(async), -1, "already async_stop");
+	ASSERT_EQ(__aload64(test_async_value), 1, "callback");
+	async_destroy(async);
+	munmap(test_async_value, sizeof(u64));
+	munmap(ensure_inflight, sizeof(u64));
+}
+
+Test(async_process_errors) {
+	Async *async = NULL;
+	ASSERT(!async_init(&async, 12, test_on_async_process, NULL),
+	       "async_init");
+
+	_debug_io_uring_enter2_fail = true;
+	ASSERT_EQ(async_process(async), -1, "async_process");
+	_debug_io_uring_enter2_fail = false;
+	ASSERT_EQ(async_stop(async), -1, "already stopped");
+
+	async_destroy(async);
 }

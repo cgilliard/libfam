@@ -31,6 +31,7 @@
 extern bool _debug_no_exit;
 
 #if TEST == 1
+extern bool _debug_io_uring_enter2_fail;
 extern bool _debug_fork_fail;
 extern bool _debug_fail_fstat;
 extern bool _debug_compress_fail;

@@ -154,15 +154,15 @@ i32 getpid(void) {
 	RETURN_VALUE(v);
 }
 
-i32 bind(i32 sockfd, const struct sockaddr *addr, i64 addrlen) {
+i32 bind(i32 sockfd, const struct sockaddr *addr, u64 addrlen) {
 	i32 v;
-	v = (i32)raw_syscall(SYS_bind, (i64)sockfd, (i64)addr, addrlen, 0, 0,
-			     0);
+	v = (i32)raw_syscall(SYS_bind, (i64)sockfd, (i64)addr, (i64)addrlen, 0,
+			     0, 0);
 	RETURN_VALUE(v);
 }
 
 i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
-	       i64 option_len) {
+	       u64 option_len) {
 	i32 v;
 	v = (i32)raw_syscall(SYS_setsockopt, (i64)socket, (i64)level,
 			     (i64)option_name, (i64)option_value, option_len,
@@ -171,7 +171,7 @@ i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
 }
 
 i32 getsockname(i32 sockfd, struct sockaddr *restrict addr,
-		i64 *restrict addrlen) {
+		u64 *restrict addrlen) {
 	i32 v;
 	v = (i32)raw_syscall(SYS_getsockname, (i64)sockfd, (i64)addr,
 			     (i64)addrlen, 0, 0, 0);
@@ -243,6 +243,10 @@ i32 io_uring_setup(u32 entries, struct io_uring_params *params) {
 i32 io_uring_enter2(u32 fd, u32 to_submit, u32 min_complete, u32 flags,
 		    void *arg, u64 sz) {
 	i32 v;
+#if TEST == 1
+	if (_debug_io_uring_enter2_fail) return -1;
+#endif /* TEST */
+
 	v = (i32)raw_syscall(SYS_io_uring_enter, (i64)fd, (i64)to_submit,
 			     (i64)min_complete, (i64)flags, (i64)arg, (i64)sz);
 	RETURN_VALUE(v);

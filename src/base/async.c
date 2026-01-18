@@ -33,7 +33,6 @@
 #include <libfam/utils.h>
 
 struct Async {
-	u32 queue_depth;
 	struct io_uring_params params;
 	i32 ring_fd;
 	u8 *sq_ring;
@@ -51,12 +50,40 @@ struct Async {
 	u32 *cq_mask;
 	AsyncCallback callback;
 	void *ctx;
+	u32 complete;
 };
 
 #if TEST == 1
 void async_add_queue(Async *async) { __aadd32(async->sq_tail, 1); }
 void async_sub_queue(Async *async) { __asub32(async->sq_tail, 1); }
 #endif /* TEST */
+
+STATIC i32 async_proc_execute(Async *async, const struct io_uring_sqe *events,
+			      u32 count) {
+	u32 tail = *async->sq_tail;
+	u32 head = *async->cq_head;
+	u32 depth = async->params.sq_entries;
+
+	if (__builtin_expect(count > depth, 0)) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (__builtin_expect(tail - head >= (depth - (count - 1)), 0)) {
+		errno = EBUSY;
+		return -1;
+	}
+
+	for (u64 i = 0; i < count; i++) {
+		u32 index = (tail + i) & *async->sq_mask;
+		async->sq_array[index] = index;
+		fastmemcpy(&async->sqes[index], &events[i],
+			   sizeof(struct io_uring_sqe));
+	}
+
+	__aadd32(async->sq_tail, count);
+	return 0;
+}
 
 i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 	       void *ctx) {
@@ -118,7 +145,6 @@ i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 	async->cqes =
 	    (struct io_uring_cqe *)(async->cq_ring + async->params.cq_off.cqes);
 
-	async->queue_depth = queue_depth;
 	async->callback = callback;
 	async->ctx = ctx;
 
@@ -126,8 +152,9 @@ i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 	return 0;
 }
 
-STATIC i32 async_proc_execute(Async *async, struct io_uring_sqe *events,
-			      u32 count) {
+u32 async_queue_depth(Async *async) { return async->params.sq_entries; }
+
+i32 async_schedule(Async *async, const struct io_uring_sqe *events, u32 count) {
 	u32 tail = *async->sq_tail;
 	u32 head = *async->cq_head;
 	u32 depth = async->params.sq_entries;
@@ -137,7 +164,7 @@ STATIC i32 async_proc_execute(Async *async, struct io_uring_sqe *events,
 		return -1;
 	}
 
-	if (__builtin_expect(tail - head >= (depth - (count - 1)), 0)) {
+	if (__builtin_expect((tail - head) > (depth - count), 0)) {
 		errno = EBUSY;
 		return -1;
 	}
@@ -150,16 +177,10 @@ STATIC i32 async_proc_execute(Async *async, struct io_uring_sqe *events,
 	}
 
 	__aadd32(async->sq_tail, count);
-	return 0;
+	return io_uring_enter2(async->ring_fd, count, 0, 0, NULL, 0);
 }
 
-i32 async_execute_only(Async *async, struct io_uring_sqe *events, u32 count) {
-	if (async_proc_execute(async, events, count) < 0) return -1;
-	return io_uring_enter2(async->ring_fd, count, 0, IORING_ENTER_GETEVENTS,
-			       NULL, 0);
-}
-
-i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
+i32 async_execute(Async *async, const struct io_uring_sqe *events, u32 count,
 		  bool wait) {
 	u32 tail = *async->sq_tail, drained;
 	u32 head = *async->cq_head;
@@ -182,6 +203,50 @@ i32 async_execute(Async *async, struct io_uring_sqe *events, u32 count,
 	}
 	__astore32(async->cq_head, head + drained);
 	return drained;
+}
+
+i32 async_process(Async *async) {
+	i32 ret = 0;
+	while (__builtin_expect(!__aload32(&async->complete), 1)) {
+		u32 cq_head = *async->cq_head;
+		u32 cq_mask = *async->cq_mask;
+
+		u32 cq_tail = __aload32(async->cq_tail);
+		u32 drained = cq_tail - cq_head;
+		if (__builtin_expect(!drained, 0)) {
+			i32 fd = async->ring_fd;
+			u32 flags = IORING_ENTER_GETEVENTS;
+			i32 res = io_uring_enter2(fd, 0, 1, flags, NULL, 0);
+			res = res < 0 && errno != EINTR;
+			if (__builtin_expect(res, 0)) {
+				ret = -1;
+				break;
+			}
+		} else {
+			for (u32 i = 0; i < drained; i++) {
+				u32 idx = (cq_head + i) & cq_mask;
+				u64 user_data = async->cqes[idx].user_data;
+				i32 result = async->cqes[idx].res;
+				async->callback(result, user_data, async->ctx);
+			}
+			__astore32(async->cq_head, cq_head + drained);
+		}
+	}
+	__astore32(&async->complete, 2);
+	return ret;
+}
+
+i32 async_stop(Async *async) {
+	u32 expected = 0;
+	if (!__cas32(&async->complete, &expected, 1)) {
+		errno = EALREADY;
+		return -1;
+	}
+	struct io_uring_sqe sqe = {.opcode = IORING_OP_NOP, .user_data = 1};
+	i32 res = async_schedule(async, (struct io_uring_sqe[]){sqe}, 1);
+	if (res < 0) return -1;
+	while (__aload32(&async->complete) != 2);
+	return 0;
 }
 
 void async_destroy(Async *async) {

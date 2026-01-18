@@ -42,6 +42,7 @@ struct Server {
 	u32 stop;
 };
 
+/*
 STATIC void server_on_complete(i32 res, u64 user_data, void *ctx) {
 	u8 buffer[MAX_PACKET_SIZE + 1] = {0};
 	Server *server = ctx;
@@ -64,9 +65,10 @@ STATIC void server_on_complete(i32 res, u64 user_data, void *ctx) {
 
 	async_execute_only(server->async, (struct io_uring_sqe[]){sqe}, 1);
 }
-
+*/
 u16 server_port(Server *server) { return server->port; }
 
+/*
 i32 server_init(Server **server, ServerConfig *config) {
 	struct sockaddr_in addr = {.sin_family = AF_INET,
 				   .sin_port = htons(config->port),
@@ -105,6 +107,7 @@ i32 server_init(Server **server, ServerConfig *config) {
 	*server = ret;
 	return 0;
 }
+*/
 
 i32 server_start(Server *server) {
 	struct io_uring_sqe sqe = {.opcode = IORING_OP_READ,
@@ -122,6 +125,7 @@ i32 server_start(Server *server) {
 	return 0;
 }
 
+/*
 i32 server_stop(Server *server) {
 	__astore32(&server->stop, 1);
 	struct io_uring_sqe sqe = {.opcode = IORING_OP_NOP,
@@ -132,6 +136,7 @@ i32 server_stop(Server *server) {
 	while (__aload32(&server->stop));
 	return 0;
 }
+*/
 
 void server_destroy(Server *server) {
 	if (!server) return;
