@@ -870,6 +870,8 @@ Test(async_errs) {
 	ASSERT_EQ(fstatx(2, &stx), -1, "fstatx err");
 	ASSERT_EQ(socket(0, 0, 0), -1, "socket err");
 	ASSERT_EQ(connect(-1, NULL, 0), -1, "connect err");
+	ASSERT_EQ(sendmsg(-1, NULL, 0), -1, "sendmsg err");
+	ASSERT_EQ(recvmsg(-1, NULL, 0), -1, "recvmsg err");
 	async_sub_queue(__global_async);
 }
 
