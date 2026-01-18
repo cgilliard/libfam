@@ -1148,7 +1148,7 @@ Test(socket) {
 	    .iov_base = recv_buf,
 	    .iov_len = sizeof(recv_buf),
 	};
-	struct sockaddr_in src_addr;
+	struct sockaddr_in src_addr = {0};
 	u64 src_addrlen = sizeof(src_addr);
 
 	struct msghdr msgout = {
