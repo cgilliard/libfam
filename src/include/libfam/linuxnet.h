@@ -62,6 +62,16 @@ static inline u32 htonl(u32 hostlong) {
 	       ((hostlong & 0x000000FFU) << 24);
 }
 
+struct msghdr {
+	void *msg_name;
+	u64 msg_namelen;
+	struct iovec *msg_iov;
+	u64 msg_iovlen;
+	void *msg_control;
+	u64 msg_controllen;
+	i32 msg_flags;
+};
+
 #define ntohs(x) htons(x)
 
 #endif /* _LINUXNET_H */

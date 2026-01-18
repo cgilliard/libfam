@@ -56,9 +56,7 @@ i32 exists(const u8 *path);
 i32 statx(const u8 *pathname, struct statx *st);
 i32 socket(i32 domain, i32 type, i32 protocol);
 i32 connect(i32 sockfd, const struct sockaddr *addr, i64 addrlen);
-i64 sendto(i32 socket, const void *message, i64 length, i32 flags,
-	   const struct sockaddr *dest_addr, i64 dest_len);
-i64 recvfrom(i32 socket, void *buf, u64 len, i32 flags,
-	     struct sockaddr *src_addr, i64 *addrlen);
+i64 sendmsg(i32 socket, const struct msghdr *message, i32 flags);
+i64 recvmsg(i32 socket, struct msghdr *message, i32 flags);
 
 #endif /* _SYSEXT_H */

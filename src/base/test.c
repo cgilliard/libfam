@@ -1101,11 +1101,10 @@ Test(fstatx) {
 	close(fd);
 }
 
-#include <libfam/format.h>
 Test(socket) {
 	struct sockaddr_in addr = {.sin_family = AF_INET,
 				   .sin_port = htons(0),
-				   .sin_addr = {htonl(INADDR_ANY)}};
+				   .sin_addr = {htonl(0x7f000001U)}};
 	i64 addrlen = sizeof(addr);
 	i32 res;
 	i32 fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -1122,34 +1121,47 @@ Test(socket) {
 
 	i32 cfd = socket(AF_INET, SOCK_DGRAM, 0);
 	ASSERT(cfd > 0, "socket");
-	res = connect(cfd, (void *)&addr, addrlen);
-	ASSERT(!res, "connect");
 
-	ASSERT_EQ(pwrite(cfd, "abcd", 4, 0), 4, "pwrite");
-	u8 buf[5] = {0};
-	res = pread(fd, buf, 5, 0);
+	struct sockaddr_in dest_addr = {0};
+	dest_addr.sin_family = AF_INET;
+	dest_addr.sin_port = addr.sin_port;
+	dest_addr.sin_addr.s_addr = htonl(0x7f000001U);
 
-	ASSERT_EQ(res, 4, "pread");
-	ASSERT(!memcmp(buf, "abcd", 4), "result");
+	const char *payload1 = "Hello";
 
-	/*
+	struct iovec iov[1] = {
+	    {.iov_base = (void *)payload1, .iov_len = strlen(payload1)},
+	};
 
-	i64 src_addrlen;
-	struct sockaddr_in dst_addr = {.sin_family = AF_INET,
-				       .sin_port = htons(addr.sin_port),
-				       .sin_addr = {htonl(INADDR_ANY)}};
-	struct sockaddr src_addr;
-	res = sendto(cfd, "abcd", 4, 0, (void *)&dst_addr, sizeof(dst_addr));
-	ASSERT_EQ(res, 4, "sendto");
+	struct msghdr msg = {0};
+	msg.msg_name = &dest_addr;
+	msg.msg_namelen = sizeof(dest_addr);
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 1;
+	errno = 0;
+	res = sendmsg(cfd, &msg, 0);
+	ASSERT_EQ(res, 5, "sendmsg");
 
-	u8 buf[5] = {0};
-	res = recvfrom(fd, buf, 5, 0, &src_addr, &src_addrlen);
-	perror("recvfrom");
-	println("res={}", res);
-	ASSERT_EQ(res, 4, "recvfrom");
-	ASSERT(!memcmp(buf, "abcd", 4), "recv msg");
-	*/
+	u8 recv_buf[64] = {0};
 
+	struct iovec recv_iov = {
+	    .iov_base = recv_buf,
+	    .iov_len = sizeof(recv_buf),
+	};
+	struct sockaddr_in src_addr;
+	u64 src_addrlen = sizeof(src_addr);
+
+	struct msghdr msgout = {
+	    .msg_name = &src_addr,
+	    .msg_namelen = src_addrlen,
+	    .msg_iov = &recv_iov,
+	    .msg_iovlen = 1,
+	};
+
+	res = recvmsg(fd, &msgout, 0);
+	ASSERT_EQ(res, 5, "recvmsg");
+	ASSERT(!memcmp(recv_buf, "Hello", 5), "equal");
+	ASSERT_EQ(addr.sin_addr.s_addr, src_addr.sin_addr.s_addr, "addr");
 	close(fd);
 	close(cfd);
 }
