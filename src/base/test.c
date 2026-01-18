@@ -1104,7 +1104,7 @@ Test(fstatx) {
 Test(socket) {
 	struct sockaddr_in addr = {.sin_family = AF_INET,
 				   .sin_port = htons(0),
-				   .sin_addr = {htonl(0x7f000001U)}};
+				   .sin_addr = {htonl(INADDR_ANY)}};
 	i64 addrlen = sizeof(addr);
 	i32 res;
 	i32 fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -1161,7 +1161,7 @@ Test(socket) {
 	res = recvmsg(fd, &msgout, 0);
 	ASSERT_EQ(res, 5, "recvmsg");
 	ASSERT(!memcmp(recv_buf, "Hello", 5), "equal");
-	ASSERT_EQ(addr.sin_addr.s_addr, src_addr.sin_addr.s_addr, "addr");
+	ASSERT_EQ(src_addr.sin_addr.s_addr, htonl(0x7f000001U), "addr");
 	close(fd);
 	close(cfd);
 }
