@@ -207,12 +207,13 @@ i32 async_execute(Async *async, const struct io_uring_sqe *events, u32 count,
 
 i32 async_process(Async *async) {
 	i32 ret = 0;
+	u32 cq_mask = *async->cq_mask;
+
 	while (__builtin_expect(!__aload32(&async->complete), 1)) {
 		u32 cq_head = *async->cq_head;
-		u32 cq_mask = *async->cq_mask;
-
 		u32 cq_tail = __aload32(async->cq_tail);
 		u32 drained = cq_tail - cq_head;
+
 		if (__builtin_expect(!drained, 0)) {
 			i32 fd = async->ring_fd;
 			u32 flags = IORING_ENTER_GETEVENTS;
@@ -248,6 +249,8 @@ i32 async_stop(Async *async) {
 	while (__aload32(&async->complete) != 2);
 	return 0;
 }
+
+i32 async_ring_fd(Async *async) { return async->ring_fd; }
 
 void async_destroy(Async *async) {
 	if (async) {

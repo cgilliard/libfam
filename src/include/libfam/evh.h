@@ -23,30 +23,23 @@
  *
  *******************************************************************************/
 
-#ifndef _ASYNC_H
-#define _ASYNC_H
+#ifndef _EVH_H
+#define _EVH_H
 
 #include <libfam/types.h>
 
-typedef void (*AsyncCallback)(i32 res, u64 user_data, void *ctx);
+typedef struct {
+	u32 queue_depth;
+	u16 port;
+	u32 addr;
+} EvhConfig;
 
-typedef struct Async Async;
-struct io_uring_sqe;
+typedef struct Evh Evh;
 
-i32 async_init(Async **async, u32 queue_depth, AsyncCallback callback,
-	       void *ctx);
-u32 async_queue_depth(Async *async);
-i32 async_schedule(Async *async, const struct io_uring_sqe *events, u32 count);
-i32 async_process(Async *async);
-i32 async_stop(Async *async);
-i32 async_execute(Async *async, const struct io_uring_sqe *events, u32 count,
-		  bool wait);
-i32 async_ring_fd(Async *async);
-void async_destroy(Async *async);
+i32 evh_init(Evh **evh, EvhConfig *config);
+i32 evh_start(Evh *evh);
+i32 evh_stop(Evh *evh);
+void evh_destroy(Evh *evh);
+u16 evh_port(Evh *evh);
 
-#if TEST == 1
-void async_add_queue(Async *async);
-void async_sub_queue(Async *async);
-#endif /* TEST */
-
-#endif /* _ASYNC_H */
+#endif /* _EVH_H */

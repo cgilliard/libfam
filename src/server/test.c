@@ -23,9 +23,54 @@
  *
  *******************************************************************************/
 
+#include <libfam/evh.h>
 #include <libfam/format.h>
+#include <libfam/linux.h>
 #include <libfam/server.h>
 #include <libfam/test.h>
+
+Test(evh) {
+	i32 res;
+	struct sockaddr_in dest_addr = {.sin_family = AF_INET,
+					.sin_addr = {htonl(0x7f000001U)}};
+	struct iovec msgvec[1] = {
+	    {.iov_base = "Hello1", .iov_len = 6},
+	};
+	struct msghdr msg = {.msg_name = &dest_addr,
+			     .msg_namelen = sizeof(dest_addr),
+			     .msg_iov = msgvec,
+			     .msg_iovlen = 1};
+	Evh *evh = NULL;
+	EvhConfig config = {
+	    .queue_depth = 16, .port = 8081, .addr = INADDR_ANY};
+	res = evh_init(&evh, &config);
+	ASSERT(!res, "evh_init");
+
+	i32 pid = fork();
+	ASSERT(pid >= 0, "pid");
+	if (!pid) {
+		i32 res = evh_start(evh);
+		if (res) perror("evh_start");
+		if (res) println("res={}", res);
+		exit_group(0);
+	}
+
+	i32 cfd = socket(AF_INET, SOCK_DGRAM, 0);
+	ASSERT(cfd > 0, "socket");
+	dest_addr.sin_port = htons(evh_port(evh));
+	println("port={},sin_port={}", evh_port(evh), dest_addr.sin_port);
+
+	res = sendmsg(cfd, &msg, 0);
+	ASSERT_EQ(res, 6, "sendmsg");
+	usleep(1000);
+	msgvec[0].iov_base = "abcdef";
+	res = sendmsg(cfd, &msg, 0);
+	ASSERT_EQ(res, 6, "sendmsg");
+	usleep(1000);
+	evh_stop(evh);
+	evh_destroy(evh);
+	close(cfd);
+}
 
 /*
 Test(server) {
