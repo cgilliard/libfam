@@ -37,9 +37,12 @@ STATIC void global_async_callback(i32 res, u64 user_data, void *ctx) {
 	__global_res = res;
 }
 
+STATIC void global_async_start_loop(void *ctx) {}
+
 STATIC i32 global_async_init(void) {
 	if (__global_async) return 0;
-	return async_init(&__global_async, 1, global_async_callback, NULL);
+	return async_init(&__global_async, 1, global_async_callback,
+			  global_async_start_loop, NULL);
 }
 
 PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {

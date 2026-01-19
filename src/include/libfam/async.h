@@ -29,12 +29,13 @@
 #include <libfam/types.h>
 
 typedef void (*AsyncCallback)(i32 res, u64 user_data, void *ctx);
+typedef void (*AsyncStartLoop)(void *ctx);
 
 typedef struct Async Async;
 struct io_uring_sqe;
 
 i32 async_init(Async **async, u32 queue_depth, AsyncCallback callback,
-	       void *ctx);
+	       AsyncStartLoop startloop, void *ctx);
 u32 async_queue_depth(Async *async);
 i32 async_schedule(Async *async, const struct io_uring_sqe *events, u32 count);
 i32 async_process(Async *async);

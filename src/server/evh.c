@@ -43,6 +43,7 @@ struct Evh {
 	struct io_uring_sqe proc_next_msg[1];
 	AsyncCallback callback;
 	void *ctx;
+	bool next_message_called;
 };
 
 STATIC i32 evh_next_message(Evh *evh) {
@@ -57,7 +58,14 @@ STATIC void evh_callback(i32 res, u64 user_data, void *ctx) {
 	}
 }
 
+STATIC void evh_on_start_loop(void *ctx) {
+	Evh *evh = ctx;
+	println("start loop");
+	evh->next_message_called = false;
+}
+
 const u8 *evh_get_packet(Evh *evh) { return evh->buffer; }
+
 const struct sockaddr_in *evh_get_src_addr(Evh *evh) { return &evh->src_addr; }
 
 i32 evh_init(Evh **evh, EvhConfig *config) {
@@ -97,8 +105,8 @@ i32 evh_init(Evh **evh, EvhConfig *config) {
 	}
 	ret->port = ntohs(addr.sin_port);
 
-	if (async_init(&ret->async, config->queue_depth, evh_callback, ret) <
-	    0) {
+	if (async_init(&ret->async, config->queue_depth, evh_callback,
+		       evh_on_start_loop, ret) < 0) {
 		evh_destroy(ret);
 		return -1;
 	}
@@ -131,8 +139,12 @@ i32 evh_init(Evh **evh, EvhConfig *config) {
 }
 
 i32 evh_schedule(Evh *evh, const struct io_uring_sqe *events, u32 count) {
+	if (!evh->next_message_called) {
+		evh->next_message_called = true;
+		((struct io_uring_sqe *)events)[count++] =
+		    evh->proc_next_msg[0];
+	}
 	return async_schedule(evh->async, events, count);
-	// return 0;
 }
 
 i32 evh_start(Evh *evh) {

@@ -49,6 +49,7 @@ struct Async {
 	u32 *sq_mask;
 	u32 *cq_mask;
 	AsyncCallback callback;
+	AsyncStartLoop start_loop;
 	void *ctx;
 	u32 complete;
 };
@@ -86,7 +87,7 @@ STATIC i32 async_proc_execute(Async *async, const struct io_uring_sqe *events,
 }
 
 i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
-	       void *ctx) {
+	       AsyncStartLoop start_loop, void *ctx) {
 	Async *async = NULL;
 
 	if ((async = smap(sizeof(Async))) == NULL) return -1;
@@ -147,6 +148,7 @@ i32 async_init(Async **ret, u32 queue_depth, AsyncCallback callback,
 
 	async->callback = callback;
 	async->ctx = ctx;
+	async->start_loop = start_loop;
 
 	*ret = async;
 	return 0;
@@ -224,6 +226,7 @@ i32 async_process(Async *async) {
 				break;
 			}
 		} else {
+			async->start_loop(async->ctx);
 			for (u32 i = 0; i < drained; i++) {
 				u32 idx = (cq_head + i) & cq_mask;
 				u64 user_data = async->cqes[idx].user_data;

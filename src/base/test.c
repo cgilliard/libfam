@@ -966,6 +966,8 @@ void on_complete(i32 res, u64 user_data, void *ctx) {
 	complete_counter++;
 }
 
+void on_start_loop(void *ctx) {}
+
 Test(async) {
 	u32 count;
 	struct open_how how = {.flags = O_CREAT | O_RDWR, .mode = 0600};
@@ -981,7 +983,8 @@ Test(async) {
 
 	unlink("/tmp/async.dat");
 	ASSERT(!exists("/tmp/async.dat"), "!exists");
-	ASSERT(!async_init(&async, 8, on_complete, NULL), "async_init");
+	ASSERT(!async_init(&async, 8, on_complete, on_start_loop, NULL),
+	       "async_init");
 	ASSERT(async, "async");
 	count = async_execute(async, (struct io_uring_sqe[]){sqe1}, 1, true);
 	ASSERT_EQ(complete_counter, 1, "callback");
@@ -1031,7 +1034,8 @@ Test(async_chain) {
 
 	unlink("/tmp/async_chain.dat");
 	ASSERT(!exists("/tmp/async_chain.dat"), "!exists");
-	ASSERT(!async_init(&async, 8, chain_complete, &holder), "async_init");
+	ASSERT(!async_init(&async, 8, chain_complete, on_start_loop, &holder),
+	       "async_init");
 	holder.async = async;
 	ASSERT(async, "async");
 	async_execute(async, (struct io_uring_sqe[]){sqe1}, 1, false);
@@ -1052,26 +1056,32 @@ Test(async_chain) {
 
 Test(async_errors) {
 	Async *async;
-	ASSERT_EQ(async_init(&async, U32_MAX, chain_complete, NULL), -1,
-		  "queue too large");
+	ASSERT_EQ(
+	    async_init(&async, U32_MAX, chain_complete, on_start_loop, NULL),
+	    -1, "queue too large");
 
 	_debug_alloc_count = 0;
-	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc0");
+	ASSERT_EQ(async_init(&async, 1, chain_complete, on_start_loop, NULL),
+		  -1, "alloc0");
 	_debug_alloc_count = I64_MAX;
 
 	_debug_alloc_count = 1;
-	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc1");
+	ASSERT_EQ(async_init(&async, 1, chain_complete, on_start_loop, NULL),
+		  -1, "alloc1");
 	_debug_alloc_count = I64_MAX;
 
 	_debug_alloc_count = 2;
-	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc2");
+	ASSERT_EQ(async_init(&async, 1, chain_complete, on_start_loop, NULL),
+		  -1, "alloc2");
 	_debug_alloc_count = I64_MAX;
 
 	_debug_alloc_count = 3;
-	ASSERT_EQ(async_init(&async, 1, chain_complete, NULL), -1, "alloc3");
+	ASSERT_EQ(async_init(&async, 1, chain_complete, on_start_loop, NULL),
+		  -1, "alloc3");
 	_debug_alloc_count = I64_MAX;
 
-	ASSERT(!async_init(&async, 1, chain_complete, NULL), "init success");
+	ASSERT(!async_init(&async, 1, chain_complete, on_start_loop, NULL),
+	       "init success");
 	ASSERT_EQ(async_execute(async, NULL, 2, false), -1, "queue too big");
 	async_destroy(async);
 }
@@ -1169,8 +1179,9 @@ Test(async_process) {
 
 	ASSERT(test_async_value, "smap");
 	ASSERT_EQ(*test_async_value, 0, "zeroed smap");
-	ASSERT(!async_init(&async, 12, test_on_async_process, NULL),
-	       "async_init");
+	ASSERT(
+	    !async_init(&async, 12, test_on_async_process, on_start_loop, NULL),
+	    "async_init");
 
 	i32 pid = fork();
 	ASSERT(pid >= 0, "fork");
@@ -1201,8 +1212,9 @@ Test(async_process) {
 
 Test(async_process_errors) {
 	Async *async = NULL;
-	ASSERT(!async_init(&async, 12, test_on_async_process, NULL),
-	       "async_init");
+	ASSERT(
+	    !async_init(&async, 12, test_on_async_process, on_start_loop, NULL),
+	    "async_init");
 
 	_debug_io_uring_enter2_fail = true;
 	ASSERT_EQ(async_process(async), -1, "async_process");

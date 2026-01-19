@@ -48,7 +48,7 @@ void test_evh_callback(i32 res, u64 user_data, void *ctx) {
 		ASSERT_EQ(addr, 0x7F000001, "in addr localhost");
 		struct io_uring_sqe sqe = {.opcode = IORING_OP_NOP,
 					   .user_data = 123};
-		evh_schedule(evh, (struct io_uring_sqe[]){sqe}, 1);
+		evh_schedule(evh, (struct io_uring_sqe[2]){sqe}, 1);
 	} else {
 		__aadd64(&recv_msgs->non_packet, 1);
 	}
