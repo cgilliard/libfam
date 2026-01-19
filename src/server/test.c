@@ -23,11 +23,37 @@
  *
  *******************************************************************************/
 
+#include <libfam/atomic.h>
 #include <libfam/evh.h>
 #include <libfam/format.h>
+#include <libfam/limits.h>
 #include <libfam/linux.h>
 #include <libfam/server.h>
 #include <libfam/test.h>
+
+typedef struct {
+	u64 msgs;
+	u64 non_packet;
+} EvhTestState;
+
+EvhTestState *recv_msgs = NULL;
+
+void test_evh_callback(i32 res, u64 user_data, void *ctx) {
+	Evh *evh = ctx;
+	if (user_data == U64_MAX && res > 0 && res <= EVH_PACKET_SIZE) {
+		u8 buf[EVH_PACKET_SIZE + 1] = {0};
+		const struct sockaddr_in *src_addr = evh_get_src_addr(evh);
+		u32 addr = htonl(src_addr->sin_addr.s_addr);
+		fastmemcpy(buf, evh_get_packet(evh), res);
+		ASSERT_EQ(addr, 0x7F000001, "in addr localhost");
+		struct io_uring_sqe sqe = {.opcode = IORING_OP_NOP,
+					   .user_data = 123};
+		evh_schedule(evh, (struct io_uring_sqe[]){sqe}, 1);
+	} else {
+		__aadd64(&recv_msgs->non_packet, 1);
+	}
+	__aadd64(&recv_msgs->msgs, 1);
+}
 
 Test(evh) {
 	i32 res;
@@ -41,71 +67,34 @@ Test(evh) {
 			     .msg_iov = msgvec,
 			     .msg_iovlen = 1};
 	Evh *evh = NULL;
-	EvhConfig config = {
-	    .queue_depth = 16, .port = 8081, .addr = INADDR_ANY};
+	EvhConfig config = {.queue_depth = 16, .callback = test_evh_callback};
+
+	recv_msgs = smap(sizeof(EvhTestState));
+
 	res = evh_init(&evh, &config);
 	ASSERT(!res, "evh_init");
 
 	i32 pid = fork();
 	ASSERT(pid >= 0, "pid");
 	if (!pid) {
-		i32 res = evh_start(evh);
-		if (res) perror("evh_start");
-		if (res) println("res={}", res);
+		evh_start(evh);
 		exit_group(0);
 	}
 
 	i32 cfd = socket(AF_INET, SOCK_DGRAM, 0);
 	ASSERT(cfd > 0, "socket");
 	dest_addr.sin_port = htons(evh_port(evh));
-	println("port={},sin_port={}", evh_port(evh), dest_addr.sin_port);
 
 	res = sendmsg(cfd, &msg, 0);
 	ASSERT_EQ(res, 6, "sendmsg");
-	usleep(1000);
 	msgvec[0].iov_base = "abcdef";
 	res = sendmsg(cfd, &msg, 0);
 	ASSERT_EQ(res, 6, "sendmsg");
-	usleep(1000);
+	while (__aload64(&recv_msgs->msgs) < 4) nsleep(100);
+	ASSERT_EQ(__aload64(&recv_msgs->non_packet), 2, "non_packet messages");
 	evh_stop(evh);
 	evh_destroy(evh);
 	close(cfd);
+	munmap(recv_msgs, sizeof(EvhTestState));
 }
 
-/*
-Test(server) {
-	i32 res;
-	Server *s = NULL;
-	ServerConfig config = {.port = 0, .async_queue_depth = 128};
-	ASSERT(!server_init(&s, &config), "server_init");
-	u16 port = server_port(s);
-	println("port={}", port);
-	ASSERT(port, "server_port");
-	i32 pid = fork();
-	ASSERT(pid >= 0, "fork");
-
-	if (!pid) {
-		ASSERT(!server_start(s), "server_start");
-		exit_group(0);
-	}
-
-	struct sockaddr_in addr = {.sin_family = AF_INET,
-				   .sin_port = htons(port),
-				   .sin_addr = {htonl(INADDR_ANY)}};
-	u64 addrlen = sizeof(addr);
-
-	i32 cfd = socket(AF_INET, SOCK_DGRAM, 0);
-	ASSERT(cfd > 0, "socket");
-
-	res = connect(cfd, (void *)&addr, addrlen);
-	ASSERT(!res, "connect");
-
-	ASSERT_EQ(pwrite(cfd, "abcd", 4, 0), 4, "pwrite");
-	ASSERT_EQ(pwrite(cfd, "xyz123", 6, 0), 6, "pwrite2");
-
-	usleep(1000);
-	server_stop(s);
-	server_destroy(s);
-	close(cfd);
-}
-*/

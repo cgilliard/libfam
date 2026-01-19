@@ -31,18 +31,18 @@
 #include <libfam/syscall.h>
 #include <libfam/sysext.h>
 
-#define MAX_PACKET_SIZE 1400
-
 struct Evh {
 	i32 fd;
 	u16 port;
-	u8 buffer[MAX_PACKET_SIZE];
+	u8 buffer[EVH_PACKET_SIZE];
 	struct sockaddr_in src_addr;
 	u32 complete;
 	Async *async;
 	struct msghdr message;
 	struct iovec vec[1];
 	struct io_uring_sqe proc_next_msg[1];
+	AsyncCallback callback;
+	void *ctx;
 };
 
 STATIC i32 evh_next_message(Evh *evh) {
@@ -51,16 +51,14 @@ STATIC i32 evh_next_message(Evh *evh) {
 
 STATIC void evh_callback(i32 res, u64 user_data, void *ctx) {
 	Evh *evh = ctx;
-
-	if (res >= 0 && res < MAX_PACKET_SIZE) {
-		u8 msg[MAX_PACKET_SIZE + 1] = {0};
-		fastmemcpy(msg, evh->buffer, res);
-		println("res={},user_data={},buf={},msg[0]={},evh->fd={}", res,
-			user_data, msg, msg[0], evh->fd);
+	evh->callback(res, user_data, evh);
+	if (user_data == U64_MAX) {
+		if (evh_next_message(evh) < 0) async_stop(evh->async);
 	}
-
-	if (evh_next_message(evh) < 0) async_stop(evh->async);
 }
+
+const u8 *evh_get_packet(Evh *evh) { return evh->buffer; }
+const struct sockaddr_in *evh_get_src_addr(Evh *evh) { return &evh->src_addr; }
 
 i32 evh_init(Evh **evh, EvhConfig *config) {
 	struct sockaddr_in addr = {.sin_family = AF_INET,
@@ -70,6 +68,11 @@ i32 evh_init(Evh **evh, EvhConfig *config) {
 	i32 res;
 	u64 one = 1;
 	u64 addrlen = sizeof(addr);
+
+	if (config->queue_depth < 2) {
+		errno = EINVAL;
+		return -1;
+	}
 
 	ret = smap(sizeof(Evh));
 	if (!ret) return -1;
@@ -92,7 +95,6 @@ i32 evh_init(Evh **evh, EvhConfig *config) {
 		evh_destroy(ret);
 		return -1;
 	}
-	println("fd={}, addr.sin_port={}", ret->fd, addr.sin_port);
 	ret->port = ntohs(addr.sin_port);
 
 	if (async_init(&ret->async, config->queue_depth, evh_callback, ret) <
@@ -102,29 +104,35 @@ i32 evh_init(Evh **evh, EvhConfig *config) {
 	}
 
 	i32 ring_fd = async_ring_fd(ret->async);
-	struct iovec iov = {.iov_base = ret->buffer,
-			    .iov_len = MAX_PACKET_SIZE};
-
-	if (io_uring_register(ring_fd, IORING_REGISTER_BUFFERS, &iov, 1) < 0) {
+	if (io_uring_register(ring_fd, IORING_REGISTER_FILES, (i32[]){ret->fd},
+			      1) < 0) {
 		evh_destroy(ret);
 		return -1;
 	}
 
 	ret->vec[0].iov_base = ret->buffer;
-	ret->vec[0].iov_len = MAX_PACKET_SIZE;
+	ret->vec[0].iov_len = EVH_PACKET_SIZE;
 	ret->message.msg_name = &ret->src_addr;
 	ret->message.msg_namelen = sizeof(ret->src_addr);
 	ret->message.msg_iov = ret->vec;
 	ret->message.msg_iovlen = 1;
 
 	ret->proc_next_msg[0].opcode = IORING_OP_RECVMSG;
-	ret->proc_next_msg[0].fd = ret->fd;
+	ret->proc_next_msg[0].fd = 0;
+	ret->proc_next_msg[0].flags = IOSQE_FIXED_FILE,
 	ret->proc_next_msg[0].addr = (u64)&ret->message;
 	ret->proc_next_msg[0].len = sizeof(ret->message);
 	ret->proc_next_msg[0].user_data = U64_MAX;
 
+	ret->callback = config->callback;
+
 	*evh = ret;
 	return 0;
+}
+
+i32 evh_schedule(Evh *evh, const struct io_uring_sqe *events, u32 count) {
+	return async_schedule(evh->async, events, count);
+	// return 0;
 }
 
 i32 evh_start(Evh *evh) {
