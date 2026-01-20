@@ -149,8 +149,8 @@ Test(db1) {
 	rx_msg.msg_iov = &rx_iov;
 	rx_msg.msg_iovlen = 1;
 	res = recvmsg(cfd, &rx_msg, 0);
-	ASSERT_EQ(res, 3, "recvmsg");
-	ASSERT(!memcmp(rx_buffer, "abc", 3), "buffer");
+	ASSERT_EQ(res, 6, "recvmsg");
+	ASSERT(!memcmp(rx_buffer, "Hello1", 6), "buffer");
 
 	db_stop(db);
 	db_destroy(db);

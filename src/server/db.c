@@ -25,6 +25,7 @@
 
 #include <libfam/atomic.h>
 #include <libfam/db.h>
+#include <libfam/env.h>
 #include <libfam/format.h>
 #include <libfam/limits.h>
 #include <libfam/linux.h>
@@ -58,15 +59,26 @@ STATIC void db_handler(i32 sig) {}
 STATIC i32 db_server_loop(Db *db, struct sockaddr_in *src_addr,
 			  u8 buffer[DB_PACKET_SIZE]) {
 	u32 flags = IORING_ENTER_GETEVENTS;
-	i32 ret = 0;
+	i32 ret = 0, fd = db->ring_fd;
+	u32 cq_mask = *db->cq_mask;
+	u8 buffer_out[DB_PACKET_SIZE];
+	struct iovec vec[1] = {{.iov_base = buffer_out}};
+	struct msghdr message = {.msg_name = src_addr,
+				 .msg_namelen = sizeof(struct sockaddr_in),
+				 .msg_iov = vec,
+				 .msg_iovlen = 1};
+	struct io_uring_sqe sendmsg = {.opcode = IORING_OP_SENDMSG,
+				       .flags = IOSQE_FIXED_FILE,
+				       .addr = (u64)&message,
+				       .len = sizeof(message),
+				       .user_data = U64_MAX - 1};
+
 	while (!__aload32(&db->complete)) {
-		u32 cq_mask = *db->cq_mask;
 		u32 cq_head = *db->cq_head;
 		u32 cq_tail = __aload32(db->cq_tail);
 		u32 drained = cq_tail - cq_head;
 
 		if (!drained) {
-			i32 fd = db->ring_fd;
 			i32 res = io_uring_enter2(fd, 0, 1, flags, NULL, 0);
 			if (res < 0 && errno != EINTR) {
 				ret = -1;
@@ -77,34 +89,11 @@ STATIC i32 db_server_loop(Db *db, struct sockaddr_in *src_addr,
 				u32 idx = (cq_head + i) & cq_mask;
 				u64 user_data = db->cqes[idx].user_data;
 				i32 result = db->cqes[idx].res;
-				u16 port = ntohs(src_addr->sin_port);
-				u32 addr = src_addr->sin_addr.s_addr;
 
 				if (result > 0 && result <= DB_PACKET_SIZE &&
 				    user_data == U64_MAX) {
-					struct sockaddr_in saddr = {
-					    .sin_family = AF_INET,
-					    .sin_port = htons(port),
-					    .sin_addr = {addr}};
-					u8 buffer_out[DB_PACKET_SIZE] = {
-					    'a', 'b', 'c'};
-
-					struct iovec vec[1] = {
-					    {.iov_base = buffer_out,
-					     .iov_len = 3}};
-					(void)saddr;
-					struct msghdr message = {
-					    .msg_name = src_addr,
-					    .msg_namelen =
-						sizeof(struct sockaddr_in),
-					    .msg_iov = vec,
-					    .msg_iovlen = 1};
-					struct io_uring_sqe sendmsg = {
-					    .opcode = IORING_OP_SENDMSG,
-					    .flags = IOSQE_FIXED_FILE,
-					    .addr = (u64)&message,
-					    .len = sizeof(message),
-					    .user_data = U64_MAX - 1};
+					fastmemcpy(buffer_out, buffer, result);
+					vec[0].iov_len = result;
 
 					u32 tail = *db->sq_tail;
 					u32 index = tail & *db->sq_mask;
@@ -112,8 +101,8 @@ STATIC i32 db_server_loop(Db *db, struct sockaddr_in *src_addr,
 					db->sqes[index] = sendmsg;
 					__aadd32(db->sq_tail, 1);
 
-					i32 res = io_uring_enter2(
-					    db->ring_fd, 1, 0, 0, NULL, 0);
+					i32 res = io_uring_enter2(fd, 1, 0, 0,
+								  NULL, 0);
 					if (res < 0 && errno != EINTR)
 						return -1;
 				}
@@ -267,6 +256,17 @@ i32 db_stop(Db *db) {
 		return -1;
 	}
 	kill(db->pid, SIGUSR1);
+#if TEST == 1
+	if (IS_VALGRIND()) {
+		struct io_uring_sqe wakeup = {.opcode = IORING_OP_NOP};
+		u32 tail = __aload32(db->sq_tail);
+		u32 index = tail & *db->sq_mask;
+		db->sq_array[index] = index;
+		db->sqes[index] = wakeup;
+		__aadd32(db->sq_tail, 1);
+		io_uring_enter2(db->ring_fd, 1, 0, 0, NULL, 0);
+	}
+#endif /* TEST */
 	while (__aload32(&db->complete) != 2);
 	return 0;
 }
