@@ -152,6 +152,23 @@ Test(db1) {
 	ASSERT_EQ(res, 6, "recvmsg");
 	ASSERT(!memcmp(rx_buffer, "Hello1", 6), "buffer");
 
+	fastmemcpy(buffer, "next\0\0", 6);
+	msgvec[0].iov_len = 4;
+	u64 micro_sum = 0, max = 0;
+#define COUNT 1024
+	for (u32 i = 0; i < COUNT; i++) {
+		u64 timer = micros();
+		res = sendmsg(cfd, &msg, 0);
+		ASSERT_EQ(res, 4, "sendmsg2");
+		res = recvmsg(cfd, &rx_msg, 0);
+		timer = micros() - timer;
+		if (timer > max) max = timer;
+		micro_sum += timer;
+		ASSERT_EQ(res, 4, "recvmsg2");
+		ASSERT(!memcmp(rx_buffer, "next", 4), "buffer2");
+	}
+	println("avg lat = {},max={}", micro_sum / COUNT, max);
+
 	db_stop(db);
 	db_destroy(db);
 	close(cfd);

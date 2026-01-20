@@ -57,7 +57,8 @@ struct Db {
 STATIC void db_handler(i32 sig) {}
 
 STATIC i32 db_server_loop(Db *db, struct sockaddr_in *src_addr,
-			  u8 buffer[DB_PACKET_SIZE]) {
+			  u8 buffer[DB_PACKET_SIZE],
+			  struct io_uring_sqe *proc_recvmsg) {
 	u32 flags = IORING_ENTER_GETEVENTS;
 	i32 ret = 0, fd = db->ring_fd;
 	u32 cq_mask = *db->cq_mask;
@@ -99,9 +100,12 @@ STATIC i32 db_server_loop(Db *db, struct sockaddr_in *src_addr,
 					u32 index = tail & *db->sq_mask;
 					db->sq_array[index] = index;
 					db->sqes[index] = sendmsg;
-					__aadd32(db->sq_tail, 1);
+					index = (tail + 1) & *db->sq_mask;
+					db->sq_array[index] = index;
+					db->sqes[index] = *proc_recvmsg;
+					__aadd32(db->sq_tail, 2);
 
-					i32 res = io_uring_enter2(fd, 1, 0, 0,
+					i32 res = io_uring_enter2(fd, 2, 0, 0,
 								  NULL, 0);
 					if (res < 0 && errno != EINTR)
 						return -1;
@@ -239,7 +243,7 @@ i32 db_start(Db *db) {
 	__aadd32(db->sq_tail, 1);
 	if (io_uring_enter2(db->ring_fd, 1, 0, 0, NULL, 0) < 0) return -1;
 
-	i32 ret = db_server_loop(db, &src_addr, buffer);
+	i32 ret = db_server_loop(db, &src_addr, buffer, &proc_recvmsg);
 	__astore32(&db->complete, 2);
 
 	return ret;
