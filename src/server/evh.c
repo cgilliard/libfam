@@ -60,7 +60,6 @@ STATIC void evh_callback(i32 res, u64 user_data, void *ctx) {
 
 STATIC void evh_on_start_loop(void *ctx) {
 	Evh *evh = ctx;
-	println("start loop");
 	evh->next_message_called = false;
 }
 
