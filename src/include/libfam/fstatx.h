@@ -28,6 +28,9 @@
 
 #include <libfam/types.h>
 
+#define STATX_BASIC_STATS 0x07ffU
+#define AT_EMPTY_PATH 0x1000
+
 #define S_IFMT 00170000
 #define S_IFSOCK 0140000
 #define S_IFLNK 0120000

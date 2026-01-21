@@ -761,6 +761,8 @@ Test(clone) {
 	munmap(val, sizeof(u64));
 }
 
+void global_async_start_loop(void *ctx);
+
 Test(open1) {
 	struct statx st = {0};
 	u64 size = 4097;
@@ -769,6 +771,7 @@ Test(open1) {
 
 	errno = 0;
 	i32 fd = open("/tmp/open1.dat", O_CREAT | O_RDWR, 0600);
+	ASSERT(!fsize(fd), "fsize=0");
 	fdatasync(fd);
 	ASSERT(fd > 0, "fd>0 1");
 	ASSERT(!statx("/tmp/open1.dat", &st), "statx");
@@ -793,6 +796,8 @@ Test(open1) {
 	close(fd);
 	unlink("/tmp/open1.dat");
 	unlink("/tmp/open2.dat");
+
+	global_async_start_loop(NULL);
 }
 
 Test(gettime) {
@@ -1215,6 +1220,8 @@ Test(async_process_errors) {
 	ASSERT(
 	    !async_init(&async, 12, test_on_async_process, on_start_loop, NULL),
 	    "async_init");
+
+	ASSERT(async_ring_fd(async) > 0, "async_ring_fd");
 
 	_debug_io_uring_enter2_fail = true;
 	ASSERT_EQ(async_process(async), -1, "async_process");

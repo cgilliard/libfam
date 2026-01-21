@@ -26,7 +26,7 @@
 #ifndef _SYSCALL_H
 #define _SYSCALL_H
 
-#include <libfam/linuxnet.h>
+#include <libfam/net.h>
 #include <libfam/types.h>
 
 struct rt_sigaction;
