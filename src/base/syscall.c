@@ -41,7 +41,6 @@
 #define SYS_kill 129
 #define SYS_rt_sigaction 134
 #define SYS_getpid 172
-#define SYS_bind 200
 #define SYS_listen 201
 #define SYS_getsockname 204
 #define SYS_setsockopt 208
@@ -58,7 +57,6 @@
 #define SYS_munmap 11
 #define SYS_rt_sigaction 13
 #define SYS_getpid 39
-#define SYS_bind 49
 #define SYS_getsockname 51
 #define SYS_setsockopt 54
 #define SYS_clone 56
@@ -153,13 +151,6 @@ PUBLIC void exit_group(i32 status) {
 i32 getpid(void) {
 	i32 v;
 	v = (i32)raw_syscall(SYS_getpid, 0, 0, 0, 0, 0, 0);
-	RETURN_VALUE(v);
-}
-
-i32 bind(i32 sockfd, const struct sockaddr *addr, u64 addrlen) {
-	i32 v;
-	v = (i32)raw_syscall(SYS_bind, (i64)sockfd, (i64)addr, (i64)addrlen, 0,
-			     0, 0);
 	RETURN_VALUE(v);
 }
 

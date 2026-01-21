@@ -876,6 +876,7 @@ Test(async_errs) {
 	ASSERT_EQ(socket(0, 0, 0), -1, "socket err");
 	ASSERT_EQ(sendmsg(-1, NULL, 0), -1, "sendmsg err");
 	ASSERT_EQ(recvmsg(-1, NULL, 0), -1, "recvmsg err");
+	ASSERT_EQ(bind(0, NULL, 0), -1, "bind err");
 	async_sub_queue(__global_async);
 }
 

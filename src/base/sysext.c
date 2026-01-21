@@ -278,7 +278,7 @@ PUBLIC i32 fstatx(i32 fd, struct statx *st) {
 	return __global_res;
 }
 
-i64 sendmsg(i32 socket, const struct msghdr *message, i32 flags) {
+PUBLIC i64 sendmsg(i32 socket, const struct msghdr *message, i32 flags) {
 	struct io_uring_sqe sqe = {
 	    .opcode = IORING_OP_SENDMSG,
 	    .fd = socket,
@@ -294,11 +294,25 @@ i64 sendmsg(i32 socket, const struct msghdr *message, i32 flags) {
 	return __global_res;
 }
 
-i64 recvmsg(i32 socket, struct msghdr *message, i32 flags) {
+PUBLIC i64 recvmsg(i32 socket, struct msghdr *message, i32 flags) {
 	struct io_uring_sqe sqe = {.opcode = IORING_OP_RECVMSG,
 				   .fd = socket,
 				   .addr = (u64)message,
 				   .msg_flags = flags,
+				   .user_data = 1};
+	if (global_async_init() < 0) return -1;
+	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,
+			  true) < 0)
+		return -1;
+	if (__global_res < 0) ERR(-__global_res);
+	return __global_res;
+}
+
+PUBLIC i64 bind(i32 sockfd, const struct sockaddr *addr, u64 addrlen) {
+	struct io_uring_sqe sqe = {.opcode = IORING_OP_BIND,
+				   .fd = sockfd,
+				   .addr = (u64)addr,
+				   .addr2 = addrlen,
 				   .user_data = 1};
 	if (global_async_init() < 0) return -1;
 	if (async_execute(__global_async, (struct io_uring_sqe[]){sqe}, 1,

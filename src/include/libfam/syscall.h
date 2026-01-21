@@ -52,7 +52,6 @@ void restorer(void);
 i32 getpid(void);
 i32 kill(i32 pid, i32 signal);
 
-i32 bind(i32 sockfd, const struct sockaddr *addr, i64 addrlen);
 i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
 	       i64 option_len);
 i32 getsockname(i32 sockfd, struct sockaddr *restrict addr,
