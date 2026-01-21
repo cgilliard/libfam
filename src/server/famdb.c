@@ -153,8 +153,8 @@ STATIC i32 famdb_init_db(FamDb *db) {
 	return 0;
 }
 
-STATIC i32 famdb_write_page(FamDbTxnImpl *impl, u64 page_num,
-			    const u8 buffer[PAGE_SIZE]) {
+__attribute__((unused)) STATIC i32
+famdb_write_page(FamDbTxnImpl *impl, u64 page_num, const u8 buffer[PAGE_SIZE]) {
 	i32 result;
 	u32 index, cq_tail = 0, cq_head = 0;
 	FamDb *db = impl->db;
@@ -185,8 +185,10 @@ STATIC i32 famdb_write_page(FamDbTxnImpl *impl, u64 page_num,
 	return result;
 }
 
-STATIC i32 famdb_read_page(FamDbTxnImpl *impl, u64 page_num,
-			   u8 buffer[PAGE_SIZE], bool wakeup) {
+__attribute__((unused)) STATIC i32 famdb_read_page(FamDbTxnImpl *impl,
+						   u64 page_num,
+						   u8 buffer[PAGE_SIZE],
+						   bool wakeup) {
 	i32 result;
 	u32 index, cq_tail = 0, cq_head = 0;
 	u32 flags = IORING_ENTER_SQ_WAKEUP;
