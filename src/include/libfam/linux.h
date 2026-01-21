@@ -175,6 +175,7 @@ struct io_uring_sqe {
 	};
 };
 
+#define IORING_SETUP_SQPOLL (1U << 1)
 #define IORING_RECVSEND_POLL_FIRST (1U << 0)
 #define IORING_RECV_MULTISHOT (1U << 1)
 #define IORING_RECVSEND_FIXED_BUF (1U << 2)

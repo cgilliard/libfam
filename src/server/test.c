@@ -27,6 +27,7 @@
 #include <libfam/bptree.h>
 #include <libfam/db.h>
 #include <libfam/evh.h>
+#include <libfam/famdb.h>
 #include <libfam/format.h>
 #include <libfam/limits.h>
 #include <libfam/linux.h>
@@ -155,7 +156,7 @@ Test(db1) {
 	fastmemcpy(buffer, "next\0\0", 6);
 	msgvec[0].iov_len = 4;
 	u64 micro_sum = 0, max = 0;
-#define COUNT 1024
+#define COUNT (1024 * 10)
 	for (u32 i = 0; i < COUNT; i++) {
 		u64 timer = micros();
 		res = sendmsg(cfd, &msg, 0);
@@ -167,9 +168,59 @@ Test(db1) {
 		ASSERT_EQ(res, 4, "recvmsg2");
 		ASSERT(!memcmp(rx_buffer, "next", 4), "buffer2");
 	}
-	println("avg lat = {},max={}", micro_sum / COUNT, max);
 
+	(void)micro_sum;
 	db_stop(db);
 	db_destroy(db);
 	close(cfd);
 }
+
+/*
+Test(famdb) {
+#define SCRATCH_SIZE (1024 * 1024)
+	i32 res;
+	u64 cc, m;
+	FamDbConfig config = {.queue_depth = 16,
+			      .pathname = "resources/100mb.dat"};
+	FamDb *db = NULL;
+	FamDbTxn txn;
+	u8 scratch_space[SCRATCH_SIZE];
+	FamDbScratch scratch = {.space = scratch_space,
+				.capacity = SCRATCH_SIZE};
+
+	ASSERT(!famdb_open(&db, &config), "famdb_open");
+	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
+
+	u32 trials = 100000;
+	u64 m_sum = 0, cc_sum = 0;
+	for (u32 i = 0; i < trials; i++) {
+		m = micros();
+		cc = cycle_counter();
+		res = famdb_put(&txn, "abc", 3, "def", 3);
+		cc = cycle_counter() - cc;
+		m = micros() - m;
+		m_sum += m;
+		cc_sum += cc;
+	}
+
+	println("avg_cycles={},avg_micros={}", cc_sum / trials, m_sum / trials);
+
+	void *value_out = NULL;
+	u64 value_out_len;
+	cc_sum = 0;
+
+	for (u32 i = 0; i < trials; i++) {
+		m = micros();
+		cc = cycle_counter();
+		res = famdb_get(&txn, "abc", 3, &value_out, &value_out_len);
+		cc = cycle_counter() - cc;
+		cc_sum += cc;
+		m = micros() - m;
+	}
+
+	ASSERT(!res, "famdb_get");
+	println("famdb_get cycles={},m={}", cc_sum / trials, m);
+
+	famdb_close(db);
+}
+*/

@@ -36,13 +36,12 @@ typedef struct LruCacheEntry {
 	struct LruCacheEntry *lru_prev;
 	u64 bucket;
 	u64 key;
-	u8 value[];
+	void *value;
 } LruCacheEntry;
 
 struct LruCache {
 	LruCacheEntry *entries;
 	u64 capacity;
-	u64 value_size;
 	u64 hash_bucket_count;
 	LruCacheEntry **hash_buckets;
 	LruCacheEntry *lru_head;
@@ -50,11 +49,19 @@ struct LruCache {
 	u64 seed;
 };
 
-LruCache *lru_init(u64 capacity, u64 hash_bucket_count, u64 value_size) {
+#define PRIME 0xc2b2ae35ULL
+
+STATIC u64 lru_hash(u64 seed, u64 hash_bucket_count, u64 key) {
+	u64 h = key ^ seed;
+	h *= PRIME;
+	return h & (hash_bucket_count - 1);
+}
+
+LruCache *lru_init(u64 capacity, u64 hash_bucket_count) {
 	Rng rng;
 	LruCache *cache;
 
-	if (capacity == 0 || hash_bucket_count == 0 || value_size == 0) {
+	if (capacity == 0 || hash_bucket_count == 0) {
 		errno = EINVAL;
 		return NULL;
 	}
@@ -62,11 +69,9 @@ LruCache *lru_init(u64 capacity, u64 hash_bucket_count, u64 value_size) {
 	cache = map(sizeof(LruCache));
 	if (!cache) return NULL;
 	cache->capacity = capacity;
-	cache->value_size = value_size;
 	cache->hash_bucket_count = hash_bucket_count;
 
-	cache->entries =
-	    map((sizeof(LruCacheEntry) + cache->value_size) * cache->capacity);
+	cache->entries = map(sizeof(LruCacheEntry) * cache->capacity);
 	if (!cache->entries) {
 		lru_destroy(cache);
 		return NULL;
@@ -75,25 +80,21 @@ LruCache *lru_init(u64 capacity, u64 hash_bucket_count, u64 value_size) {
 	    map(sizeof(LruCacheEntry *) * cache->hash_bucket_count);
 
 	for (u64 i = 0; i < capacity; i++) {
-		LruCacheEntry *ent =
-		    (void *)((u8 *)cache->entries +
-			     i * (sizeof(LruCacheEntry) + cache->value_size));
+		LruCacheEntry *ent = (void *)((u8 *)cache->entries +
+					      i * (sizeof(LruCacheEntry)));
 		ent->lru_prev =
 		    i == 0 ? NULL
 			   : (void *)((u8 *)cache->entries +
-				      (i - 1) * (sizeof(LruCacheEntry) +
-						 cache->value_size));
+				      (i - 1) * (sizeof(LruCacheEntry)));
 		ent->lru_next =
 		    i == capacity - 1
 			? NULL
 			: (void *)((u8 *)cache->entries +
-				   (i + 1) * (sizeof(LruCacheEntry) +
-					      cache->value_size));
+				   (i + 1) * (sizeof(LruCacheEntry)));
 	}
 	cache->lru_head = (LruCacheEntry *)cache->entries;
 	cache->lru_tail = (void *)((u8 *)cache->entries +
-				   (capacity - 1) * (sizeof(LruCacheEntry) +
-						     cache->value_size));
+				   (capacity - 1) * (sizeof(LruCacheEntry)));
 	rng_init(&rng);
 	rng_gen(&rng, &cache->seed, sizeof(u64));
 
@@ -103,8 +104,7 @@ void lru_destroy(LruCache *cache) {
 	if (cache) {
 		if (cache->entries)
 			munmap(cache->entries,
-			       (sizeof(LruCacheEntry) + cache->value_size) *
-				   cache->capacity);
+			       sizeof(LruCacheEntry) * cache->capacity);
 		if (cache->hash_buckets)
 			munmap(
 			    cache->hash_buckets,
@@ -112,9 +112,9 @@ void lru_destroy(LruCache *cache) {
 		munmap(cache, sizeof(LruCache));
 	}
 }
+
 void *lru_get(LruCache *cache, u64 key) {
-	u64 bucket = aighthash64(&key, sizeof(u64), cache->seed) %
-		     cache->hash_bucket_count;
+	u64 bucket = lru_hash(cache->seed, cache->hash_bucket_count, key);
 
 	LruCacheEntry *ent = cache->hash_buckets[bucket];
 	while (ent) {
@@ -139,9 +139,9 @@ void *lru_get(LruCache *cache, u64 key) {
 	return NULL;
 }
 
-void lru_put(LruCache *cache, u64 key, const void *value) {
-	u64 bucket = aighthash64(&key, sizeof(u64), cache->seed) %
-		     cache->hash_bucket_count;
+void lru_put(LruCache *cache, u64 key, void *value) {
+	u64 bucket = lru_hash(cache->seed, cache->hash_bucket_count, key);
+
 	LruCacheEntry *nent = cache->lru_tail;
 	u64 old_bucket = nent->bucket;
 	LruCacheEntry **head = &cache->hash_buckets[old_bucket];
@@ -155,7 +155,7 @@ void lru_put(LruCache *cache, u64 key, const void *value) {
 
 	nent->bucket = bucket;
 	nent->key = key;
-	fastmemcpy(nent->value, value, cache->value_size);
+	nent->value = value;
 	cache->lru_tail = nent->lru_prev;
 	nent->lru_next = cache->lru_head;
 	nent->lru_prev = NULL;

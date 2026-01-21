@@ -1223,3 +1223,12 @@ Test(async_process_errors) {
 
 	async_destroy(async);
 }
+
+Test(raw_close) {
+	i32 fd = open("resources/akjv5.txt", O_RDONLY, 0);
+	ASSERT(fd > 0, "open");
+	ASSERT(!raw_close(fd), "raw_close");
+	i32 fd2 = open("resources/akjv5.txt", O_RDONLY, 0);
+	ASSERT_EQ(fd, fd2, "closed from table");
+	ASSERT(!raw_close(fd2), "raw_close2");
+}

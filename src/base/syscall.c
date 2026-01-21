@@ -36,6 +36,7 @@
 
 #ifdef __aarch64__
 #define SYS_fchmod 52
+#define SYS_close 57
 #define SYS_utimesat 88
 #define SYS_kill 129
 #define SYS_rt_sigaction 134
@@ -52,6 +53,7 @@
 #define SYS_io_uring_enter 426
 #define SYS_io_uring_register 427
 #elif defined(__x86_64__)
+#define SYS_close 3
 #define SYS_mmap 9
 #define SYS_munmap 11
 #define SYS_rt_sigaction 13
@@ -238,6 +240,9 @@ i32 io_uring_setup(u32 entries, struct io_uring_params *params) {
 
 	v = (i32)raw_syscall(SYS_io_uring_setup, (i64)entries, (i64)params, 0,
 			     0, 0, 0);
+#if TEST == 1
+	if (v >= 0) __aadd64(&open_fds, 1);
+#endif /* TEST */
 	RETURN_VALUE(v);
 }
 i32 io_uring_enter2(u32 fd, u32 to_submit, u32 min_complete, u32 flags,
@@ -291,6 +296,16 @@ __attribute__((naked)) void restorer(void) { SYSCALL_RESTORER; }
 #else
 #error "Unsupported platform"
 #endif /* ARCH */
+
+i32 raw_close(i32 fd) {
+	i32 v;
+	v = (i32)raw_syscall(SYS_close, (i64)fd, 0, 0, 0, 0, 0);
+#if TEST == 1
+	if (!v) __asub64(&open_fds, 1);
+#endif /* TEST */
+
+	RETURN_VALUE(v);
+}
 
 PUBLIC i32 fchmod(i32 fd, u32 mode) {
 	i32 v;

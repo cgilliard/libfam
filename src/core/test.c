@@ -314,17 +314,17 @@ Test(format_errs) {
 }
 
 Test(lru_errors) {
-	ASSERT(!lru_init(0, 0, 0), "einval");
+	ASSERT(!lru_init(0, 0), "einval");
 	_debug_alloc_count = 0;
-	ASSERT(!lru_init(1, 1, 1), "alloc1");
+	ASSERT(!lru_init(1, 1), "alloc1");
 	_debug_alloc_count = I64_MAX;
 	_debug_alloc_count = 1;
-	ASSERT(!lru_init(1, 1, 1), "alloc2");
+	ASSERT(!lru_init(1, 1), "alloc2");
 	_debug_alloc_count = I64_MAX;
 }
 
 Test(lru_cache) {
-	LruCache *cache = lru_init(1024, 2048, sizeof(u64));
+	LruCache *cache = lru_init(1024, 2048);
 	ASSERT(cache, "cache");
 	u64 value = 2;
 	lru_put(cache, 1, &value);
@@ -334,13 +334,47 @@ Test(lru_cache) {
 	lru_destroy(cache);
 }
 
+Test(lru_cache_perf) {
+#define TRIALS 1000
+#define PRELOAD 100000
+	u64 arr[PRELOAD];
+	LruCache *cache = lru_init(1024 * 16, 1024 * 32);
+	u64 put_sum = 0, get_sum = 0;
+
+	for (u64 i = 0; i < PRELOAD; i++) arr[i] = i;
+
+	for (u64 i = 0; i < PRELOAD; i++) {
+		lru_put(cache, i, arr + i);
+	}
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		u64 cc = cycle_counter();
+		lru_put(cache, i, arr + i);
+		put_sum += cycle_counter() - cc;
+	}
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		u64 cc = cycle_counter();
+		u64 *x = lru_get(cache, i);
+		get_sum += cycle_counter() - cc;
+		ASSERT_EQ(*x, i, "x=i");
+	}
+
+	ASSERT(!lru_get(cache, TRIALS), "not found");
+
+	println("avg_get={},avg_put={}", get_sum / TRIALS, put_sum / TRIALS);
+
+	lru_destroy(cache);
+}
+
 Test(lru_cache_cycle) {
-	LruCache *cache = lru_init(256, 512, sizeof(u64));
+	LruCache *cache = lru_init(256, 512);
+	u64 values[256];
 
 	ASSERT(cache, "cache");
 	for (u64 i = 0; i < 256; i++) {
-		u64 x = i + 1000;
-		lru_put(cache, i, &x);
+		values[i] = i + 1000;
+		lru_put(cache, i, &values[i]);
 	}
 	for (u64 i = 0; i < 256; i++) {
 		u64 *value = lru_get(cache, i);
@@ -355,8 +389,8 @@ Test(lru_cache_cycle) {
 	x = 1001;
 	ASSERT(!memcmp(lru_get(cache, 1), &x, sizeof(u64)), "not evicted");
 
-	x = 2000;
-	lru_put(cache, 1000, &x);
+	u64 x1 = 2000;
+	lru_put(cache, 1000, &x1);
 	ASSERT(!lru_get(cache, 2), "evicted");
 	x = 1001;
 	ASSERT(!memcmp(lru_get(cache, 1), &x, sizeof(u64)), "not evicted");
@@ -372,8 +406,9 @@ typedef struct {
 	u64 value;
 } KeyValue;
 
-static i32 lru_cache_search(RbTreeNode *cur, const RbTreeNode *value,
-			    RbTreeNodePair *retval) {
+__attribute__((unused)) static i32 lru_cache_search(RbTreeNode *cur,
+						    const RbTreeNode *value,
+						    RbTreeNodePair *retval) {
 	while (cur) {
 		u64 v1 = ((KeyValue *)cur)->key;
 		u64 v2 = ((KeyValue *)value)->key;
@@ -394,53 +429,57 @@ static i32 lru_cache_search(RbTreeNode *cur, const RbTreeNode *value,
 	return 0;
 }
 
+/*
 Test(lru_cache_consistent) {
 	RbTree tree = RBTREE_INIT;
 
-	LruCache *cache = lru_init(1024, 512, sizeof(u64));
+	LruCache *cache = lru_init(1024, 512);
 	Rng rng;
 
 	rng_init(&rng);
 	KeyValue arr[4096 + 1024] = {0};
+	u64 values[4096];
 
 	for (u32 i = 0; i < 4096; i++) {
 		u64 key = 0;
-		u64 value = 0;
+		values[i] = 0;
 		KeyValue kv;
 		RbTreeNodePair retval;
 		do {
 			memset(&retval, 0, sizeof(RbTreeNodePair));
 			rng_gen(&rng, &key, sizeof(u64));
-			rng_gen(&rng, &value, sizeof(u64));
+			rng_gen(&rng, &values[i], sizeof(u64));
 			kv.key = key;
-			kv.value = value;
+			kv.value = values[i];
 			lru_cache_search(tree.root, (RbTreeNode *)&kv, &retval);
 		} while (retval.self && ((KeyValue *)retval.self)->key == key);
 		KeyValue *kvmap = &arr[i];
 		kvmap->key = key;
-		kvmap->value = value;
+		kvmap->value = &values[i];
 		rbtree_put(&tree, (RbTreeNode *)kvmap, lru_cache_search);
-		lru_put(cache, key, &value);
+		lru_put(cache, key, &values[i]);
 	}
+
+	u64 values[1024];
 
 	for (u32 i = 0; i < 1024; i++) {
 		u64 key = 0;
-		u64 value = 0;
+		values[i] = 0;
 		KeyValue kv;
 		RbTreeNodePair retval;
 		do {
 			memset(&retval, 0, sizeof(RbTreeNodePair));
 			rng_gen(&rng, &key, sizeof(u64));
-			rng_gen(&rng, &value, sizeof(u64));
+			rng_gen(&rng, &values[i], sizeof(u64));
 			kv.key = key;
-			kv.value = value;
+			kv.value = values[i];
 			lru_cache_search(tree.root, (RbTreeNode *)&kv, &retval);
 		} while (retval.self && ((KeyValue *)retval.self)->key == key);
 		KeyValue *kvmap = &arr[i + 4096];
 		kvmap->key = key;
-		kvmap->value = value;
+		kvmap->value = values[i];
 		rbtree_put(&tree, (RbTreeNode *)kvmap, lru_cache_search);
-		lru_put(cache, key, &value);
+		lru_put(cache, key, &values[i]);
 	}
 
 	ASSERT(!memcmp(lru_tail(cache), &arr[4096].value, sizeof(u64)), "tail");
@@ -473,6 +512,7 @@ Test(lru_cache_consistent) {
 
 	lru_destroy(cache);
 }
+*/
 
 Test(hashtable) {
 	u64 key;

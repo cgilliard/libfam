@@ -57,5 +57,6 @@ i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
 	       i64 option_len);
 i32 getsockname(i32 sockfd, struct sockaddr *restrict addr,
 		i64 *restrict addrlen);
+i32 raw_close(i32 fd);
 
 #endif /* _SYSCALL_H */

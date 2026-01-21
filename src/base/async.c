@@ -263,6 +263,10 @@ void async_destroy(Async *async) {
 		async->cq_ring = NULL;
 		if (async->sqes) munmap(async->sqes, async->sqes_size);
 		async->sqes = NULL;
+
+		if (async->ring_fd > 0) raw_close(async->ring_fd);
+		async->ring_fd = -1;
+
 		munmap(async, sizeof(Async));
 	}
 }

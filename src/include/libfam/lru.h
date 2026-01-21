@@ -30,10 +30,10 @@
 
 typedef struct LruCache LruCache;
 
-LruCache *lru_init(u64 capacity, u64 hash_bucket_count, u64 value_size);
+LruCache *lru_init(u64 capacity, u64 hash_bucket_count);
 void lru_destroy(LruCache *cache);
 void *lru_get(LruCache *cache, u64 key);
-void lru_put(LruCache *cache, u64 key, const void *value);
+void lru_put(LruCache *cache, u64 key, void *value);
 void *lru_tail(LruCache *cache);
 void *lru_head(LruCache *cache);
 

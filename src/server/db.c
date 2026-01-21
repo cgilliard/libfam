@@ -68,10 +68,10 @@ STATIC i32 db_server_loop(Db *db, struct sockaddr_in *src_addr,
 				 .msg_namelen = sizeof(struct sockaddr_in),
 				 .msg_iov = vec,
 				 .msg_iovlen = 1};
+
 	struct io_uring_sqe sendmsg = {.opcode = IORING_OP_SENDMSG,
 				       .flags = IOSQE_FIXED_FILE,
 				       .addr = (u64)&message,
-				       .len = sizeof(message),
 				       .user_data = U64_MAX - 1};
 
 	while (!__aload32(&db->complete)) {
@@ -94,6 +94,8 @@ STATIC i32 db_server_loop(Db *db, struct sockaddr_in *src_addr,
 				if (result > 0 && result <= DB_PACKET_SIZE &&
 				    user_data == U64_MAX) {
 					fastmemcpy(buffer_out, buffer, result);
+					sendmsg.len = result;
+
 					vec[0].iov_len = result;
 
 					u32 tail = *db->sq_tail;
@@ -283,7 +285,7 @@ void db_destroy(Db *db) {
 	db->cq_ring = NULL;
 	if (db->sqes) munmap(db->sqes, db->sqes_size);
 	db->sqes = NULL;
-	if (db->ring_fd > 0) close(db->ring_fd);
+	if (db->ring_fd > 0) raw_close(db->ring_fd);
 	db->ring_fd = -1;
 	if (db->server_fd > 0) close(db->server_fd);
 	db->server_fd = -1;

@@ -157,6 +157,7 @@ i32 run_tests(u8 **envp) {
 
 	total = micros();
 	heap_bytes_reset();
+	open_fds_reset();
 
 	for (exe_test = 0; exe_test < cur_tests; exe_test++) {
 		if (!pattern || !strcmp((void *)pattern, (void *)"*") ||
@@ -252,6 +253,7 @@ i32 run_benches(u8 **envp) {
 	pwrite(2, (void *)SPACER, faststrlen((void *)SPACER), 0);
 
 	heap_bytes_reset();
+	open_fds_reset();
 	total = micros();
 
 	for (exe_test = 0; exe_test < cur_benches; exe_test++) {
