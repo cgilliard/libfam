@@ -41,6 +41,7 @@ typedef struct FamDbCursor FamDbCursor;
 typedef struct {
 	u8 *space;
 	u64 capacity;
+	u64 offset;
 } FamDbScratch;
 
 typedef struct {
@@ -55,10 +56,10 @@ typedef enum { CURSOR_FORWARD, CURSOR_BACKWARDS } CursorConfig;
 i32 famdb_open(FamDb **db, const FamDbConfig *config);
 void famdb_close(FamDb *db);
 i32 famdb_begin_txn(FamDbTxn *txn, FamDb *db, FamDbScratch *scratch);
-i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void **value_out,
-	      u64 *value_len_out);
-i32 famdb_put(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
-	      u64 value_len);
+i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void *value_out,
+	      u64 value_out_capacity, u64 offset);
+i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
+	      u64 value_len, u64 offset);
 i32 famdb_del(FamDbTxn *txn, const void *key, u64 key_len);
 void famdb_txn_abort(FamDbTxn *txn);
 i32 famdb_txn_commit(FamDbTxn *txn);

@@ -42,16 +42,38 @@ Test(famdb) {
 	ASSERT(db, "db");
 	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
 
-#define TRIALS 100
+#define TRIALS 1000000
 	u64 cc_sum = 0;
 	for (u64 i = 0; i < TRIALS; i++) {
 		u64 cc = cycle_counter();
-		res = famdb_put(&txn, "abc", 3, "def", 3);
+		res = famdb_set(&txn, "abc", 3, "def", 3, 0);
 		cc = cycle_counter() - cc;
 		cc_sum += cc;
 		ASSERT(!res, "famdb_put");
 	}
 
 	println("avg_put={} cycles", cc_sum / TRIALS);
+	famdb_close(db);
+}
+
+Test(famdb_set) {
+	i32 res;
+	FamDb *db = NULL;
+	FamDbTxn txn;
+	u8 space[1024 * 512];
+	FamDbScratch scratch = {.space = space, .capacity = sizeof(space)};
+	FamDbConfig config = {.queue_depth = 16,
+			      .pathname = "resources/1mb.dat",
+			      .lru_hash_buckets = 1024,
+			      .lru_capacity = 512};
+
+	res = famdb_open(&db, &config);
+	ASSERT(!res, "famdb_open");
+	ASSERT(db, "db");
+	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
+
+	res = famdb_set(&txn, "abc", 3, "def", 3, 0);
+	ASSERT(!res, "famdb_put");
+
 	famdb_close(db);
 }

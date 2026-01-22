@@ -78,6 +78,81 @@ typedef struct {
 
 STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 
+#define PAGE_TYPE_INTERNAL_FLAG (0x1 << 0)
+
+#define FIRST_OFFSET 512
+#define PAGE_IS_INTERNAL(page) ((page[0] & PAGE_TYPE_INTERNAL_FLAG))
+#define PAGE_IS_LEAF(page) (!(page[0] & PAGE_TYPE_INTERNAL_FLAG))
+#define PAGE_ELEMENTS(page) (((u16 *)page)[1])
+#define PAGE_TOTAL_BYTES(page) (((u16 *)page)[2])
+#define PAGE_OFFSET_OF(page, elem) (((u16 *)page)[elem + 3])
+#define PAGE_KV_LEN(page, elem) \
+	(((u32 *)(page + PAGE_OFFSET_OF(page, elem)))[0])
+#define PAGE_READ_KEY_LEN(page, elem) \
+	(((u16 *)(page + PAGE_OFFSET_OF(page, elem) + sizeof(u32)))[0])
+#define PAGE_READ_KEY(page, elem) \
+	(page + PAGE_OFFSET_OF(page, elem) + sizeof(u32) + sizeof(u16))
+#define PAGE_READ_VALUE(page, elem)                                      \
+	(page + PAGE_OFFSET_OF(page, elem) + sizeof(u32) + sizeof(u16) + \
+	 PAGE_READ_KEY_LEN(page, elem))
+#define PAGE_INSERT_BEFORE(page, elem, key, key_len, value, value_len)        \
+	({                                                                    \
+		u16 _offset__ = PAGE_OFFSET_OF(page, elem);                   \
+		if (_offset__ == 0) {                                         \
+			_offset__ = PAGE_TOTAL_BYTES(page) + FIRST_OFFSET;    \
+			((u16 *)page)[elem + 3] = _offset__;                  \
+		}                                                             \
+		u16 _nentry_len__ =                                           \
+		    key_len + value_len + sizeof(u16) + sizeof(u32);          \
+		if (PAGE_ELEMENTS(page) > elem)                               \
+			fastmemmove(page + _offset__ + _nentry_len__,         \
+				    page + _offset__,                         \
+				    FIRST_OFFSET + PAGE_TOTAL_BYTES(page) -   \
+					_offset__);                           \
+		((u16 *)page)[2] += _nentry_len__;                            \
+		((u16 *)page)[1]++;                                           \
+		((u32 *)(page + _offset__))[0] = key_len + value_len;         \
+		((u16 *)(page + _offset__ + sizeof(u32)))[0] = key_len;       \
+		fastmemcpy(page + _offset__ + sizeof(u32) + sizeof(u16), key, \
+			   key_len);                                          \
+		fastmemcpy(                                                   \
+		    page + _offset__ + sizeof(u32) + sizeof(u16) + key_len,   \
+		    value, value_len);                                        \
+		for (u32 i = elem + 1; i < PAGE_ELEMENTS(page); i++)          \
+			((u16 *)page)[i + 3] = ((u16 *)page)[i + 2] +         \
+					       PAGE_KV_LEN(page, i - 1) +     \
+					       sizeof(u16) + sizeof(u32);     \
+	})
+#define PAGE_PRINT_ELEMENT(page, elem)                                        \
+	({                                                                    \
+		u8 key_out[1024] = {0}, value_out[1024] = {0};                \
+		fastmemcpy(key_out, PAGE_READ_KEY(page, elem),                \
+			   PAGE_READ_KEY_LEN(page, elem));                    \
+		fastmemcpy(                                                   \
+		    value_out, PAGE_READ_VALUE(page, elem),                   \
+		    PAGE_KV_LEN(page, elem) - PAGE_READ_KEY_LEN(page, elem)); \
+		println(                                                      \
+		    "key[{}]={},key_len={},value[{}]={},kv_len={},offset={}", \
+		    elem, key_out, PAGE_READ_KEY_LEN(page, elem), elem,       \
+		    value_out, PAGE_KV_LEN(page, elem),                       \
+		    PAGE_OFFSET_OF(page, elem));                              \
+	})
+#define PAGE_PRINT_ELEMENTS(page)                                              \
+	({                                                                     \
+		u64 elements = PAGE_ELEMENTS(page);                            \
+		u64 total_bytes = PAGE_TOTAL_BYTES(page);                      \
+		println("elements={},total_bytes={}", elements, total_bytes);  \
+		println(                                                       \
+		    "--------------------------------------------------------" \
+		    "-------------------------------");                        \
+		for (u32 i = 0; i < PAGE_ELEMENTS(page); i++) {                \
+			PAGE_PRINT_ELEMENT(page, i);                           \
+		}                                                              \
+		println(                                                       \
+		    "--------------------------------------------------------" \
+		    "-------------------------------");                        \
+	})
+
 STATIC i32 famdb_init_db(FamDb *db) {
 	println("init db root={}", db->fmap_pages);
 	SuperBlock *sb = (void *)db->file_data;
@@ -253,8 +328,8 @@ i32 famdb_begin_txn(FamDbTxn *txn, FamDb *db, FamDbScratch *scratch) {
 	return 0;
 }
 
-i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void **value_out,
-	      u64 *value_len_out) {
+i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void *value_out,
+	      u64 value_out_capacity, u64 offset) {
 	return 0;
 }
 
@@ -311,8 +386,8 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 	return result;
 }
 
-i32 famdb_put(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
-	      u64 value_len) {
+i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
+	      u64 value_len, u64 offset) {
 	FamDbTxnImpl *impl = (void *)txn;
 	u8 *page = NULL;
 	u8 buffer[PAGE_SIZE];
@@ -326,6 +401,21 @@ i32 famdb_put(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 	if (famdb_get_page(impl, &page, impl->root + 2) < 0) return -1;
 	fastmemcpy(buffer, page, PAGE_SIZE);
 	if (buffer[0]) println("buffer[0]={}", buffer[0]);
+
+	/*
+	if (famdb_get_page(impl, &page, impl->root) < 0) return -1;
+
+	u8 buffer[PAGE_SIZE];
+	fastmemcpy(buffer, page, PAGE_SIZE);
+	println("is_internal={}, is_leaf={}, elements={}, total_bytes={}",
+		PAGE_IS_INTERNAL(buffer), PAGE_IS_LEAF(buffer),
+		PAGE_ELEMENTS(buffer), PAGE_TOTAL_BYTES(buffer));
+
+	PAGE_INSERT_BEFORE(buffer, 0, key, key_len, value, value_len);
+	PAGE_PRINT_ELEMENTS(buffer);
+	PAGE_INSERT_BEFORE(buffer, 0, "xyz", 3, "ok", 2);
+	PAGE_PRINT_ELEMENTS(buffer);
+	*/
 
 	return 0;
 }
