@@ -23,38 +23,33 @@
  *
  *******************************************************************************/
 
-#ifndef _SYSCALL_H
-#define _SYSCALL_H
+#ifndef _WOTS_H
+#define _WOTS_H
 
-#include <libfam/net.h>
 #include <libfam/types.h>
 
-struct rt_sigaction;
-struct io_uring_params;
-struct timespec;
-struct timeval;
+#define WOTS_CHAINS 18
+#define WOTS_CHAIN_LEN 256
+#define WOTS_HASH_BYTES 32
 
-i32 clock_gettime(i32 clockid, struct timespec *tp);
-void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset);
-i32 munmap(void *addr, u64 len);
-i32 clone(i64 flags, void *sp);
-void exit_group(i32 status);
-i32 io_uring_setup(u32 entries, struct io_uring_params *params);
-i32 io_uring_enter2(u32 fd, u32 to_submit, u32 min_complete, u32 flags,
-		    void *arg, u64 sz);
-i32 io_uring_register(u32 fd, u32 opcode, void *arg, u32 nr_args);
-i32 raw_close(i32 fd);
-i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
-		 struct rt_sigaction *oldact, u64 sigsetsize);
-void restorer(void);
-i32 getpid(void);
-i32 kill(i32 pid, i32 signal);
+#define WOTS_SECKEY_SIZE (WOTS_CHAINS * WOTS_HASH_BYTES)
+#define WOTS_PUBKEY_SIZE (WOTS_CHAINS * WOTS_HASH_BYTES)
+#define WOTS_SIG_SIZE (WOTS_CHAINS * WOTS_HASH_BYTES)
 
-i32 fchmod(i32 fd, u32 mode);
-i32 utimesat(i32 dirfd, const u8 *path, const struct timeval *times, i32 flags);
-i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
-	       i64 option_len);
-i32 getsockname(i32 sockfd, struct sockaddr *restrict addr,
-		i64 *restrict addrlen);
+typedef struct {
+	__attribute__((aligned(32))) u8 data[WOTS_SECKEY_SIZE];
+} WotsSecKey;
 
-#endif /* _SYSCALL_H */
+typedef struct {
+	__attribute__((aligned(32))) u8 data[WOTS_PUBKEY_SIZE];
+} WotsPubKey;
+
+typedef struct {
+	__attribute__((aligned(32))) u8 data[WOTS_SIG_SIZE];
+} WotsSig;
+
+void wots_keyfrom(const u8 seed[32], WotsPubKey *pk, WotsSecKey *sk);
+void wots_sign(const WotsSecKey *sk, const u8 message[32], WotsSig *sig);
+i32 wots_verify(const WotsPubKey *pk, const WotsSig *sig, const u8 message[32]);
+
+#endif /* _WOTS_H */
