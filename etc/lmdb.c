@@ -44,21 +44,20 @@ static uint64_t cycle_counter(void) {
 }
 
 int main(int argc, char **argv) {
-	if (argc < 3) {
-		fprintf(stderr, "Usage: %s <db_path> <num_ops>\n", argv[0]);
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s <db_path>\n", argv[0]);
 		return 1;
 	}
 
 	const char *path = argv[1];
-	size_t n = strtoull(argv[2], NULL, 10);
-	if (n == 0) n = 1000000;
+	size_t n = 10000;
 
 	MDB_env *env = NULL;
 	MDB_dbi dbi;
 	MDB_txn *txn = NULL;
 	MDB_val key, val;
-	char kbuf[KEY_SIZE];
-	char vbuf[VAL_SIZE];
+	char kbuf[KEY_SIZE] = {0};
+	char vbuf[VAL_SIZE] = {0};
 
 	// Environment setup
 	int rc = mdb_env_create(&env);
@@ -73,12 +72,6 @@ int main(int argc, char **argv) {
 	rc = mdb_env_open(env, path, MDB_NOSUBDIR | MDB_WRITEMAP, 0664);
 	if (rc) die("mdb_env_open", rc);
 
-	// ----------------------------------------------------------------------
-	// 1. Warm-up + cached random read benchmark
-	// ----------------------------------------------------------------------
-	printf("=== 1. Warm-up & cached random read benchmark (%zu ops) ===\n",
-	       n);
-
 	uint64_t start;
 	uint64_t cycle_sum = 0;
 
@@ -88,9 +81,8 @@ int main(int argc, char **argv) {
 	rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
 	if (rc) die("mdb_dbi_open", rc);
 
-	// Warm-up: write 1M keys
-	for (size_t i = 0; i < n; i++) {
-		snprintf(kbuf, sizeof(kbuf), "%016zx", i);
+	for (uint64_t i = 0; i < n; i++) {
+		memcpy(kbuf, &i, sizeof(uint64_t));
 		key.mv_size = KEY_SIZE;
 		key.mv_data = kbuf;
 
@@ -100,31 +92,29 @@ int main(int argc, char **argv) {
 
 		start = cycle_counter();
 		rc = mdb_put(txn, dbi, &key, &val, 0);
-		start = cycle_counter() - start;
-		cycle_sum += start;
+		cycle_sum += cycle_counter() - start;
 		if (rc) die("mdb_put warm", rc);
 	}
 
 	rc = mdb_txn_commit(txn);
 	if (rc) die("mdb_txn_commit warm", rc);
 
-	uint64_t t1 = cycle_sum;
-	printf("Warm-up write cycles per op: %d\n", t1 / n);
-
-	// Cached random read benchmark
-	start = get_ns();
+	printf("mdb_put avg cycles = %lu\n", cycle_sum / n);
 
 	rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
 	if (rc) die("mdb_txn_begin read", rc);
 
+	cycle_sum = 0;
 	uint64_t sum = 0;
-	for (size_t i = 0; i < n; i++) {
-		snprintf(kbuf, sizeof(kbuf), "%016zx", i % n);
+	for (uint64_t i = 0; i < n; i++) {
+		memcpy(kbuf, &i, sizeof(uint64_t));
 		key.mv_size = KEY_SIZE;
 		key.mv_data = kbuf;
 
+		start = cycle_counter();
 		rc = mdb_get(txn, dbi, &key, &val);
-		if (rc == MDB_NOTFOUND) continue;
+		cycle_sum += cycle_counter() - start;
+		if (rc == MDB_NOTFOUND) die("not found", rc);
 		if (rc) die("mdb_get", rc);
 
 		sum += *(uint64_t *)val.mv_data;  // prevent optimization away
@@ -132,25 +122,14 @@ int main(int argc, char **argv) {
 
 	mdb_txn_abort(txn);
 
-	uint64_t t2 = get_ns();
-	double rps = n / ((t2 - start) / 1e9);
-	double lat_us = (t2 - start) / (double)n / 1000.0;
+	printf("mdb_get avg cycles = %lu\n", cycle_sum / n);
+	cycle_sum = 0;
 
-	printf("Cached random read: %.0f ops/sec, %.1f µs avg latency\n", rps,
-	       lat_us);
-
-	// ----------------------------------------------------------------------
-	// 2. Commit throughput benchmark (100k small commits)
-	// ----------------------------------------------------------------------
-
-	size_t ncommits = 1000;
-	start = get_ns();
-
-	for (size_t i = 0; i < ncommits; i++) {
+	for (uint64_t i = 0; i < n; i++) {
 		rc = mdb_txn_begin(env, NULL, 0, &txn);
 		if (rc) die("txn_begin commit", rc);
 
-		snprintf(kbuf, sizeof(kbuf), "%016zx", i);
+		memcpy(kbuf, &i, sizeof(uint64_t));
 		key.mv_size = KEY_SIZE;
 		key.mv_data = kbuf;
 
@@ -161,16 +140,13 @@ int main(int argc, char **argv) {
 		rc = mdb_put(txn, dbi, &key, &val, 0);
 		if (rc) die("mdb_put commit", rc);
 
+		start = cycle_counter();
 		rc = mdb_txn_commit(txn);
+		cycle_sum += cycle_counter() - start;
 		if (rc) die("mdb_txn_commit", rc);
 	}
 
-	uint64_t t3 = get_ns();
-	double commit_tps = ncommits / ((t3 - start) / 1e9);
-	double commit_latency_us = (t3 - start) / (double)ncommits / 1000.0;
-
-	printf("Commit throughput: %.0f tps, %.1f µs avg commit latency\n",
-	       commit_tps, commit_latency_us);
+	printf("mdb_txn_commit avg cycles = %lu\n", cycle_sum / n);
 
 	mdb_dbi_close(env, dbi);
 	mdb_env_close(env);

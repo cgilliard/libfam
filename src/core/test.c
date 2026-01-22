@@ -407,7 +407,7 @@ Test(lru_cache_consistent) {
 	Rng rng;
 
 	rng_init(&rng);
-	u64 values[8];
+	u64 values[8] = {0};
 	rng_gen(&rng, values, sizeof(values));
 
 	for (u64 i = 0; i < 8; i++) lru_put(cache, i, &values[i]);
