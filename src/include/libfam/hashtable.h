@@ -29,15 +29,19 @@
 #include <libfam/types.h>
 
 #define HASHTABLE_KEY_VALUE_OVERHEAD 8
+#define HASHTABLE_SIZE 40
 
-typedef struct Hashtable Hashtable;
+typedef struct {
+	u8 data[HASHTABLE_SIZE];
+} Hashtable;
 
 typedef struct {
 	u8 _reserved[HASHTABLE_KEY_VALUE_OVERHEAD];
 	u8 data[];
 } HashtableKeyValue;
 
-Hashtable *hashtable_init(u64 hash_bucket_count, u64 key_size, u64 value_size);
+i32 hashtable_init(Hashtable *h, u64 hash_bucket_count, u64 key_size,
+		   u64 value_size);
 void hashtable_destroy(Hashtable *hashtable);
 void *hashtable_get(Hashtable *hashtable, const void *key);
 void hashtable_put(Hashtable *hashtable, const HashtableKeyValue *kv);

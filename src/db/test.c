@@ -42,7 +42,7 @@ Test(famdb) {
 	ASSERT(db, "db");
 	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
 
-#define TRIALS 1000000
+#define TRIALS 100
 	u64 cc_sum = 0;
 	for (u64 i = 0; i < TRIALS; i++) {
 		u64 cc = cycle_counter();

@@ -428,58 +428,54 @@ Test(hashtable) {
 	u32 value;
 	u8 kv1[HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64) + sizeof(u32)];
 	u8 kv2[HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64) + sizeof(u32)];
-	Hashtable *h = hashtable_init(512, sizeof(u64), sizeof(u32));
-	ASSERT(h, "hashtable_init");
+	Hashtable h;
+	ASSERT(!hashtable_init(&h, 512, sizeof(u64), sizeof(u32)),
+	       "hashtable_init");
 	key = 123;
 	value = 456;
 	fastmemcpy(kv1 + sizeof(HashtableKeyValue), &key, sizeof(u64));
 	fastmemcpy(kv1 + sizeof(HashtableKeyValue) + sizeof(u64), &value,
 		   sizeof(u32));
-	hashtable_put(h, (HashtableKeyValue *)kv1);
+	hashtable_put(&h, (HashtableKeyValue *)kv1);
 	key = 999;
 	value = 1010;
 	fastmemcpy(kv2 + sizeof(HashtableKeyValue), &key, sizeof(u64));
 	fastmemcpy(kv2 + sizeof(HashtableKeyValue) + sizeof(u64), &value,
 		   sizeof(u32));
-	hashtable_put(h, (HashtableKeyValue *)kv2);
+	hashtable_put(&h, (HashtableKeyValue *)kv2);
 
 	key = 123;
-	u32 *vout = hashtable_get(h, &key);
+	u32 *vout = hashtable_get(&h, &key);
 	ASSERT_EQ(*vout, 456, "hashtable_get");
 
 	key = 999;
-	vout = hashtable_get(h, &key);
+	vout = hashtable_get(&h, &key);
 	ASSERT_EQ(*vout, 1010, "hashtable_get2");
 
 	key = 998;
-	vout = hashtable_get(h, &key);
+	vout = hashtable_get(&h, &key);
 	ASSERT(!vout, "not found");
 
-	ASSERT(!hashtable_remove(h, &key), "remove null");
+	ASSERT(!hashtable_remove(&h, &key), "remove null");
 	key = 999;
-	void *res = hashtable_remove(h, &key);
+	void *res = hashtable_remove(&h, &key);
 	ASSERT(res, "found");
 	u64 *k1 = (void *)((u8 *)res + sizeof(HashtableKeyValue));
 	ASSERT_EQ(*k1, 999, "key");
 	u32 *v1 = (void *)((u8 *)res + sizeof(HashtableKeyValue) + sizeof(u64));
 	ASSERT_EQ(*v1, 1010, "value");
 
-	ASSERT(!hashtable_get(h, &key), "key not found");
+	ASSERT(!hashtable_get(&h, &key), "key not found");
 
-	hashtable_destroy(h);
+	hashtable_destroy(&h);
 }
 
 Test(hashtable_errs) {
-	Hashtable *h;
+	Hashtable h;
 	_debug_alloc_count = 0;
-	h = hashtable_init(512, sizeof(u64), sizeof(u32));
+	i32 res = hashtable_init(&h, 512, sizeof(u64), sizeof(u32));
 	_debug_alloc_count = I64_MAX;
-	ASSERT(!h, "alloc");
-
-	_debug_alloc_count = 1;
-	h = hashtable_init(512, sizeof(u64), sizeof(u32));
-	_debug_alloc_count = I64_MAX;
-	ASSERT(!h, "alloc");
+	ASSERT_EQ(res, -1, "alloc1");
 }
 
 Test(hashtable_collisions) {
@@ -487,9 +483,9 @@ Test(hashtable_collisions) {
 	u32 value;
 	u8 kv[5][HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64) + sizeof(u32)];
 
-	Hashtable *h = hashtable_init(4, sizeof(u64), sizeof(u32));
-
-	ASSERT(h, "hashtable_init");
+	Hashtable h;
+	ASSERT(!hashtable_init(&h, 4, sizeof(u64), sizeof(u32)),
+	       "hashtable_init");
 
 	for (u64 i = 0; i < 5; i++) {
 		key = 1 + i;
@@ -498,13 +494,13 @@ Test(hashtable_collisions) {
 			   sizeof(u64));
 		fastmemcpy(kv[i] + sizeof(HashtableKeyValue) + sizeof(u64),
 			   &value, sizeof(u32));
-		hashtable_put(h, (HashtableKeyValue *)kv[i]);
+		hashtable_put(&h, (HashtableKeyValue *)kv[i]);
 	}
 
 	for (u64 i = 0; i < 5; i++) {
 		key = 1 + i;
-		ASSERT(hashtable_get(h, &key), "found");
-		ASSERT(hashtable_remove(h, &key), "removed");
+		ASSERT(hashtable_get(&h, &key), "found");
+		ASSERT(hashtable_remove(&h, &key), "removed");
 	}
-	hashtable_destroy(h);
+	hashtable_destroy(&h);
 }

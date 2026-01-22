@@ -39,37 +39,37 @@ typedef struct HashtableEntry {
 STATIC_ASSERT(sizeof(HashtableEntry) == HASHTABLE_KEY_VALUE_OVERHEAD,
 	      hashtable_overhead);
 
-struct Hashtable {
+typedef struct {
 	u64 key_size;
 	u64 value_size;
 	u64 hash_bucket_count;
 	HashtableEntry **hash_buckets;
 	u64 seed;
-};
+} HashtableImpl;
 
-Hashtable *hashtable_init(u64 hash_bucket_count, u64 key_size, u64 value_size) {
+i32 hashtable_init(Hashtable *h, u64 hash_bucket_count, u64 key_size,
+		   u64 value_size) {
+	HashtableImpl *impl = (void *)h;
 	Rng rng;
-	Hashtable *hashtable;
 
 	rng_init(&rng);
 
-	hashtable = map(sizeof(Hashtable));
-	if (!hashtable) return NULL;
-	hashtable->hash_bucket_count = hash_bucket_count;
-	hashtable->key_size = key_size;
-	hashtable->value_size = value_size;
-	rng_gen(&rng, &hashtable->seed, sizeof(u64));
+	impl->hash_bucket_count = hash_bucket_count;
+	impl->key_size = key_size;
+	impl->value_size = value_size;
+	rng_gen(&rng, &impl->seed, sizeof(u64));
 
-	hashtable->hash_buckets =
-	    map(sizeof(HashtableEntry *) * hashtable->hash_bucket_count);
-	if (!hashtable->hash_buckets) {
-		hashtable_destroy(hashtable);
-		return NULL;
+	impl->hash_buckets =
+	    map(sizeof(HashtableEntry *) * impl->hash_bucket_count);
+	if (!impl->hash_buckets) {
+		hashtable_destroy(h);
+		return -1;
 	}
 
-	return hashtable;
+	return 0;
 }
-void hashtable_destroy(Hashtable *hashtable) {
+void hashtable_destroy(Hashtable *h) {
+	HashtableImpl *hashtable = (void *)h;
 	if (hashtable) {
 		if (hashtable->hash_buckets)
 			munmap(hashtable->hash_buckets,
@@ -78,7 +78,8 @@ void hashtable_destroy(Hashtable *hashtable) {
 		munmap(hashtable, sizeof(Hashtable));
 	}
 }
-void *hashtable_get(Hashtable *hashtable, const void *key) {
+void *hashtable_get(Hashtable *h, const void *key) {
+	HashtableImpl *hashtable = (void *)h;
 	u64 bucket = aighthash64(key, hashtable->key_size, hashtable->seed) %
 		     hashtable->hash_bucket_count;
 	HashtableEntry *ent = hashtable->hash_buckets[bucket];
@@ -89,14 +90,16 @@ void *hashtable_get(Hashtable *hashtable, const void *key) {
 	}
 	return NULL;
 }
-void hashtable_put(Hashtable *hashtable, const HashtableKeyValue *kv) {
+void hashtable_put(Hashtable *h, const HashtableKeyValue *kv) {
+	HashtableImpl *hashtable = (void *)h;
 	u64 bucket =
 	    aighthash64(kv->data, hashtable->key_size, hashtable->seed) %
 	    hashtable->hash_bucket_count;
 	((HashtableEntry *)kv)->hash_next = hashtable->hash_buckets[bucket];
 	hashtable->hash_buckets[bucket] = (HashtableEntry *)kv;
 }
-HashtableKeyValue *hashtable_remove(Hashtable *hashtable, const void *key) {
+HashtableKeyValue *hashtable_remove(Hashtable *h, const void *key) {
+	HashtableImpl *hashtable = (void *)h;
 	u64 bucket = aighthash64(key, hashtable->key_size, hashtable->seed) %
 		     hashtable->hash_bucket_count;
 	HashtableEntry **head = &hashtable->hash_buckets[bucket];
