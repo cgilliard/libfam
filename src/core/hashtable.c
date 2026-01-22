@@ -47,8 +47,8 @@ typedef struct {
 	u64 seed;
 } HashtableImpl;
 
-i32 hashtable_init(Hashtable *h, u64 hash_bucket_count, u64 key_size,
-		   u64 value_size) {
+void hashtable_init(Hashtable *h, u64 hash_bucket_count, u64 key_size,
+		    u64 value_size, void **hash_buckets) {
 	HashtableImpl *impl = (void *)h;
 	Rng rng;
 
@@ -58,26 +58,9 @@ i32 hashtable_init(Hashtable *h, u64 hash_bucket_count, u64 key_size,
 	impl->key_size = key_size;
 	impl->value_size = value_size;
 	rng_gen(&rng, &impl->seed, sizeof(u64));
-
-	impl->hash_buckets =
-	    map(sizeof(HashtableEntry *) * impl->hash_bucket_count);
-	if (!impl->hash_buckets) {
-		hashtable_destroy(h);
-		return -1;
-	}
-
-	return 0;
+	impl->hash_buckets = (void *)hash_buckets;
 }
-void hashtable_destroy(Hashtable *h) {
-	HashtableImpl *hashtable = (void *)h;
-	if (hashtable) {
-		if (hashtable->hash_buckets)
-			munmap(hashtable->hash_buckets,
-			       sizeof(HashtableEntry *) *
-				   hashtable->hash_bucket_count);
-		munmap(hashtable, sizeof(Hashtable));
-	}
-}
+
 void *hashtable_get(Hashtable *h, const void *key) {
 	HashtableImpl *hashtable = (void *)h;
 	u64 bucket = aighthash64(key, hashtable->key_size, hashtable->seed) %

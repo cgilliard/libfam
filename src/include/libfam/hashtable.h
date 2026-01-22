@@ -40,9 +40,8 @@ typedef struct {
 	u8 data[];
 } HashtableKeyValue;
 
-i32 hashtable_init(Hashtable *h, u64 hash_bucket_count, u64 key_size,
-		   u64 value_size);
-void hashtable_destroy(Hashtable *hashtable);
+void hashtable_init(Hashtable *h, u64 hash_bucket_count, u64 key_size,
+		    u64 value_size, void **hash_buckets);
 void *hashtable_get(Hashtable *hashtable, const void *key);
 void hashtable_put(Hashtable *hashtable, const HashtableKeyValue *kv);
 HashtableKeyValue *hashtable_remove(Hashtable *hashtable, const void *key);
