@@ -9,7 +9,7 @@
 TAG=$(git describe --tags --dirty 2>/dev/null || echo "2.0.0")
 printf '#define LIBFAM_VERSION "%s"\n' "$TAG" > "$PROJECT_DIR/src/include/libfam/version.h"
 
-SUB_DIRS="base crypto core"
+SUB_DIRS="base crypto core compress"
 INCDIR="src/include"
 LIB_DIR="${OUTDIR}/lib"
 LIB_NAME="${LIB_DIR}/libfam.so";
