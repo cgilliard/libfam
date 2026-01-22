@@ -93,6 +93,8 @@ struct statx {
 #define O_RDWR 02
 #define O_EXCL 00000200
 #define O_SYNC 04000000
+#define O_NOATIME 01000000
+#define O_CLOEXEC 02000000
 #ifdef __aarch64__
 #define O_DIRECT 0200000
 #elif defined(__x86_64__)

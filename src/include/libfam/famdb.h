@@ -46,6 +46,8 @@ typedef struct {
 typedef struct {
 	const u8 *pathname;
 	i32 queue_depth;
+	u64 lru_capacity;
+	u64 lru_hash_buckets;
 } FamDbConfig;
 
 typedef enum { CURSOR_FORWARD, CURSOR_BACKWARDS } CursorConfig;

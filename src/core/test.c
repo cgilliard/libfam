@@ -326,6 +326,7 @@ Test(lru_errors) {
 Test(lru_cache) {
 	LruCache *cache = lru_init(1024, 2048);
 	ASSERT(cache, "cache");
+	println("tail={}", (u64)lru_tail(cache));
 	u64 value = 2;
 	lru_put(cache, 1, &value);
 	ASSERT_EQ(&value, lru_head(cache), "head");

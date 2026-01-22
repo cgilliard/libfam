@@ -49,7 +49,7 @@ struct LruCache {
 	u64 seed;
 };
 
-#define PRIME 0xc2b2ae35ULL
+#define PRIME 0x9E3779B97F4A7C15ULL
 
 STATIC u64 lru_hash(u64 seed, u64 hash_bucket_count, u64 key) {
 	u64 h = key ^ seed;
