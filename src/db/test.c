@@ -88,7 +88,7 @@ Test(famdb_set) {
 	i32 res;
 	FamDb *db = NULL;
 	FamDbTxn txn;
-	u8 space[1024 * 512];
+	u8 space[1024 * 512] = {0};
 	FamDbScratch scratch = {.space = space, .capacity = sizeof(space)};
 	FamDbConfig config = {.queue_depth = 16,
 			      .pathname = "resources/1mb.dat",
@@ -101,8 +101,8 @@ Test(famdb_set) {
 	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
 
 #define TRIALS 100
-	__attribute__((aligned(32))) u8 keys[TRIALS][16];
-	__attribute__((aligned(32))) u8 values[TRIALS][32];
+	__attribute__((aligned(32))) u8 keys[TRIALS][16] = {0};
+	__attribute__((aligned(32))) u8 values[TRIALS][32] = {0};
 	rng_init(&rng);
 	for (u64 i = 0; i < TRIALS; i++) {
 		rng_gen(&rng, keys[i], 16);
