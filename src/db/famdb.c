@@ -585,6 +585,7 @@ i32 famdb_begin_txn(FamDbTxn *txn, FamDb *db, FamDbScratch *scratch) {
 	FamDbTxnImpl *impl = (void *)txn;
 	SuperBlock *sb;
 	impl->scratch = scratch;
+	fastmemset(scratch->space, 0, scratch->capacity);
 
 	impl->scratch_off =
 	    sizeof(void *) * db->hash_buckets + sizeof(Hashtable);
