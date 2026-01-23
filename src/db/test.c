@@ -100,7 +100,7 @@ Test(famdb_set) {
 	ASSERT(db, "db");
 	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
 
-#define TRIALS 100
+#define TRIALS (130)
 	__attribute__((aligned(32))) u8 keys[TRIALS][16] = {0};
 	__attribute__((aligned(32))) u8 values[TRIALS][32] = {0};
 	rng_init(&rng);
@@ -115,9 +115,9 @@ Test(famdb_set) {
 		ASSERT(!res, "famdb_put");
 	}
 	u8 value_out[32] = {0};
-	for (u8 i = 0; i < TRIALS; i++) {
+	for (u64 i = 0; i < TRIALS; i++) {
 		res = famdb_get(&txn, keys[i], 16, value_out, 32, 0);
-		ASSERT_EQ(res, 32, "famdb_get");
+		ASSERT_EQ(res, 32, "famdb_get {}", i);
 		ASSERT(!memcmp(value_out, values[i], 32), "value");
 	}
 	ASSERT_EQ(famdb_get(&txn, "0123456789ABCDEF", 16, value_out, 32, 0), -1,

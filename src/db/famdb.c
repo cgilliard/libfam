@@ -178,10 +178,10 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		u16 elem_key_len = 0;                                      \
 		if (elem >= elements - 1)                                  \
 			elem_key_len = PAGE_TOTAL_BYTES(page) -            \
-				       (elem_key_off + sizeof(u64) * 2);   \
+				       (elem_key_off + sizeof(u64));       \
 		else                                                       \
 			elem_key_len = PAGE_OFFSET_OF(page, elem + 1) -    \
-				       (elem_key_off + sizeof(u64) * 2);   \
+				       (elem_key_off + sizeof(u64));       \
 		u16 min_len = min(key_len, elem_key_len);                  \
 		i32 cmp = fastmemcmp(                                      \
 		    key, page + FIRST_OFFSET + elem_key_off + sizeof(u64), \
@@ -270,6 +270,33 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		fastmemcpy(page + FIRST_OFFSET + sizeof(u64), key,         \
 			   key_length);                                    \
 	})
+#define INSERT_INTERNAL_NODE(page, key, key_length, lpageno, rpageno,         \
+			     curpageno)                                       \
+	({                                                                    \
+		u16 elements = PAGE_ELEMENTS(page);                           \
+		u16 _index__ =                                                \
+		    PAGE_FIND_INDEX_INTERNAL(page, key, key_length);          \
+		u16 elem_off = PAGE_OFFSET_OF(page, _index__);                \
+		if (_index__ < elements) {                                    \
+			u16 len_to_move = PAGE_TOTAL_BYTES(page) - elem_off;  \
+			fastmemmove(page + elem_off + FIRST_OFFSET +          \
+					key_length + sizeof(u64),             \
+				    page + elem_off + FIRST_OFFSET,           \
+				    len_to_move);                             \
+		}                                                             \
+		for (u16 i = _index__; i < elements - 1; i++) {               \
+			((u16 *)page)[3 + i] += key_length + sizeof(u64);     \
+		}                                                             \
+		fastmemcpy(page + elem_off + FIRST_OFFSET + sizeof(u64), key, \
+			   key_length);                                       \
+		*(u64 *)(page + elem_off + FIRST_OFFSET) = lpageno;           \
+		((u16 *)page)[1]++;                                           \
+		((u16 *)page)[2] += key_length + sizeof(u64);                 \
+		((u16 *)page)[3 + PAGE_ELEMENTS(page)] =                      \
+		    PAGE_TOTAL_BYTES(page) - sizeof(u64);                     \
+		u16 next_offset = PAGE_OFFSET_OF(page, _index__ + 1);         \
+		*(u64 *)(page + next_offset + FIRST_OFFSET) = rpageno;        \
+	})
 #define PAGE_PRINT_ELEMENT(page, elem)                                        \
 	({                                                                    \
 		u8 key_out[1024] = {0}, value_out[1024] = {0};                \
@@ -299,11 +326,41 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		    "--------------------------------------------------------" \
 		    "-------------------------------");                        \
 	})
-#define PRINT_INTERNAL_ELEMENT(page, elem)                                    \
-	({                                                                    \
-		u64 _index__ = PAGE_READ_INTERNAL_INDEX(page, elem);          \
-		u64 _offset__ = PAGE_OFFSET_OF(page, elem);                   \
-		println("index[{}]={} offset={}", elem, _index__, _offset__); \
+#define PRINT_INTERNAL_ELEMENT(page, elem)                                 \
+	({                                                                 \
+		u8 tmpkey[1024] = {0};                                     \
+		u64 _index__ = PAGE_READ_INTERNAL_INDEX(page, elem);       \
+		u64 _offset__ = PAGE_OFFSET_OF(page, elem);                \
+		u16 elem_key_off = PAGE_OFFSET_OF(page, elem);             \
+		u16 elements = PAGE_ELEMENTS(page);                        \
+		u16 elem_key_len = 0;                                      \
+		if (elem >= elements - 1)                                  \
+			elem_key_len = PAGE_TOTAL_BYTES(page) -            \
+				       (elem_key_off + sizeof(u64) * 2);   \
+		else                                                       \
+			elem_key_len = PAGE_OFFSET_OF(page, elem + 1) -    \
+				       (elem_key_off + sizeof(u64));       \
+		if (elem >= elements) elem_key_len = 0;                    \
+		fastmemcpy(tmpkey,                                         \
+			   page + FIRST_OFFSET + _offset__ + sizeof(u64),  \
+			   elem_key_len);                                  \
+		println("index[{}]={} offset={},key={},elem_len={}", elem, \
+			_index__, _offset__, tmpkey, elem_key_len);        \
+	})
+#define PRINT_INTERNAL_ELEMENTS(page)                                   \
+	({                                                              \
+		println(                                                \
+		    "=========Printing internal page ({} elements, {} " \
+		    "bytes)=========",                                  \
+		    PAGE_ELEMENTS(page) + 1, PAGE_TOTAL_BYTES(page));   \
+		for (u16 i = 0; i <= PAGE_ELEMENTS(page); i++)          \
+			PRINT_INTERNAL_ELEMENT(page, i);                \
+	})
+#define GET_CHILD(page, elem)                                           \
+	({                                                              \
+		u64 _offset__ = PAGE_OFFSET_OF(page, elem);             \
+		u64 pageno = *(u64 *)(page + FIRST_OFFSET + _offset__); \
+		pageno;                                                 \
 	})
 #define ALLOC(impl, size)                                                  \
 	({                                                                 \
@@ -615,8 +672,6 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void *value_out,
 		}
 	} while (is_internal);
 
-	// PAGE_PRINT_ELEMENTS(page);
-
 	u64 nindex = PAGE_FIND_INDEX(page, key, key_len);
 	i32 cmp = PAGE_COMPARE_KEYS(page, key, key_len, nindex);
 	if (cmp) {
@@ -633,6 +688,8 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void *value_out,
 
 i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 	      u64 value_len, u64 offset) {
+	u64 chain[128] = {0};
+	u64 level = 0;
 	FamDbTxnImpl *impl = (void *)txn;
 	u8 *page;
 	u64 pageno = impl->root;
@@ -645,6 +702,7 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 		if (is_internal) {
 			u64 index =
 			    PAGE_FIND_INDEX_INTERNAL(page, key, key_len);
+			chain[level++] = pageno;
 			pageno = PAGE_READ_INTERNAL_INDEX(page, index);
 		}
 	} while (is_internal);
@@ -677,30 +735,15 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 			u64 size = sizeof(HashtableKeyValue) + PAGE_SIZE +
 				   2 * sizeof(u64);
 
-			i64 ppagenum = BITMAP_ALLOC_PAGE(impl->db);
-			if (ppagenum < 0) return -1;
 			i64 rpagenum = BITMAP_ALLOC_PAGE(impl->db);
 			if (rpagenum < 0) return -1;
 			i64 lpagenum = BITMAP_ALLOC_PAGE(impl->db);
 			if (lpagenum < 0) return -1;
 
-			u8 *ppage = GET_PAGE(impl, ppagenum, &is_modified);
-			if (!ppage) return -1;
 			u8 *lpage = GET_PAGE(impl, lpagenum, &is_modified);
 			if (!lpage) return -1;
 			u8 *rpage = GET_PAGE(impl, rpagenum, &is_modified);
 			if (!rpage) return -1;
-
-			kv = ALLOC(impl, size);
-			if (!kv) return -1;
-			kv->key = ppagenum;
-			fastmemcpy(kv->data, ppage, PAGE_SIZE);
-			fastmemcpy(kv->data + PAGE_SIZE, &ppagenum,
-				   sizeof(u64));
-			fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
-				   &ppagenum, sizeof(u64));
-			ppage = kv->data;
-			hashtable_put(h, kv);
 
 			kv = ALLOC(impl, size);
 			if (!kv) return -1;
@@ -724,27 +767,53 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 			rpage = kv->data;
 			hashtable_put(h, kv);
 
+			i64 ppagenum;
+			u8 *ppage;
+
+			if (level == 0) {
+				ppagenum = BITMAP_ALLOC_PAGE(impl->db);
+				if (ppagenum < 0) return -1;
+
+				ppage = GET_PAGE(impl, ppagenum, &is_modified);
+				if (!ppage) return -1;
+
+				kv = ALLOC(impl, size);
+				if (!kv) return -1;
+				kv->key = ppagenum;
+				fastmemcpy(kv->data, ppage, PAGE_SIZE);
+				fastmemcpy(kv->data + PAGE_SIZE, &ppagenum,
+					   sizeof(u64));
+				fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
+					   &ppagenum, sizeof(u64));
+				ppage = kv->data;
+				hashtable_put(h, kv);
+			} else {
+				ppagenum = chain[level - 1];
+				ppage = GET_PAGE(impl, ppagenum, &is_modified);
+			}
+
 			PAGE_SPLIT(page, lpage, rpage);
 			u16 last = PAGE_ELEMENTS(lpage) - 1;
-			CREATE_INTERNAL_NODE(ppage, PAGE_READ_KEY(lpage, last),
-					     PAGE_READ_KEY_LEN(lpage, last),
-					     lpagenum, rpagenum);
+			if (level == 0) {
+				CREATE_INTERNAL_NODE(
+				    ppage, PAGE_READ_KEY(lpage, last),
+				    PAGE_READ_KEY_LEN(lpage, last), lpagenum,
+				    rpagenum);
 
-			impl->root = ppagenum;
+				impl->root = ppagenum;
+			} else {
+				INSERT_INTERNAL_NODE(
+				    ppage, PAGE_READ_KEY(lpage, last),
+				    PAGE_READ_KEY_LEN(lpage, last), lpagenum,
+				    rpagenum, pageno);
+			}
 			i32 cmp = PAGE_COMPARE_KEYS(lpage, key, key_len, last);
 			page = cmp < 0 ? lpage : rpage;
-
-			// PRINT_INTERNAL_ELEMENT(ppage, 0);
-			// PRINT_INTERNAL_ELEMENT(ppage, 1);
-
-			// PAGE_PRINT_ELEMENTS(lpage);
-			// PAGE_PRINT_ELEMENTS(rpage);
 		}
 	}
 
 	u64 nindex = PAGE_FIND_INDEX(page, key, key_len);
 	PAGE_INSERT_BEFORE(page, nindex, key, key_len, value, value_len);
-	// PAGE_PRINT_ELEMENTS(page);
 
 	return 0;
 }
