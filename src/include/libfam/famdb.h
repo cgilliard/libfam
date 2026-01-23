@@ -41,7 +41,6 @@ typedef struct FamDbCursor FamDbCursor;
 typedef struct {
 	u8 *space;
 	u64 capacity;
-	u64 offset;
 } FamDbScratch;
 
 typedef struct {
@@ -49,6 +48,7 @@ typedef struct {
 	i32 queue_depth;
 	u64 lru_capacity;
 	u64 lru_hash_buckets;
+	bool debug_split_delete;
 } FamDbConfig;
 
 typedef enum { CURSOR_FORWARD, CURSOR_BACKWARDS } CursorConfig;

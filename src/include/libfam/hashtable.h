@@ -37,13 +37,13 @@ typedef struct {
 
 typedef struct {
 	u8 _reserved[HASHTABLE_KEY_VALUE_OVERHEAD];
+	u64 key;
 	u8 data[];
 } HashtableKeyValue;
 
-void hashtable_init(Hashtable *h, u64 hash_bucket_count, u64 key_size,
-		    u64 value_size, void **hash_buckets);
-void *hashtable_get(Hashtable *hashtable, const void *key);
+void hashtable_init(Hashtable *h, u64 hash_bucket_count, void **hash_buckets);
+void *hashtable_get(Hashtable *hashtable, u64 key);
 void hashtable_put(Hashtable *hashtable, const HashtableKeyValue *kv);
-HashtableKeyValue *hashtable_remove(Hashtable *hashtable, const void *key);
+HashtableKeyValue *hashtable_remove(Hashtable *hashtable, u64 key);
 
 #endif /* _HASHTABLE_H */

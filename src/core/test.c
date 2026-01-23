@@ -326,7 +326,6 @@ Test(lru_errors) {
 Test(lru_cache) {
 	LruCache *cache = lru_init(1024, 2048);
 	ASSERT(cache, "cache");
-	println("tail={}", (u64)lru_tail(cache));
 	u64 value = 2;
 	lru_put(cache, 1, &value);
 	ASSERT_EQ(&value, lru_head(cache), "head");
@@ -430,42 +429,43 @@ Test(hashtable) {
 	u8 kv2[HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64) + sizeof(u32)];
 	void **buckets = map(sizeof(void *) * 512);
 	Hashtable h = {0};
-	hashtable_init(&h, 512, sizeof(u64), sizeof(u32), buckets);
+	hashtable_init(&h, 512, buckets);
 	key = 123;
 	value = 456;
-	fastmemcpy(kv1 + sizeof(HashtableKeyValue), &key, sizeof(u64));
-	fastmemcpy(kv1 + sizeof(HashtableKeyValue) + sizeof(u64), &value,
+	fastmemcpy(kv1 + HASHTABLE_KEY_VALUE_OVERHEAD, &key, sizeof(u64));
+	fastmemcpy(kv1 + HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64), &value,
 		   sizeof(u32));
 	hashtable_put(&h, (HashtableKeyValue *)kv1);
 	key = 999;
 	value = 1010;
-	fastmemcpy(kv2 + sizeof(HashtableKeyValue), &key, sizeof(u64));
-	fastmemcpy(kv2 + sizeof(HashtableKeyValue) + sizeof(u64), &value,
+	fastmemcpy(kv2 + HASHTABLE_KEY_VALUE_OVERHEAD, &key, sizeof(u64));
+	fastmemcpy(kv2 + HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64), &value,
 		   sizeof(u32));
 	hashtable_put(&h, (HashtableKeyValue *)kv2);
 
 	key = 123;
-	u32 *vout = hashtable_get(&h, &key);
+	u32 *vout = hashtable_get(&h, key);
 	ASSERT_EQ(*vout, 456, "hashtable_get");
 
 	key = 999;
-	vout = hashtable_get(&h, &key);
+	vout = hashtable_get(&h, key);
 	ASSERT_EQ(*vout, 1010, "hashtable_get2");
 
 	key = 998;
-	vout = hashtable_get(&h, &key);
+	vout = hashtable_get(&h, key);
 	ASSERT(!vout, "not found");
 
-	ASSERT(!hashtable_remove(&h, &key), "remove null");
+	ASSERT(!hashtable_remove(&h, key), "remove null");
 	key = 999;
-	void *res = hashtable_remove(&h, &key);
+	void *res = hashtable_remove(&h, key);
 	ASSERT(res, "found");
-	u64 *k1 = (void *)((u8 *)res + sizeof(HashtableKeyValue));
+	u64 *k1 = (void *)((u8 *)res + HASHTABLE_KEY_VALUE_OVERHEAD);
 	ASSERT_EQ(*k1, 999, "key");
-	u32 *v1 = (void *)((u8 *)res + sizeof(HashtableKeyValue) + sizeof(u64));
+	u32 *v1 =
+	    (void *)((u8 *)res + HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64));
 	ASSERT_EQ(*v1, 1010, "value");
 
-	ASSERT(!hashtable_get(&h, &key), "key not found");
+	ASSERT(!hashtable_get(&h, key), "key not found");
 
 	munmap(buckets, sizeof(void *) * 512);
 }
@@ -477,22 +477,22 @@ Test(hashtable_collisions) {
 	void **buckets = map(sizeof(void *) * 4);
 
 	Hashtable h = {0};
-	hashtable_init(&h, 4, sizeof(u64), sizeof(u32), buckets);
+	hashtable_init(&h, 4, buckets);
 
 	for (u64 i = 0; i < 5; i++) {
 		key = 1 + i;
 		value = 101 + i;
-		fastmemcpy(kv[i] + sizeof(HashtableKeyValue), &key,
+		fastmemcpy(kv[i] + HASHTABLE_KEY_VALUE_OVERHEAD, &key,
 			   sizeof(u64));
-		fastmemcpy(kv[i] + sizeof(HashtableKeyValue) + sizeof(u64),
+		fastmemcpy(kv[i] + HASHTABLE_KEY_VALUE_OVERHEAD + sizeof(u64),
 			   &value, sizeof(u32));
 		hashtable_put(&h, (HashtableKeyValue *)kv[i]);
 	}
 
 	for (u64 i = 0; i < 5; i++) {
 		key = 1 + i;
-		ASSERT(hashtable_get(&h, &key), "found");
-		ASSERT(hashtable_remove(&h, &key), "removed");
+		ASSERT(hashtable_get(&h, key), "found");
+		ASSERT(hashtable_remove(&h, key), "removed");
 	}
 
 	munmap(buckets, sizeof(void *) * 4);

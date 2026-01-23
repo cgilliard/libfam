@@ -251,7 +251,7 @@
  * return value: None (does not return).
  * notes:
  *         Appends newline.
- *         Calls _exit(-1).
+ *         Calls exit_group(-1).
  */
 #define panic(fmt, ...)                                                       \
 	({                                                                    \
@@ -265,7 +265,7 @@
 			}                                                     \
 		}                                                             \
 		format_clear(&_f__);                                          \
-		_exit(-1);                                                    \
+		exit_group(-1);                                               \
 	})
 
 typedef struct {

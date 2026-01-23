@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	}
 
 	const char *path = argv[1];
-	size_t n = 10000;
+	size_t n = 1000000;
 
 	MDB_env *env = NULL;
 	MDB_dbi dbi;
@@ -124,6 +124,9 @@ int main(int argc, char **argv) {
 
 	printf("mdb_get avg cycles = %lu\n", cycle_sum / n);
 	cycle_sum = 0;
+
+	// lower n
+	n = 1000;
 
 	for (uint64_t i = 0; i < n; i++) {
 		rc = mdb_txn_begin(env, NULL, 0, &txn);

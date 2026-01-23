@@ -24,9 +24,67 @@
  *******************************************************************************/
 
 #include <libfam/famdb.h>
+#include <libfam/linux.h>
+#include <libfam/rng.h>
 #include <libfam/test.h>
 
-Test(famdb) {
+Bench(famdb) {
+	unlink("resources/1mb.dat");
+	i32 fd = open("resources/1mb.dat", O_CREAT | O_RDWR, 0600);
+	ASSERT(fd > 0, "open");
+	ASSERT(!fallocate(fd, 1024 * 1024), "fallocate");
+	close(fd);
+
+	i32 res;
+	FamDb *db = NULL;
+	FamDbTxn txn;
+	u8 space[1024 * 512];
+	FamDbScratch scratch = {.space = space, .capacity = sizeof(space)};
+	FamDbConfig config = {
+	    .queue_depth = 16,
+	    .pathname = "resources/1mb.dat",
+	    .lru_hash_buckets = 1024,
+	    .lru_capacity = 512,
+	    .debug_split_delete = true,
+	};
+
+	res = famdb_open(&db, &config);
+	ASSERT(!res, "famdb_open");
+	ASSERT(db, "db");
+	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
+
+#define TRIALS 1000000
+	u64 cc_sum = 0;
+	__attribute__((aligned(32))) u8 key[16] = {0};
+	__attribute__((aligned(32))) u8 value[32] = {0};
+	Rng rng;
+	rng_init(&rng);
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		rng_gen(&rng, key, 16);
+		rng_gen(&rng, value, 32);
+		u64 cc = cycle_counter();
+		res =
+		    famdb_set(&txn, key, sizeof(key), value, sizeof(value), 0);
+		cc = cycle_counter() - cc;
+		cc_sum += cc;
+		ASSERT(!res, "famdb_set");
+	}
+
+	println("avg_put={} cycles", cc_sum / TRIALS);
+	famdb_close(db);
+#undef TRIALS
+	unlink("resources/1mb.dat");
+}
+
+Test(famdb_set) {
+	unlink("resources/1mb.dat");
+	i32 fd = open("resources/1mb.dat", O_CREAT | O_RDWR, 0600);
+	ASSERT(fd > 0, "open");
+	ASSERT(!fallocate(fd, 1024 * 1024), "fallocate");
+	close(fd);
+
+	Rng rng;
 	i32 res;
 	FamDb *db = NULL;
 	FamDbTxn txn;
@@ -43,37 +101,29 @@ Test(famdb) {
 	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
 
 #define TRIALS 100
-	u64 cc_sum = 0;
+	__attribute__((aligned(32))) u8 keys[TRIALS][16];
+	__attribute__((aligned(32))) u8 values[TRIALS][32];
+	rng_init(&rng);
 	for (u64 i = 0; i < TRIALS; i++) {
-		u64 cc = cycle_counter();
-		res = famdb_set(&txn, "abc", 3, "def", 3, 0);
-		cc = cycle_counter() - cc;
-		cc_sum += cc;
+		rng_gen(&rng, keys[i], 16);
+		rng_gen(&rng, values[i], 32);
+		for (u8 j = 0; j < 16; j++)
+			keys[i][j] = (keys[i][j] % 26) + 'a';
+		for (u8 j = 0; j < 32; j++)
+			values[i][j] = (values[i][j] % 26) + 'a';
+		res = famdb_set(&txn, keys[i], 16, values[i], 32, 0);
 		ASSERT(!res, "famdb_put");
 	}
-
-	println("avg_put={} cycles", cc_sum / TRIALS);
-	famdb_close(db);
-}
-
-Test(famdb_set) {
-	i32 res;
-	FamDb *db = NULL;
-	FamDbTxn txn;
-	u8 space[1024 * 512];
-	FamDbScratch scratch = {.space = space, .capacity = sizeof(space)};
-	FamDbConfig config = {.queue_depth = 16,
-			      .pathname = "resources/1mb.dat",
-			      .lru_hash_buckets = 1024,
-			      .lru_capacity = 512};
-
-	res = famdb_open(&db, &config);
-	ASSERT(!res, "famdb_open");
-	ASSERT(db, "db");
-	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
-
-	res = famdb_set(&txn, "abc", 3, "def", 3, 0);
-	ASSERT(!res, "famdb_put");
+	u8 value_out[32] = {0};
+	for (u8 i = 0; i < TRIALS; i++) {
+		res = famdb_get(&txn, keys[i], 16, value_out, 32, 0);
+		ASSERT_EQ(res, 32, "famdb_get");
+		ASSERT(!memcmp(value_out, values[i], 32), "value");
+	}
+	ASSERT_EQ(famdb_get(&txn, "0123456789ABCDEF", 16, value_out, 32, 0), -1,
+		  "not found");
 
 	famdb_close(db);
+#undef TRIALS
+	unlink("resources/1mb.dat");
 }
