@@ -216,26 +216,22 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		u64 _ret__ = *(u64 *)(page + FIRST_OFFSET + _offset__); \
 		_ret__;                                                 \
 	})
-#define PAGE_SPLIT(page, lpage, rpage)                                         \
+#define PAGE_SPLIT(page, rpage)                                                \
 	({                                                                     \
 		u16 page_elements = PAGE_ELEMENTS(page);                       \
 		u16 total_bytes = PAGE_TOTAL_BYTES(page);                      \
 		u16 left_elems = page_elements >> 1;                           \
 		u16 right_elems = page_elements - left_elems;                  \
-		((u16 *)lpage)[1] = left_elems;                                \
+		((u16 *)page)[1] = left_elems;                                 \
 		((u16 *)rpage)[1] = right_elems;                               \
 		u16 split_bytes =                                              \
 		    PAGE_OFFSET_OF(page, left_elems) - FIRST_OFFSET;           \
-		((u16 *)lpage)[2] = split_bytes;                               \
-		((u16 *)rpage)[2] = total_bytes - ((u16 *)lpage)[2];           \
-		fastmemcpy(((u16 *)lpage) + 3, ((u16 *)page) + 3,              \
-			   left_elems << 1);                                   \
+		((u16 *)page)[2] = split_bytes;                                \
+		((u16 *)rpage)[2] = total_bytes - ((u16 *)page)[2];            \
 		fastmemcpy(((u16 *)rpage) + 3, ((u16 *)page) + 3 + left_elems, \
 			   right_elems << 1);                                  \
 		for (u16 i = 0; i < right_elems; i++)                          \
 			((u16 *)rpage)[3 + i] -= split_bytes;                  \
-		fastmemcpy(lpage + FIRST_OFFSET, page + FIRST_OFFSET,          \
-			   split_bytes);                                       \
 		fastmemcpy(rpage + FIRST_OFFSET,                               \
 			   page + FIRST_OFFSET + split_bytes,                  \
 			   total_bytes - split_bytes);                         \
@@ -729,8 +725,8 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 		if (impl->db->config.debug_split_delete) {
 			fastmemset(page, 0, PAGE_SIZE);
 		} else {
-			u8 *lpage, *rpage, *ppage;
-			i64 lpagenum, rpagenum, ppagenum;
+			u8 *rpage, *ppage;
+			i64 rpagenum, ppagenum;
 			Hashtable *h = (void *)impl->scratch->space;
 			HashtableKeyValue *kv;
 			u64 size = sizeof(HashtableKeyValue) + PAGE_SIZE +
@@ -738,18 +734,6 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 
 			rpagenum = BITMAP_ALLOC_PAGE(impl->db);
 			if (rpagenum < 0) return -1;
-			lpagenum = BITMAP_ALLOC_PAGE(impl->db);
-			if (lpagenum < 0) return -1;
-
-			kv = ALLOC(impl, size);
-			if (!kv) return -1;
-			kv->key = lpagenum;
-			fastmemcpy(kv->data + PAGE_SIZE, &lpagenum,
-				   sizeof(u64));
-			fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
-				   &lpagenum, sizeof(u64));
-			lpage = kv->data;
-			hashtable_put(h, kv);
 
 			kv = ALLOC(impl, size);
 			if (!kv) return -1;
@@ -780,24 +764,23 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 				ppage = GET_PAGE(impl, ppagenum, &is_modified);
 			}
 
-			PAGE_SPLIT(page, lpage, rpage);
-			u16 last = PAGE_ELEMENTS(lpage) - 1;
+			PAGE_SPLIT(page, rpage);
+			u16 last = PAGE_ELEMENTS(page) - 1;
 			if (level == 0) {
 				CREATE_INTERNAL_NODE(
-				    ppage, PAGE_READ_KEY(lpage, last),
-				    PAGE_READ_KEY_LEN(lpage, last), lpagenum,
+				    ppage, PAGE_READ_KEY(page, last),
+				    PAGE_READ_KEY_LEN(page, last), pageno,
 				    rpagenum);
 
 				impl->root = ppagenum;
 			} else {
 				INSERT_INTERNAL_NODE(
-				    ppage, PAGE_READ_KEY(lpage, last),
-				    PAGE_READ_KEY_LEN(lpage, last), lpagenum,
+				    ppage, PAGE_READ_KEY(page, last),
+				    PAGE_READ_KEY_LEN(page, last), pageno,
 				    rpagenum, pageno);
 			}
-			i32 cmp = PAGE_COMPARE_KEYS(lpage, key, key_len, last);
-			page = cmp < 0 ? lpage : rpage;
-			// PRINT_INTERNAL_ELEMENTS(ppage);
+			i32 cmp = PAGE_COMPARE_KEYS(page, key, key_len, last);
+			page = cmp < 0 ? page : rpage;
 		}
 	}
 
@@ -819,8 +802,8 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		    (void *)(impl->scratch->space + i - sizeof(u64));
 		(void)npagenum;
 		(void)oldpagenum;
-		//	println("i={},npage={},oldpage={}", i, *npagenum,
-		//*oldpagenum);
+		// println("i={},npage={},oldpage={}", i, *npagenum,
+		// *oldpagenum);
 	}
 
 	return 0;
