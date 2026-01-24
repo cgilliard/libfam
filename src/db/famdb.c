@@ -36,10 +36,6 @@
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
 #endif /* PAGE_SIZE */
-#if PAGE_SIZE > 8192
-#undef PAGE_SIZE
-#define PAGE_SIZE 8192
-#endif /* if PAGE_SIZE > 8192 */
 
 #define TAG_LEN 16
 
@@ -745,7 +741,7 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 
 	if (FIRST_OFFSET + PAGE_TOTAL_BYTES(page) + key_len + value_len >
 		PAGE_SIZE - TAG_LEN ||
-	    PAGE_ELEMENTS(page) > 250) {
+	    PAGE_ELEMENTS(page) > 251) {
 		if (impl->db->config.debug_split_delete) {
 			fastmemset(page, 0, PAGE_SIZE);
 		} else {
