@@ -106,33 +106,8 @@ static __inline i32 __cas128(u128 *ptr, u128 *expected, u128 desired) {
 
 	return success;
 #elif defined(__aarch64__)
-	u64 exp_lo, exp_hi;
-	u64 act_lo, act_hi;
-	u64 des_lo = (u64)desired;
-	u64 des_hi = (u64)(desired >> 64);
-	u32 success;
-
-	(void)exp_lo;
-	(void)exp_hi;
-
-	__asm__ volatile(
-	    "ldxp    %[act_lo], %[act_hi], [%[ptr]]\n\t"
-	    "eor     %w0, %w[act_lo], %w[exp_lo]\n\t"
-	    "eor     %w1, %w[act_hi], %w[exp_hi]\n\t"
-	    "orr     %w0, %w0, %w1\n\t"
-	    "cbnz    %w0, 1f\n\t"
-	    "stxp    %w0, %[des_lo], %[des_hi], [%[ptr]]\n\t"
-	    "1:\n\t"
-	    "cset    %w[success], eq"
-	    : [success] "=r"(success), [act_lo] "=r"(act_lo),
-	      [act_hi] "=r"(act_hi), [ptr] "+Q"(*ptr)
-	    : [exp_lo] "r"((u64)*expected),
-	      [exp_hi] "r"((u64)(*expected >> 64)), [des_lo] "r"(des_lo),
-	      [des_hi] "r"(des_hi)
-	    : "memory", "cc");
-
-	if (!success) *expected = ((u128)act_hi << 64) | act_lo;
-	return success;
+	i32 __cas128_arm64(u128 * ptr, u128 * expected, u128 desired);
+	return __cas128_arm64(ptr, expected, desired);
 #else
 #error "Unsupported Platform"
 #endif /* !__aarch64__ */
