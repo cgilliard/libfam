@@ -643,6 +643,7 @@ i32 famdb_begin_txn(FamDbTxn *txn, FamDb *db, FamDbScratch *scratch) {
 
 	impl->scratch_off =
 	    sizeof(void *) * db->hash_buckets + sizeof(Hashtable);
+	// println("initial scratch_off={}", impl->scratch_off);
 	hashtable_init((void *)(impl->scratch->space), db->hash_buckets,
 		       (void *)(impl->scratch->space + sizeof(Hashtable)));
 	impl->db = db;
@@ -767,10 +768,11 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 				kv = ALLOC(impl, size);
 				if (!kv) return -1;
 				kv->key = ppagenum;
-				fastmemcpy(kv->data + PAGE_SIZE, &ppagenum,
-					   sizeof(u64));
 				fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
 					   &ppagenum, sizeof(u64));
+				fastmemcpy(kv->data + PAGE_SIZE, &ppagenum,
+					   sizeof(u64));
+
 				ppage = kv->data;
 				hashtable_put(h, kv);
 			} else {
@@ -805,9 +807,19 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 }
 
 i32 famdb_txn_commit(FamDbTxn *txn) {
-	if (!txn) {
-		errno = EINVAL;
-		return -1;
+	FamDbTxnImpl *impl = (void *)txn;
+	u64 size = sizeof(HashtableKeyValue) + PAGE_SIZE + 2 * sizeof(u64);
+	for (u64 i = impl->scratch_off;
+	     i > sizeof(void *) * impl->db->hash_buckets + sizeof(Hashtable);
+	     i -= size) {
+		u64 *npagenum =
+		    (void *)(impl->scratch->space + i - sizeof(u64) * 2);
+		u64 *oldpagenum =
+		    (void *)(impl->scratch->space + i - sizeof(u64));
+		(void)npagenum;
+		(void)oldpagenum;
+		// println("i={},npage={},oldpage={}", i, *npagenum,
+		// *oldpagenum);
 	}
 
 	return 0;
