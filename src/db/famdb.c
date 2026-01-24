@@ -113,24 +113,6 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		}                                                    \
 		page;                                                \
 	})
-#define LOAD_PAGE(impl, pageno)                                           \
-	({                                                                \
-		Hashtable *h = (void *)impl->scratch->space;              \
-		u8 *page = hashtable_get(h, pageno);                      \
-		if (!page) {                                              \
-			HashtableKeyValue *kv;                            \
-			u64 size = sizeof(HashtableKeyValue) + PAGE_SIZE; \
-			if (famdb_get_page(impl, &page, pageno) < 0)      \
-				return -1;                                \
-			kv = ALLOC(impl, size);                           \
-			if (!kv) return -1;                               \
-			kv->key = pageno;                                 \
-			fastmemcpy(kv->data, page, PAGE_SIZE);            \
-			hashtable_put(h, kv);                             \
-			page = kv->data;                                  \
-		}                                                         \
-		page;                                                     \
-	})
 #define PAGE_INSERT_BEFORE(page, elem, key, key_len, value, value_len)        \
 	({                                                                    \
 		u16 _offset__ = PAGE_OFFSET_OF(page, elem);                   \
@@ -746,25 +728,22 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 		if (impl->db->config.debug_split_delete) {
 			fastmemset(page, 0, PAGE_SIZE);
 		} else {
+			u8 *lpage, *rpage, *ppage;
+			i64 lpagenum, rpagenum, ppagenum;
 			Hashtable *h = (void *)impl->scratch->space;
 			HashtableKeyValue *kv;
 			u64 size = sizeof(HashtableKeyValue) + PAGE_SIZE +
 				   2 * sizeof(u64);
 
-			i64 rpagenum = BITMAP_ALLOC_PAGE(impl->db);
+			rpagenum = BITMAP_ALLOC_PAGE(impl->db);
 			if (rpagenum < 0) return -1;
-			i64 lpagenum = BITMAP_ALLOC_PAGE(impl->db);
+			lpagenum = BITMAP_ALLOC_PAGE(impl->db);
 			if (lpagenum < 0) return -1;
-
-			u8 *lpage = GET_PAGE(impl, lpagenum, &is_modified);
-			if (!lpage) return -1;
-			u8 *rpage = GET_PAGE(impl, rpagenum, &is_modified);
-			if (!rpage) return -1;
 
 			kv = ALLOC(impl, size);
 			if (!kv) return -1;
 			kv->key = lpagenum;
-			fastmemcpy(kv->data, lpage, PAGE_SIZE);
+			fastmemset(kv->data, 0, PAGE_SIZE);
 			fastmemcpy(kv->data + PAGE_SIZE, &lpagenum,
 				   sizeof(u64));
 			fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
@@ -775,7 +754,7 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 			kv = ALLOC(impl, size);
 			if (!kv) return -1;
 			kv->key = rpagenum;
-			fastmemcpy(kv->data, rpage, PAGE_SIZE);
+			fastmemset(kv->data, 0, PAGE_SIZE);
 			fastmemcpy(kv->data + PAGE_SIZE, &rpagenum,
 				   sizeof(u64));
 			fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
@@ -783,20 +762,14 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 			rpage = kv->data;
 			hashtable_put(h, kv);
 
-			i64 ppagenum;
-			u8 *ppage;
-
 			if (level == 0) {
 				ppagenum = BITMAP_ALLOC_PAGE(impl->db);
 				if (ppagenum < 0) return -1;
 
-				ppage = GET_PAGE(impl, ppagenum, &is_modified);
-				if (!ppage) return -1;
-
 				kv = ALLOC(impl, size);
 				if (!kv) return -1;
 				kv->key = ppagenum;
-				fastmemcpy(kv->data, ppage, PAGE_SIZE);
+				fastmemset(kv->data, 0, PAGE_SIZE);
 				fastmemcpy(kv->data + PAGE_SIZE, &ppagenum,
 					   sizeof(u64));
 				fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
@@ -834,3 +807,11 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 	return 0;
 }
 
+i32 famdb_txn_commit(FamDbTxn *txn) {
+	if (!txn) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return 0;
+}

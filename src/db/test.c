@@ -119,7 +119,7 @@ Test(famdb) {
 		if (res) perror("famdb_set");
 		ASSERT(!res, "famdb_set");
 	}
-	// println("avg set={}", cc_sum / TRIALS);
+	println("avg set={}", cc_sum / TRIALS);
 	u8 value_out[32] = {0};
 	cc_sum = 0;
 	for (u64 i = 0; i < TRIALS; i++) {
@@ -131,7 +131,7 @@ Test(famdb) {
 	}
 	ASSERT_EQ(famdb_get(&txn, "0123456789ABCDEF", 16, value_out, 32, 0), -1,
 		  "not found");
-	// println("avg get={}", cc_sum / TRIALS);
+	println("avg get={}", cc_sum / TRIALS);
 	(void)cc_sum;
 
 	famdb_close(db);
