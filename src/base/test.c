@@ -1249,5 +1249,5 @@ Test(cas128) {
 	ASSERT_EQ(v, 1, "v=1");
 	expected = 7;
 	ASSERT(!__cas128(&v, &expected, 0), "!cas128");
-	ASSERT_EQ(v, 1, "v still 1");
+	ASSERT_EQ(__aload128(&v), 1, "v still 1");
 }

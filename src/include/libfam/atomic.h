@@ -138,8 +138,31 @@ static __inline i32 __cas128(u128 *ptr, u128 *expected, u128 desired) {
 #endif /* !__aarch64__ */
 }
 
-static __inline u128 __aload128(const volatile u128 *ptr) {
-	return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+static inline u128 __aload128(volatile u128 *ptr) {
+#ifdef __x86_64__
+	u64 lo, hi;
+	__asm__ volatile(
+	    "movq    %%rax, %%rbx\n\t"
+	    "movq    %%rdx, %%rcx\n\t"
+	    "lock cmpxchg16b %[ptr]\n\t"
+	    : "=A"(lo), "=d"(hi), [ptr] "+m"(*ptr)
+	    : "a"(0), "d"(0)
+	    : "rbx", "rcx", "memory", "cc");
+	return ((u128)hi << 64) | lo;
+#elif defined(__aarch64__)
+	static inline u128 __aload128(const volatile u128 *ptr) {
+		u64 lo, hi;
+
+		__asm__ volatile(
+		    "ldxp    %[lo], %[hi], [%[ptr]]\n\t"
+		    "dmb     sy\n\t"
+		    : [lo] "=r"(lo), [hi] "=r"(hi)
+		    : [ptr] "Q"(*ptr)
+		    : "memory");
+
+		return ((u128)hi << 64) | lo;
+	}
+#endif /* __aarch64__ */
 }
 
 static __inline void mfence(void) { __atomic_thread_fence(__ATOMIC_SEQ_CST); }
