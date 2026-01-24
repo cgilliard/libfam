@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	}
 
 	const char *path = argv[1];
-	size_t n = 10000;
+	size_t n = 6000;
 
 	MDB_env *env = NULL;
 	MDB_dbi dbi;
@@ -96,7 +96,10 @@ int main(int argc, char **argv) {
 		if (rc) die("mdb_put warm", rc);
 	}
 
+	uint64_t x = cycle_counter();
 	rc = mdb_txn_commit(txn);
+	x = cycle_counter() - x;
+	printf("x=%lu\n", x);
 	if (rc) die("mdb_txn_commit warm", rc);
 
 	printf("mdb_put avg cycles = %lu\n", cycle_sum / n);

@@ -797,6 +797,7 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 			}
 			i32 cmp = PAGE_COMPARE_KEYS(lpage, key, key_len, last);
 			page = cmp < 0 ? lpage : rpage;
+			// PRINT_INTERNAL_ELEMENTS(ppage);
 		}
 	}
 
@@ -818,8 +819,8 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		    (void *)(impl->scratch->space + i - sizeof(u64));
 		(void)npagenum;
 		(void)oldpagenum;
-		// println("i={},npage={},oldpage={}", i, *npagenum,
-		// *oldpagenum);
+		//	println("i={},npage={},oldpage={}", i, *npagenum,
+		//*oldpagenum);
 	}
 
 	return 0;
