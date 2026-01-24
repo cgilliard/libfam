@@ -38,7 +38,7 @@
 #endif /* PAGE_SIZE */
 
 #define TAG_LEN 16
-#define MAX_ELEMENTS_PER_PAGE 251
+#define MAX_ELEMENTS_PER_PAGE 253
 
 struct FamDb {
 	FamDbConfig config;
@@ -244,7 +244,7 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		((u16 *)rpage)[1] = right_elems;                               \
 		u16 split_bytes =                                              \
 		    PAGE_OFFSET_OF(page, left_elems) - FIRST_OFFSET;           \
-		((u16 *)lpage)[2] = total_bytes - split_bytes;                 \
+		((u16 *)lpage)[2] = split_bytes;                               \
 		((u16 *)rpage)[2] = total_bytes - ((u16 *)lpage)[2];           \
 		fastmemcpy(((u16 *)lpage) + 3, ((u16 *)page) + 3,              \
 			   left_elems << 1);                                   \
@@ -742,7 +742,7 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 
 	if (FIRST_OFFSET + PAGE_TOTAL_BYTES(page) + key_len + value_len >
 		PAGE_SIZE - TAG_LEN ||
-	    PAGE_ELEMENTS(page) > MAX_ELEMENTS_PER_PAGE) {
+	    PAGE_ELEMENTS(page) >= MAX_ELEMENTS_PER_PAGE) {
 		if (impl->db->config.debug_split_delete) {
 			fastmemset(page, 0, PAGE_SIZE);
 		} else {
