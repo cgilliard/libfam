@@ -84,7 +84,7 @@ Test(famdb_set) {
 	ASSERT(!fallocate(fd, 1024 * 1024), "fallocate");
 	close(fd);
 
-	Rng rng;
+	Rng rng = {0};
 	i32 res;
 	FamDb *db = NULL;
 	FamDbTxn txn;
@@ -100,7 +100,7 @@ Test(famdb_set) {
 	ASSERT(db, "db");
 	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
 
-#define TRIALS (130)
+#define TRIALS 2000
 	__attribute__((aligned(32))) u8 keys[TRIALS][16] = {0};
 	__attribute__((aligned(32))) u8 values[TRIALS][32] = {0};
 	rng_init(&rng);

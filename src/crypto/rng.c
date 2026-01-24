@@ -82,10 +82,7 @@ STATIC void random32(u8 out[32]) {
 
 STATIC void random_stir(u8 current[32]) {
 	StormContext ctx;
-	__attribute__((aligned(32))) u8 stir_in[32];
-#if TEST == 1
-	if (IS_VALGRIND()) fastmemset(stir_in, 0, 32);
-#endif /* TEST */
+	__attribute__((aligned(32))) u8 stir_in[32] = {0};
 
 	try_fill_hardware(stir_in);
 	storm_init(&ctx, stir_in);
@@ -95,11 +92,7 @@ STATIC void random_stir(u8 current[32]) {
 }
 
 PUBLIC void rng_init(Rng *rng) {
-	__attribute__((aligned(32))) u8 key[32];
-
-#if TEST == 1
-	if (IS_VALGRIND()) fastmemset(key, 0, 32);
-#endif /* TEST */
+	__attribute__((aligned(32))) u8 key[32] = {0};
 
 	random32(key);
 	random_stir(key);
@@ -116,11 +109,7 @@ PUBLIC void rng_gen(Rng *rng, void *v, u64 size) {
 	}
 
 	if (off < size) {
-		__attribute__((aligned(32))) u8 buf[32];
-
-#if TEST == 1
-		if (IS_VALGRIND()) fastmemset(buf, 0, 32);
-#endif /* TEST */
+		__attribute__((aligned(32))) u8 buf[32] = {0};
 
 		fastmemcpy(buf, out, size - off);
 		storm_next_block(&rng->ctx, buf);

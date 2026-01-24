@@ -277,6 +277,14 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		u16 _index__ =                                                \
 		    PAGE_FIND_INDEX_INTERNAL(page, key, key_length);          \
 		u16 elem_off = PAGE_OFFSET_OF(page, _index__);                \
+		u16 cur_len;                                                  \
+		if (_index__ == elements)                                     \
+			cur_len = PAGE_OFFSET_OF(page, elements) -            \
+				  PAGE_OFFSET_OF(page, elements - 1) -        \
+				  sizeof(u64);                                \
+		else                                                          \
+			cur_len = ((u16 *)page)[3 + _index__ + 1] -           \
+				  ((u16 *)page)[3 + _index__] - sizeof(u64);  \
 		if (_index__ < elements) {                                    \
 			u16 len_to_move = PAGE_TOTAL_BYTES(page) - elem_off;  \
 			fastmemmove(page + elem_off + FIRST_OFFSET +          \
@@ -284,16 +292,19 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 				    page + elem_off + FIRST_OFFSET,           \
 				    len_to_move);                             \
 		}                                                             \
-		for (u16 i = _index__; i < elements - 1; i++) {               \
-			((u16 *)page)[3 + i] += key_length + sizeof(u64);     \
+		for (u16 i = _index__ + 1; i < elements + 1; i++) {           \
+			((u16 *)page)[3 + i] += key_length - cur_len;         \
 		}                                                             \
+		((u16 *)page)[3 + elements + 1] =                             \
+		    PAGE_TOTAL_BYTES(page) + key_length;                      \
 		fastmemcpy(page + elem_off + FIRST_OFFSET + sizeof(u64), key, \
 			   key_length);                                       \
 		*(u64 *)(page + elem_off + FIRST_OFFSET) = lpageno;           \
 		((u16 *)page)[1]++;                                           \
-		((u16 *)page)[2] += key_length + sizeof(u64);                 \
-		((u16 *)page)[3 + PAGE_ELEMENTS(page)] =                      \
-		    PAGE_TOTAL_BYTES(page) - sizeof(u64);                     \
+		((u16 *)page)[2] +=                                           \
+		    key_length +                                              \
+		    sizeof(u64); /*((u16 *)page)[3 + PAGE_ELEMENTS(page)] =   \
+				     PAGE_TOTAL_BYTES(page) - sizeof(u64); */ \
 		u16 next_offset = PAGE_OFFSET_OF(page, _index__ + 1);         \
 		*(u64 *)(page + next_offset + FIRST_OFFSET) = rpageno;        \
 	})
