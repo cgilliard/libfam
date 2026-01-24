@@ -86,11 +86,11 @@ Test(famdb_set) {
 	ASSERT(!fallocate(fd, 4 * 1024 * 1024), "fallocate");
 	close(fd);
 
-	Rng rng = {0};
+	Rng rng;
 	i32 res;
 	FamDb *db = NULL;
 	FamDbTxn txn;
-	u8 space[SCRATCH_SIZE];
+	u8 *space = map(SCRATCH_SIZE);
 	FamDbScratch scratch = {.space = space, .capacity = SCRATCH_SIZE};
 	FamDbConfig config = {.queue_depth = 16,
 			      .pathname = "resources/4mb.dat",
@@ -136,6 +136,7 @@ Test(famdb_set) {
 
 	famdb_close(db);
 	unlink("resources/4mb.dat");
+	munmap(space, SCRATCH_SIZE);
 #undef TRIALS
 #undef SCRATCH_SIZE
 }

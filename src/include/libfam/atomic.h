@@ -86,6 +86,15 @@ static __inline void __astore64(volatile u64 *ptr, u64 value) {
 	__atomic_store_n(ptr, value, __ATOMIC_SEQ_CST);
 }
 
+static __inline i32 __cas128(u128 *ptr, u128 *expected, u128 desired) {
+	return __atomic_compare_exchange(ptr, expected, &desired, false,
+					 __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
+}
+
+static __inline u128 __aload128(const volatile u128 *ptr) {
+	return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+}
+
 static __inline void mfence(void) { __atomic_thread_fence(__ATOMIC_SEQ_CST); }
 
 #endif /* _ATOMIC_H */

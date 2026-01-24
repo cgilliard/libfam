@@ -1240,3 +1240,16 @@ Test(raw_close) {
 	ASSERT_EQ(fd, fd2, "closed from table");
 	ASSERT(!raw_close(fd2), "raw_close2");
 }
+
+/*
+Test(cas128) {
+	u128 v, expected;
+	v = 12345;
+	expected = 12345;
+	ASSERT(__cas128(&v, &expected, 1), "cas128");
+	ASSERT_EQ(v, 1, "v=1");
+	expected = 7;
+	ASSERT(!__cas128(&v, &expected, 0), "!cas128");
+	ASSERT_EQ(__aload128(&v), 1, "v still 1");
+}
+*/
