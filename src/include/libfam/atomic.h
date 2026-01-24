@@ -125,16 +125,8 @@ static inline u128 __aload128(volatile u128 *ptr) {
 	    : "rbx", "rcx", "memory", "cc");
 	return ((u128)hi << 64) | lo;
 #elif defined(__aarch64__)
-	u64 lo, hi;
-
-	__asm__ volatile(
-	    "ldxp    %[lo], %[hi], [%[ptr]]\n\t"
-	    "dmb     ish\n\t"
-	    : [lo] "=r"(lo), [hi] "=r"(hi)
-	    : [ptr] "Q"(ptr)
-	    : "memory");
-
-	return ((u128)hi << 64) | lo;
+	u128 __aload128_arm64(volatile u128 * ptr);
+	return __aload128_arm64(ptr);
 #endif /* __aarch64__ */
 }
 
