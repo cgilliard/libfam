@@ -1241,7 +1241,6 @@ Test(raw_close) {
 	ASSERT(!raw_close(fd2), "raw_close2");
 }
 
-/*
 Test(cas128) {
 	u128 v, expected;
 	v = 12345;
@@ -1250,6 +1249,5 @@ Test(cas128) {
 	ASSERT_EQ(v, 1, "v=1");
 	expected = 7;
 	ASSERT(!__cas128(&v, &expected, 0), "!cas128");
-	ASSERT_EQ(__aload128(&v), 1, "v still 1");
+	ASSERT_EQ(v, 1, "v still 1");
 }
-*/
