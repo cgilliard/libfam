@@ -69,4 +69,8 @@ i32 famdb_cursor_next(FamDbCursor *cur, void **key, u64 *keylen, void **val,
 		      u64 *vallen);
 void famdb_cursor_close(FamDbCursor *cur);
 
+i32 famdb_create_scratch(u64 size);
+void famdb_destroy_scratch(FamDbScratch *scratch);
+i32 famdb_reclaim(FamDb *db);
+
 #endif /* _FAMDB_H */
