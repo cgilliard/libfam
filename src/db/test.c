@@ -83,7 +83,7 @@ Test(famdb) {
 	unlink("resources/4mb.dat");
 	i32 fd = open("resources/4mb.dat", O_CREAT | O_RDWR, 0600);
 	ASSERT(fd > 0, "open");
-	ASSERT(!fallocate(fd, 4 * 1024 * 1024), "fallocate");
+	ASSERT(!fallocate(fd, 1024 * 1024 * 1024), "fallocate");
 	close(fd);
 
 	Rng rng;
@@ -92,7 +92,7 @@ Test(famdb) {
 	FamDbTxn txn;
 	u8 *space = map(SCRATCH_SIZE);
 	FamDbScratch scratch = {.space = space, .capacity = SCRATCH_SIZE};
-	FamDbConfig config = {.queue_depth = 16,
+	FamDbConfig config = {.queue_depth = 512,
 			      .pathname = "resources/4mb.dat",
 			      .lru_hash_buckets = 16,
 			      .lru_capacity = 150};
@@ -119,9 +119,12 @@ Test(famdb) {
 		if (res) perror("famdb_set");
 		ASSERT(!res, "famdb_set");
 	}
-	println("avg set={}", cc_sum / TRIALS);
+	// println("famdb_set avg cycles = {}", cc_sum / TRIALS);
 
+	cc = cycle_counter();
 	famdb_txn_commit(&txn);
+	cc = cycle_counter() - cc;
+	f64 mcycles = (f64)cc / 1000000.0;
 	u8 value_out[32] = {0};
 	cc_sum = 0;
 	for (u64 i = 0; i < TRIALS; i++) {
@@ -133,8 +136,14 @@ Test(famdb) {
 	}
 	ASSERT_EQ(famdb_get(&txn, "0123456789ABCDEF", 16, value_out, 32, 0), -1,
 		  "not found");
-	println("avg get={}", cc_sum / TRIALS);
+	// println("famdb_get avg cycles = {}", cc_sum / TRIALS);
 	(void)cc_sum;
+	(void)mcycles;
+
+	/*
+	println("famdb_txn_commit cycles (large) = {} (million cycles)",
+		mcycles);
+		*/
 
 	famdb_close(db);
 	unlink("resources/4mb.dat");

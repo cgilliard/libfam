@@ -81,6 +81,7 @@ typedef struct {
 
 typedef struct {
 	u64 root;
+	u64 seqno;
 } SuperBlock;
 
 STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
@@ -790,9 +791,61 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 	return 0;
 }
 
+/*
+ *         i32 result = 0;
+	u32 index, cq_tail = 0, cq_head = 0;
+	u32 flags = IORING_ENTER_SQ_WAKEUP;
+	FamDb *db = impl->db;
+	struct io_uring_sqe sqe = {.opcode = IORING_OP_READ,
+				   .flags = IOSQE_FIXED_FILE,
+				   .addr = (u64)impl->db->free_page,
+				   .off = page_num * PAGE_SIZE,
+				   .len = PAGE_SIZE,
+				   .user_data = 1};
+
+	index = *db->sq_tail & *db->sq_mask;
+	db->sq_array[index] = index;
+	db->sqes[index] = sqe;
+
+	i32 res = io_uring_enter2(db->ring_fd, 0, 0, flags, NULL, 0);
+	if (res < 0) return -1;
+	__aadd32(db->sq_tail, 1);
+
+	do {
+		cq_tail = __aload32(db->cq_tail);
+		cq_head = *db->cq_head;
+		if (cq_tail != cq_head) {
+			u32 idx = cq_head & *db->cq_mask;
+			result = db->cqes[idx].res;
+
+			if (result < 0 && cq_head != cq_tail) errno = -result;
+			if (result != PAGE_SIZE) {
+				errno = EIO;
+				result = -1;
+			}
+			break;
+		}
+	} while (true);
+
+	__aadd32(db->cq_head, 1);
+
+	u8 *tail = lru_tail(impl->db->cache);
+	lru_put(impl->db->cache, page_num, impl->db->free_page);
+	*page = impl->db->free_page;
+	impl->db->free_page = tail;
+*/
+
 i32 famdb_txn_commit(FamDbTxn *txn) {
 	FamDbTxnImpl *impl = (void *)txn;
+	FamDb *db = impl->db;
+	i32 result;
+	u32 flags = IORING_ENTER_SQ_WAKEUP, index, cq_head, cq_tail;
 	u64 size = sizeof(HashtableKeyValue) + PAGE_SIZE + 2 * sizeof(u64);
+	u64 count = 0;
+
+	i32 res = io_uring_enter2(db->ring_fd, 0, 0, flags, NULL, 0);
+	if (res < 0) return -1;
+
 	for (u64 i = impl->scratch_off;
 	     i > sizeof(void *) * impl->db->hash_buckets + sizeof(Hashtable);
 	     i -= size) {
@@ -800,11 +853,73 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		    (void *)(impl->scratch->space + i - sizeof(u64) * 2);
 		u64 *oldpagenum =
 		    (void *)(impl->scratch->space + i - sizeof(u64));
-		(void)npagenum;
+		u8 *page = (void *)(impl->scratch->space + i - size);
+		/*
+		println("count={},i={},npage={},oldpage={}", count, i,
+			*npagenum, *oldpagenum);
+			*/
 		(void)oldpagenum;
-		// println("i={},npage={},oldpage={}", i, *npagenum,
-		// *oldpagenum);
+
+		struct io_uring_sqe write_sqe = {.opcode = IORING_OP_WRITE,
+						 .flags = IOSQE_FIXED_FILE,
+						 .addr = (u64)page,
+						 .off = *npagenum * PAGE_SIZE,
+						 .len = PAGE_SIZE,
+						 .user_data = ++count};
+
+		index = *db->sq_tail & *db->sq_mask;
+		db->sq_array[index] = index;
+		db->sqes[index] = write_sqe;
+		__aadd32(db->sq_tail, 1);
 	}
 
-	return 0;
+	for (u64 i = 0; i < count; i++) {
+		do {
+			cq_tail = __aload32(db->cq_tail);
+			cq_head = *db->cq_head;
+			if (cq_tail != cq_head) {
+				u32 idx = cq_head & *db->cq_mask;
+				result = db->cqes[idx].res;
+
+				if (result < 0 && cq_head != cq_tail)
+					errno = -result;
+				if (result != PAGE_SIZE) {
+					errno = EIO;
+					result = -1;
+				}
+				break;
+			}
+		} while (true);
+
+		__aadd32(db->cq_head, 1);
+	}
+
+	struct io_uring_sqe sync_sqe = {.opcode = IORING_OP_FSYNC,
+					.fd = db->fd_direct,
+					.fsync_flags = IORING_FSYNC_DATASYNC,
+					.user_data = U64_MAX};
+	index = *db->sq_tail & *db->sq_mask;
+	db->sq_array[index] = index;
+	db->sqes[index] = sync_sqe;
+	__aadd32(db->sq_tail, 1);
+
+	do {
+		cq_tail = __aload32(db->cq_tail);
+		cq_head = *db->cq_head;
+		if (cq_tail != cq_head) {
+			u32 idx = cq_head & *db->cq_mask;
+			result = db->cqes[idx].res;
+
+			if (result < 0 && cq_head != cq_tail) errno = -result;
+			if (result != PAGE_SIZE) {
+				errno = EIO;
+				result = -1;
+			}
+			break;
+		}
+	} while (true);
+
+	__aadd32(db->cq_head, 1);
+
+	return result;
 }

@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
 	uint64_t x = cycle_counter();
 	rc = mdb_txn_commit(txn);
 	x = cycle_counter() - x;
-	printf("x=%lu\n", x);
+	double y = (double)x / 1000000.0;
 	if (rc) die("mdb_txn_commit warm", rc);
 
 	printf("mdb_put avg cycles = %lu\n", cycle_sum / n);
@@ -152,11 +152,10 @@ int main(int argc, char **argv) {
 		if (rc) die("mdb_txn_commit", rc);
 	}
 
-	printf("mdb_txn_commit avg cycles = %lu\n", cycle_sum / n);
+	// printf("mdb_txn_commit avg cycles = %lu\n", cycle_sum / n);
+	printf("mdb_txn_commit cycles (large) = %f (million cycles)\n", y);
 
 	mdb_dbi_close(env, dbi);
 	mdb_env_close(env);
-
-	printf("\nDone.\n");
 	return 0;
 }
