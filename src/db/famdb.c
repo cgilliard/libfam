@@ -385,30 +385,33 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		}                                                          \
 		_ret__;                                                    \
 	})
-#define BITMAP_ALLOC_PAGE(db)                                               \
-	({                                                                  \
-		i64 ret = -1;                                               \
-		u64 bit = 0, lw_offset, initial_offset = db->last_free;     \
-		while (true) {                                              \
-			lw_offset = db->last_free;                          \
-			u64 *map_ptr = (u64 *)(db->file_data + PAGE_SIZE +  \
-					       lw_offset * sizeof(u64));    \
-			u64 cur = __aload64(map_ptr);                       \
-			if (cur == U64_MAX) {                               \
-				db->last_free = (db->last_free + 1) %       \
-						(db->bitmap_bits >> 6);     \
-				if (db->last_free == initial_offset) break; \
-			} else {                                            \
-				bit = __builtin_ctzll(~cur);                \
-				u64 new = cur | (1UL << bit);               \
-				if (__cas64(map_ptr, &cur, new)) {          \
-					ret = bit + (lw_offset << 6) +      \
-					      db->fmap_pages;               \
-					break;                              \
-				}                                           \
-			}                                                   \
-		}                                                           \
-		ret;                                                        \
+#define BITMAP_ALLOC_PAGE(db)                                              \
+	({                                                                 \
+		i64 ret = -1;                                              \
+		u64 bit = 0, lw_offset, initial_offset = db->last_free;    \
+		while (true) {                                             \
+			lw_offset = db->last_free;                         \
+			u64 *map_ptr = (u64 *)(db->file_data + PAGE_SIZE + \
+					       lw_offset * sizeof(u64));   \
+			u64 cur = __aload64(map_ptr);                      \
+			if (cur == U64_MAX) {                              \
+				db->last_free = (db->last_free + 1) %      \
+						(db->bitmap_bits >> 6);    \
+				if (db->last_free == initial_offset) {     \
+					errno = ENOMEM;                    \
+					break;                             \
+				}                                          \
+			} else {                                           \
+				bit = __builtin_ctzll(~cur);               \
+				u64 new = cur | (1UL << bit);              \
+				if (__cas64(map_ptr, &cur, new)) {         \
+					ret = bit + (lw_offset << 6) +     \
+					      db->fmap_pages;              \
+					break;                             \
+				}                                          \
+			}                                                  \
+		}                                                          \
+		ret;                                                       \
 	})
 #define BITMAP_RELEASE_PAGE(db, pageno)                                       \
 	({                                                                    \

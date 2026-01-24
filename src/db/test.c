@@ -78,18 +78,20 @@ Bench(famdb) {
 }
 
 Test(famdb_set) {
+#define SCRATCH_SIZE (8 * 1024 * 1024)
+#define TRIALS 9000
 	unlink("resources/1mb.dat");
 	i32 fd = open("resources/1mb.dat", O_CREAT | O_RDWR, 0600);
 	ASSERT(fd > 0, "open");
-	ASSERT(!fallocate(fd, 1024 * 1024), "fallocate");
+	ASSERT(!fallocate(fd, 4 * 1024 * 1024), "fallocate");
 	close(fd);
 
 	Rng rng = {0};
 	i32 res;
 	FamDb *db = NULL;
 	FamDbTxn txn;
-	u8 space[1024 * 512] = {0};
-	FamDbScratch scratch = {.space = space, .capacity = sizeof(space)};
+	u8 *space = map(SCRATCH_SIZE);
+	FamDbScratch scratch = {.space = space, .capacity = SCRATCH_SIZE};
 	FamDbConfig config = {.queue_depth = 16,
 			      .pathname = "resources/1mb.dat",
 			      .lru_hash_buckets = 1024,
@@ -100,10 +102,11 @@ Test(famdb_set) {
 	ASSERT(db, "db");
 	ASSERT(!famdb_begin_txn(&txn, db, &scratch), "famdb_begin_txn");
 
-#define TRIALS 2000
 	__attribute__((aligned(32))) u8 keys[TRIALS][16] = {0};
 	__attribute__((aligned(32))) u8 values[TRIALS][32] = {0};
 	rng_init(&rng);
+	__attribute__((aligned(32))) u8 seed[32] = {0};
+	rng_test_seed(&rng, seed);
 	for (u64 i = 0; i < TRIALS; i++) {
 		rng_gen(&rng, keys[i], 16);
 		rng_gen(&rng, values[i], 32);
@@ -112,7 +115,8 @@ Test(famdb_set) {
 		for (u8 j = 0; j < 32; j++)
 			values[i][j] = (values[i][j] % 26) + 'a';
 		res = famdb_set(&txn, keys[i], 16, values[i], 32, 0);
-		ASSERT(!res, "famdb_put");
+		if (res) perror("famdb_set");
+		ASSERT(!res, "famdb_set");
 	}
 	u8 value_out[32] = {0};
 	for (u64 i = 0; i < TRIALS; i++) {
@@ -124,6 +128,8 @@ Test(famdb_set) {
 		  "not found");
 
 	famdb_close(db);
-#undef TRIALS
 	unlink("resources/1mb.dat");
+	munmap(space, SCRATCH_SIZE);
+#undef TRIALS
+#undef SCRATCH_SIZE
 }
