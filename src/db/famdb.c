@@ -38,6 +38,7 @@
 #endif /* PAGE_SIZE */
 
 #define TAG_LEN 16
+#define MAX_ELEMENTS_PER_PAGE 251
 
 struct FamDb {
 	FamDbConfig config;
@@ -741,7 +742,7 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 
 	if (FIRST_OFFSET + PAGE_TOTAL_BYTES(page) + key_len + value_len >
 		PAGE_SIZE - TAG_LEN ||
-	    PAGE_ELEMENTS(page) > 251) {
+	    PAGE_ELEMENTS(page) > MAX_ELEMENTS_PER_PAGE) {
 		if (impl->db->config.debug_split_delete) {
 			fastmemset(page, 0, PAGE_SIZE);
 		} else {
