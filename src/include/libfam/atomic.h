@@ -129,9 +129,9 @@ static inline u128 __aload128(volatile u128 *ptr) {
 
 	__asm__ volatile(
 	    "ldxp    %[lo], %[hi], [%[ptr]]\n\t"
-	    "dmb     sy\n\t"
+	    "dmb     ish\n\t"
 	    : [lo] "=r"(lo), [hi] "=r"(hi)
-	    : [ptr] "Q"(*ptr)
+	    : [ptr] "Q"(ptr)
 	    : "memory");
 
 	return ((u128)hi << 64) | lo;
