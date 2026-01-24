@@ -77,13 +77,13 @@ Bench(famdb) {
 	unlink("resources/1mb.dat");
 }
 
-Test(famdb_set) {
-#define SCRATCH_SIZE (20 * 1024 * 1024)
+Test(famdb) {
+#define SCRATCH_SIZE (2 * 1024 * 1024)
 #define TRIALS 9000
 	unlink("resources/4mb.dat");
 	i32 fd = open("resources/4mb.dat", O_CREAT | O_RDWR, 0600);
 	ASSERT(fd > 0, "open");
-	ASSERT(!fallocate(fd, 40 * 1024 * 1024), "fallocate");
+	ASSERT(!fallocate(fd, 4 * 1024 * 1024), "fallocate");
 	close(fd);
 
 	Rng rng;
