@@ -743,7 +743,6 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 			kv = ALLOC(impl, size);
 			if (!kv) return -1;
 			kv->key = lpagenum;
-			fastmemset(kv->data, 0, PAGE_SIZE);
 			fastmemcpy(kv->data + PAGE_SIZE, &lpagenum,
 				   sizeof(u64));
 			fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
@@ -754,7 +753,6 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 			kv = ALLOC(impl, size);
 			if (!kv) return -1;
 			kv->key = rpagenum;
-			fastmemset(kv->data, 0, PAGE_SIZE);
 			fastmemcpy(kv->data + PAGE_SIZE, &rpagenum,
 				   sizeof(u64));
 			fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
@@ -769,7 +767,6 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 				kv = ALLOC(impl, size);
 				if (!kv) return -1;
 				kv->key = ppagenum;
-				fastmemset(kv->data, 0, PAGE_SIZE);
 				fastmemcpy(kv->data + PAGE_SIZE, &ppagenum,
 					   sizeof(u64));
 				fastmemcpy(kv->data + PAGE_SIZE + sizeof(u64),
