@@ -122,7 +122,7 @@ Test(famdb) {
 	// println("famdb_set avg cycles = {}", cc_sum / TRIALS);
 
 	cc = cycle_counter();
-	famdb_txn_commit(&txn);
+	ASSERT(!famdb_txn_commit(&txn), "commit");
 	cc = cycle_counter() - cc;
 	f64 mcycles = (f64)cc / 1000000.0;
 	u8 value_out[32] = {0};

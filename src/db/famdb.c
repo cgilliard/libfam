@@ -72,17 +72,28 @@ struct FamDb {
 };
 
 typedef struct {
+	u64 root;
+	u64 seqno;
+} Commit;
+
+typedef union {
+	u128 value;
+	Commit commit;
+} CommitUnion;
+
+typedef struct {
+	CommitUnion commit;
+} SuperBlock;
+
+typedef struct {
 	FamDb *db;
 	FamDbScratch *scratch;
 	u64 scratch_off;
 	u64 root;
-	u8 padding[256 - 32];
-} FamDbTxnImpl;
-
-typedef struct {
-	u64 root;
 	u64 seqno;
-} SuperBlock;
+	CommitUnion commit;
+	u8 padding[256 - 64];
+} FamDbTxnImpl;
 
 STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 
@@ -411,10 +422,12 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 	})
 
 STATIC i32 famdb_init_db(FamDb *db) {
-	if (BITMAP_ALLOC_PAGE(db) != db->fmap_pages)
-		panic("data file must be zeroed!");
+	if (BITMAP_ALLOC_PAGE(db) != db->fmap_pages) {
+		errno = EINVAL;
+		return -1;
+	}
 	SuperBlock *sb = (void *)db->file_data;
-	__astore64(&sb->root, db->fmap_pages);
+	__astore64(&sb->commit.commit.root, db->fmap_pages);
 	return 0;
 }
 
@@ -601,7 +614,12 @@ i32 famdb_open(FamDb **dbret, const FamDbConfig *config) {
 	}
 
 	SuperBlock *sb = (void *)db->file_data;
-	if (!sb->root) famdb_init_db(db);
+	if (!sb->commit.value) {
+		if (famdb_init_db(db) < 0) {
+			famdb_close(db);
+			return -1;
+		}
+	}
 
 	db->hash_buckets = 512;
 
@@ -640,12 +658,13 @@ i32 famdb_begin_txn(FamDbTxn *txn, FamDb *db, FamDbScratch *scratch) {
 
 	impl->scratch_off =
 	    sizeof(void *) * db->hash_buckets + sizeof(Hashtable);
-	// println("initial scratch_off={}", impl->scratch_off);
 	hashtable_init((void *)(impl->scratch->space), db->hash_buckets,
 		       (void *)(impl->scratch->space + sizeof(Hashtable)));
 	impl->db = db;
 	sb = (void *)impl->db->file_data;
-	impl->root = __aload64(&sb->root);
+	impl->commit.value = __aload128(&sb->commit.value);
+	impl->root = impl->commit.commit.root;
+	// println("root={},seqno={}", impl->root, impl->commit.commit.seqno);
 	return 0;
 }
 
@@ -854,10 +873,9 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		u64 *oldpagenum =
 		    (void *)(impl->scratch->space + i - sizeof(u64));
 		u8 *page = (void *)(impl->scratch->space + i - size);
-		/*
-		println("count={},i={},npage={},oldpage={}", count, i,
-			*npagenum, *oldpagenum);
-			*/
+
+		// println("count={},i={},npage={},oldpage={}", count, i,
+		//	*npagenum, *oldpagenum);
 		(void)oldpagenum;
 
 		struct io_uring_sqe write_sqe = {.opcode = IORING_OP_WRITE,
@@ -911,15 +929,22 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 			result = db->cqes[idx].res;
 
 			if (result < 0 && cq_head != cq_tail) errno = -result;
-			if (result != PAGE_SIZE) {
-				errno = EIO;
+			if (result < 0) {
+				errno = -result;
 				result = -1;
 			}
 			break;
 		}
 	} while (true);
 
-	__aadd32(db->cq_head, 1);
+	if (result < 0) return -1;
 
+	__aadd32(db->cq_head, 1);
+	CommitUnion commit = {.commit.seqno = impl->commit.commit.seqno + 1,
+			      .commit.root = impl->root};
+
+	SuperBlock *sb = (void *)db->file_data;
+	CommitUnion expected = impl->commit;
+	result = !__cas128(&sb->commit.value, &expected.value, commit.value);
 	return result;
 }
