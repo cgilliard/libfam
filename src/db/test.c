@@ -78,7 +78,7 @@ Bench(famdb) {
 }
 
 Test(famdb_set) {
-#define SCRATCH_SIZE (8 * 1024 * 1024)
+#define SCRATCH_SIZE (2 * 1024 * 1024)
 #define TRIALS 9000
 	unlink("resources/4mb.dat");
 	i32 fd = open("resources/4mb.dat", O_CREAT | O_RDWR, 0600);
@@ -90,12 +90,12 @@ Test(famdb_set) {
 	i32 res;
 	FamDb *db = NULL;
 	FamDbTxn txn;
-	u8 *space = map(SCRATCH_SIZE);
+	u8 space[SCRATCH_SIZE];
 	FamDbScratch scratch = {.space = space, .capacity = SCRATCH_SIZE};
 	FamDbConfig config = {.queue_depth = 16,
 			      .pathname = "resources/4mb.dat",
-			      .lru_hash_buckets = 1024,
-			      .lru_capacity = 512};
+			      .lru_hash_buckets = 16,
+			      .lru_capacity = 150};
 
 	res = famdb_open(&db, &config);
 	ASSERT(!res, "famdb_open");
@@ -105,8 +105,7 @@ Test(famdb_set) {
 	__attribute__((aligned(32))) u8 keys[TRIALS][16] = {0};
 	__attribute__((aligned(32))) u8 values[TRIALS][32] = {0};
 	rng_init(&rng);
-	__attribute__((aligned(32))) u8 seed[32] = {0};
-	rng_test_seed(&rng, seed);
+	u64 cc, cc_sum = 0;
 	for (u64 i = 0; i < TRIALS; i++) {
 		rng_gen(&rng, keys[i], 16);
 		rng_gen(&rng, values[i], 32);
@@ -114,22 +113,29 @@ Test(famdb_set) {
 			keys[i][j] = (keys[i][j] % 26) + 'a';
 		for (u8 j = 0; j < 32; j++)
 			values[i][j] = (values[i][j] % 26) + 'a';
+		cc = cycle_counter();
 		res = famdb_set(&txn, keys[i], 16, values[i], 32, 0);
+		cc_sum += cycle_counter() - cc;
 		if (res) perror("famdb_set");
 		ASSERT(!res, "famdb_set");
 	}
+	// println("avg set={}", cc_sum / TRIALS);
 	u8 value_out[32] = {0};
+	cc_sum = 0;
 	for (u64 i = 0; i < TRIALS; i++) {
+		cc = cycle_counter();
 		res = famdb_get(&txn, keys[i], 16, value_out, 32, 0);
+		cc_sum += cycle_counter() - cc;
 		ASSERT_EQ(res, 32, "famdb_get {}", i);
 		ASSERT(!memcmp(value_out, values[i], 32), "value");
 	}
 	ASSERT_EQ(famdb_get(&txn, "0123456789ABCDEF", 16, value_out, 32, 0), -1,
 		  "not found");
+	// println("avg get={}", cc_sum / TRIALS);
+	(void)cc_sum;
 
 	famdb_close(db);
 	unlink("resources/4mb.dat");
-	munmap(space, SCRATCH_SIZE);
 #undef TRIALS
 #undef SCRATCH_SIZE
 }

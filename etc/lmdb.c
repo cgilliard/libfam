@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 	}
 
 	const char *path = argv[1];
-	size_t n = 1000000;
+	size_t n = 10000;
 
 	MDB_env *env = NULL;
 	MDB_dbi dbi;
