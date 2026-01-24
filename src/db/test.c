@@ -80,8 +80,8 @@ Bench(famdb) {
 Test(famdb_set) {
 #define SCRATCH_SIZE (8 * 1024 * 1024)
 #define TRIALS 9000
-	unlink("resources/1mb.dat");
-	i32 fd = open("resources/1mb.dat", O_CREAT | O_RDWR, 0600);
+	unlink("resources/4mb.dat");
+	i32 fd = open("resources/4mb.dat", O_CREAT | O_RDWR, 0600);
 	ASSERT(fd > 0, "open");
 	ASSERT(!fallocate(fd, 4 * 1024 * 1024), "fallocate");
 	close(fd);
@@ -93,7 +93,7 @@ Test(famdb_set) {
 	u8 *space = map(SCRATCH_SIZE);
 	FamDbScratch scratch = {.space = space, .capacity = SCRATCH_SIZE};
 	FamDbConfig config = {.queue_depth = 16,
-			      .pathname = "resources/1mb.dat",
+			      .pathname = "resources/4mb.dat",
 			      .lru_hash_buckets = 1024,
 			      .lru_capacity = 512};
 
@@ -128,7 +128,7 @@ Test(famdb_set) {
 		  "not found");
 
 	famdb_close(db);
-	unlink("resources/1mb.dat");
+	unlink("resources/4mb.dat");
 	munmap(space, SCRATCH_SIZE);
 #undef TRIALS
 #undef SCRATCH_SIZE
