@@ -38,7 +38,7 @@ typedef struct {
 typedef struct {
 	u8 _reserved[HASHTABLE_KEY_VALUE_OVERHEAD];
 	u64 key;
-	u8 data[];
+	u8 value[];
 } HashtableKeyValue;
 
 void hashtable_init(Hashtable *h, u64 hash_bucket_count, void **hash_buckets);

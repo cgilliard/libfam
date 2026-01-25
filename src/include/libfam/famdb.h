@@ -48,14 +48,17 @@ typedef struct {
 	i32 queue_depth;
 	u64 lru_capacity;
 	u64 lru_hash_buckets;
+	u64 scratch_hash_buckets;
+#if TEST == 1
 	bool debug_split_delete;
+#endif /* TEST */
 } FamDbConfig;
 
 typedef enum { CURSOR_FORWARD, CURSOR_BACKWARDS } CursorConfig;
 
 i32 famdb_open(FamDb **db, const FamDbConfig *config);
 void famdb_close(FamDb *db);
-i32 famdb_begin_txn(FamDbTxn *txn, FamDb *db, FamDbScratch *scratch);
+void famdb_txn_begin(FamDbTxn *txn, FamDb *db, FamDbScratch *scratch);
 i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void *value_out,
 	      u64 value_out_capacity, u64 offset);
 i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
@@ -69,7 +72,7 @@ i32 famdb_cursor_next(FamDbCursor *cur, void **key, u64 *keylen, void **val,
 		      u64 *vallen);
 void famdb_cursor_close(FamDbCursor *cur);
 
-i32 famdb_create_scratch(u64 size);
+i32 famdb_create_scratch(FamDbScratch *scratch, u64 size);
 void famdb_destroy_scratch(FamDbScratch *scratch);
 i32 famdb_reclaim(FamDb *db);
 
