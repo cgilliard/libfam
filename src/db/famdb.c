@@ -91,10 +91,14 @@ typedef struct {
 } FamDbTxnImpl;
 
 typedef struct {
-	u8 _reserved[HASHTABLE_KEY_VALUE_OVERHEAD];
-	u64 key;
 	u8 page[PAGE_SIZE];
 	u64 replaced_pageno;
+} HashtableEntryValue;
+
+typedef struct {
+	u8 _reserved[HASHTABLE_KEY_VALUE_OVERHEAD];
+	u64 key;
+	HashtableEntryValue value;
 } HashtableEntry;
 
 STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
@@ -180,27 +184,28 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 				return -1;                                   \
 		}                                                            \
 	})
-#define NEXT_PAGE(impl, page_ptr, pageno, key, key_len)                      \
-	({                                                                   \
-		*(page_ptr) = hashtable_get(impl->hashtable, *pageno);       \
-		if (!*(page_ptr)) {                                          \
-			if (famdb_get_page(impl, &(*page_ptr), *pageno) < 0) \
-				return -1;                                   \
-			HashtableEntry *nent =                               \
-			    ALLOC(impl, sizeof(HashtableEntry));             \
-			if (!nent) return -1;                                \
-			nent->replaced_pageno = *pageno;                     \
-			i64 npage = BITMAP_ALLOC_PAGE(impl->db);             \
-			if (npage < 0) return -1;                            \
-			nent->key = npage;                                   \
-			hashtable_put(impl->hashtable, (void *)nent);        \
-			fastmemcpy(nent->page, *(page_ptr), PAGE_SIZE);      \
-			*(page_ptr) = nent->page;                            \
-			if (*pageno == impl->root) impl->root = nent->key;   \
-			*pageno = nent->key;                                 \
-			/* TODO: must update parent pointer if               \
-				      it points to old page */               \
-		}                                                            \
+
+#define NEXT_PAGE(impl, page_ptr, pageno, key, key_len)                       \
+	({                                                                    \
+		*(page_ptr) = hashtable_get(impl->hashtable, *pageno);        \
+		if (!*(page_ptr)) {                                           \
+			if (famdb_get_page(impl, &(*page_ptr), *pageno) < 0)  \
+				return -1;                                    \
+			HashtableEntry *nent =                                \
+			    ALLOC(impl, sizeof(HashtableEntry));              \
+			if (!nent) return -1;                                 \
+			nent->value.replaced_pageno = *pageno;                \
+			i64 npage = BITMAP_ALLOC_PAGE(impl->db);              \
+			if (npage < 0) return -1;                             \
+			nent->key = npage;                                    \
+			hashtable_put(impl->hashtable, (void *)nent);         \
+			fastmemcpy(nent->value.page, *(page_ptr), PAGE_SIZE); \
+			*(page_ptr) = nent->value.page;                       \
+			if (*pageno == impl->root) impl->root = nent->key;    \
+			*pageno = nent->key;                                  \
+			/* TODO: must update parent pointer if                \
+				      it points to old page */                \
+		}                                                             \
 	})
 #define BITMAP_ALLOC_PAGE(db)                                            \
 	({                                                               \
@@ -572,10 +577,10 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	     i > sizeof(void *) * impl->db->config.scratch_hash_buckets +
 		     sizeof(Hashtable);
 	     i -= size) {
-		u64 *npagenum = (void *)(impl->scratch->space + i -
-					 (PAGE_SIZE + sizeof(u64) * 2));
-		u8 *page = (void *)(impl->scratch->space + i -
-				    (PAGE_SIZE + sizeof(u64)));
+		HashtableEntry *ent =
+		    (void *)(impl->scratch->space + i - sizeof(HashtableEntry));
+		u8 *page = ent->value.page;
+		u64 *npagenum = &ent->key;
 
 		println("write pn={},page={X}", *npagenum, (u64)page);
 		struct io_uring_sqe write_sqe = {.opcode = IORING_OP_WRITE,
