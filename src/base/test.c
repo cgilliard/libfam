@@ -793,6 +793,24 @@ void test_handler(i32 sig) {
 	sig_recv = true;
 }
 
+void test_restorer(void) {
+#ifdef __aarch64__
+	__asm__ volatile(
+	    "mov x8, #139\n"
+	    "svc #0\n" ::
+		: "x8", "memory");
+#elif defined(__x86_64__)
+	__asm__ volatile(
+	    "movq $15, %%rax\n"
+	    "syscall\n"
+	    :
+	    :
+	    : "%rax", "%rcx", "%r11", "memory");
+#else
+#error "Unsupported platform"
+#endif /* ARCH */
+}
+
 Test(signal) {
 	val = mmap(NULL, sizeof(u64), PROT_READ | PROT_WRITE,
 		   MAP_ANONYMOUS | MAP_SHARED, -1, 0);
@@ -803,7 +821,7 @@ Test(signal) {
 	i32 pid;
 	act.k_sa_handler = test_handler;
 	act.k_sa_flags = SA_RESTORER;
-	act.k_sa_restorer = NULL;
+	act.k_sa_restorer = test_restorer;
 	i32 v = rt_sigaction(SIGUSR1, &act, NULL, 8);
 	ASSERT(!v, "rt_sigaction");
 	if ((pid = fork()))
