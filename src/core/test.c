@@ -426,7 +426,7 @@ typedef struct {
 Test(hashtable) {
 #define HASH_BUCKETS 256
 #define TRIALS 512
-	Hashtable h;
+	Hashtable h = {0};
 	u64 hash_buckets[HASH_BUCKETS] = {0};
 	__attribute__((aligned(32))) TestHashtableKeyValue kvs[TRIALS] = {0};
 	Rng rng;
