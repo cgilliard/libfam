@@ -295,7 +295,7 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 
 			if (result < 0 && cq_head != cq_tail) errno = -result;
 			if (result != PAGE_SIZE) {
-				println("result={},ps={}", result, PAGE_SIZE);
+				println("xresult={},ps={}", result, PAGE_SIZE);
 				errno = EIO;
 				result = -1;
 			}
@@ -601,7 +601,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 				if (result < 0 && cq_head != cq_tail)
 					errno = -result;
 				if (result != PAGE_SIZE) {
-					println("result={},ps={}", result,
+					println("yresult={},ps={}", result,
 						PAGE_SIZE);
 					errno = EIO;
 					result = -1;
