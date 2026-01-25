@@ -577,6 +577,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		u8 *page = (void *)(impl->scratch->space + i -
 				    (PAGE_SIZE + sizeof(u64)));
 
+		println("write pn={},page={X}", *npagenum, (u64)page);
 		struct io_uring_sqe write_sqe = {.opcode = IORING_OP_WRITE,
 						 .flags = IOSQE_FIXED_FILE,
 						 .addr = (u64)page,
@@ -597,12 +598,13 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 			if (cq_tail != cq_head) {
 				u32 idx = cq_head & *db->cq_mask;
 				result = db->cqes[idx].res;
+				u64 ud = db->cqes[idx].user_data;
 
 				if (result < 0 && cq_head != cq_tail)
 					errno = -result;
 				if (result != PAGE_SIZE) {
-					println("yresult={},ps={}", result,
-						PAGE_SIZE);
+					println("yresult={},ps={},ud={}",
+						result, PAGE_SIZE, ud);
 					errno = EIO;
 					result = -1;
 				}
@@ -612,6 +614,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 
 		__aadd32(db->cq_head, 1);
 	}
+	if (result < 0) return -1;
 
 	struct io_uring_sqe sync_sqe = {.opcode = IORING_OP_FSYNC,
 					.fd = db->fd,
