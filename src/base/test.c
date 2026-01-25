@@ -1009,6 +1009,7 @@ Test(socket) {
 
 Test(sync_errors) {
 	Sync *sync;
+	i32 fd, v;
 	_debug_alloc_count = 0;
 	ASSERT_EQ(sync_init(&sync), -1, "alloc0");
 	_debug_alloc_count = I64_MAX;
@@ -1028,5 +1029,30 @@ Test(sync_errors) {
 	_debug_io_uring_setup_fail = true;
 	ASSERT_EQ(sync_init(&sync), -1, "io_uring_setup fail");
 	_debug_io_uring_setup_fail = false;
+
+	ASSERT_EQ(sync_init(&sync), 0, "sync success");
+	_debug_io_uring_enter2_fail = true;
+	ASSERT_EQ(
+	    sync_execute(sync,
+			 (const struct io_uring_sqe){.opcode = IORING_OP_NOP}),
+	    -1, "fail enter2");
+	_debug_io_uring_enter2_fail = false;
+
+	fd = open("resources/akjv5.txt", O_RDONLY, 0);
+	ASSERT(fd > 0, "open");
+	u8 buf[1024] = {0};
+	v = sync_execute(sync,
+			 (const struct io_uring_sqe){.opcode = IORING_OP_READ,
+						     .addr = (u64)buf,
+						     .fd = fd,
+						     .len = 7,
+						     .off = 0,
+						     .user_data = 1});
+
+	ASSERT_EQ(v, 7, "read");
+	ASSERT(!memcmp("Genesis", buf, 7), "equal");
+
+	close(fd);
+	sync_destroy(sync);
 }
 

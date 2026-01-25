@@ -48,12 +48,11 @@ struct Sync {
 	u32 *cq_mask;
 };
 
-#include <libfam/sysext.h>
 i32 sync_init(Sync **s) {
 	Sync *sync = NULL;
 
 	sync = mmap(NULL, sizeof(Sync), PROT_READ | PROT_WRITE,
-		    MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		    MAP_ANONYMOUS | MAP_SHARED, -1, 0);
 	if (sync == MAP_FAILED) return -1;
 
 	sync->sq_ring = NULL;
@@ -124,7 +123,9 @@ i32 sync_execute(Sync *sync, const struct io_uring_sqe sqe) {
 	__atomic_fetch_add(sync->sq_tail, 1, __ATOMIC_SEQ_CST);
 	ret = io_uring_enter2(sync->ring_fd, 1, 1, flag, NULL, 0);
 
-	if (ret >= 0) {
+	if (ret < 0)
+		__atomic_fetch_add(sync->sq_tail, 1, __ATOMIC_SEQ_CST);
+	else {
 		idx = cq_head & cq_mask;
 		result = sync->cqes[idx].res;
 		if (sync->cqes[idx].res < 0) {
@@ -132,9 +133,9 @@ i32 sync_execute(Sync *sync, const struct io_uring_sqe sqe) {
 			errno = -result;
 		} else
 			ret = result;
-	}
 
-	__atomic_fetch_add(sync->cq_head, 1, __ATOMIC_RELEASE);
+		__atomic_fetch_add(sync->cq_head, 1, __ATOMIC_RELEASE);
+	}
 
 	return ret < 0 ? -1 : ret;
 }
