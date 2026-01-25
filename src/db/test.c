@@ -96,7 +96,7 @@ Test(famdb1) {
 
 	ASSERT_EQ(famdb_get(&txn, "012345678901234a", 16, value_out,
 			    sizeof(value_out), 0),
-		  32, "fam_get");
+		  32, "fam_get1");
 	ASSERT(!memcmp(value_out,
 		       "0123456789012345"
 		       "0123456789012345",
@@ -105,7 +105,7 @@ Test(famdb1) {
 
 	ASSERT_EQ(famdb_get(&txn, "0123456789012342", 16, value_out,
 			    sizeof(value_out), 0),
-		  32, "fam_get");
+		  32, "fam_get2");
 	ASSERT(!memcmp(value_out,
 		       "0123456789012345"
 		       "0123456789012342",
