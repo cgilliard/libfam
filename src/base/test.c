@@ -841,25 +841,14 @@ Test(secure_zero) {
 	ASSERT(!memcmp(buf, (u8[32]){0}, 32), "not zero");
 }
 
-bool cas128(u128 *value, u128 *expected, u128 desired);
-/*
-PUBLIC bool cas128(u128 *value, u128 *expected, u128 desired) {
-	return __atomic_compare_exchange(value, expected, &desired, false,
-					 __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
-}
-*/
-
 Test(cas128) {
 	u128 value = 1;
 	u128 expected = 1;
 	u128 desired = 2;
 
-	/*
 	ASSERT(__atomic_compare_exchange(&value, &expected, &desired, false,
 					 __ATOMIC_SEQ_CST, __ATOMIC_RELAXED),
 	       "cas");
-	       */
-	ASSERT(cas128(&value, &expected, desired), "cas128 success");
 
 	ASSERT_EQ(value, desired, "cas success");
 	value = 1;
