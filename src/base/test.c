@@ -23,13 +23,6 @@
  *
  *******************************************************************************/
 
-#include <libfam/test_base.h>
-
-Test(basic) {}
-/*
-#include <libfam/async.h>
-#include <libfam/atomic.h>
-#include <libfam/builtin.h>
 #include <libfam/debug.h>
 #include <libfam/env.h>
 #include <libfam/limits.h>
@@ -39,13 +32,7 @@ Test(basic) {}
 #include <libfam/syscall.h>
 #include <libfam/sysext.h>
 #include <libfam/test_base.h>
-*/
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE 4096
-#endif /* PAGE_SIZE */
-
-/*
 typedef struct {
 	RbTreeNode _reserved;
 	u64 value;
@@ -357,18 +344,6 @@ Test(limits) {
 #pragma GCC diagnostic pop
 }
 
-Test(builtins) {
-	ASSERT_EQ(clz_u64(0xFFUL), 64 - 8, "0xFFULL");
-	ASSERT_EQ(clz_u64(0xFFFFUL), 64 - 16, "0xFFFFULL");
-	ASSERT_EQ(clz_u32(0xFFFFFF), 32 - 24, "0xFFFFFF");
-	ASSERT_EQ(clz_u32(0xFFFFFFFF), 0, "0xFFFFFFFF");
-	ASSERT_EQ(ctz_u32(0xFFFF0), 4, "ctz 0xFFFF0");
-	ASSERT_EQ(ctz_u64(0xFFFE0UL), 5, "ctz 0xFFFE0");
-	ASSERT_EQ(clz_u128(0xFFFFFFFFFFUL), 128 - 40, "0xFFFFFFFFFFUL");
-	ASSERT_EQ(clz_u128((u128)0x1 << 90), 128 - 90 - 1, "t1");
-	ASSERT_EQ(clz_u128(0), 128, "clz_128(0)");
-}
-
 Test(string_chr_cat) {
 	const char *in = "abcdefgh";
 	ASSERT_EQ(strchr(in, 'c'), in + 2, "strchr");
@@ -473,81 +448,87 @@ Test(error) {
 	ASSERT(!strcmp(strerror(ELOOP), "Too many symbolic links encountered"),
 	       "ELOOP → Too many symbolic links encountered");
 
-ASSERT(!strcmp(strerror(ENOTSOCK), "Socket operation on non-socket"),
-       "ENOTSOCK → Socket operation on non-socket");
-ASSERT(!strcmp(strerror(EDESTADDRREQ), "Destination address required"),
-       "EDESTADDRREQ → Destination address required");
-ASSERT(!strcmp(strerror(EMSGSIZE), "Message too long"),
-       "EMSGSIZE → Message too long");
-ASSERT(!strcmp(strerror(EPROTOTYPE), "Protocol wrong type for socket"),
-       "EPROTOTYPE → Protocol wrong type for socket");
-ASSERT(!strcmp(strerror(ENOPROTOOPT), "Protocol not available"),
-       "ENOPROTOOPT → Protocol not available");
-ASSERT(!strcmp(strerror(EPROTONOSUPPORT), "Protocol not supported"),
-       "EPROTONOSUPPORT → Protocol not supported");
-ASSERT(!strcmp(strerror(ESOCKTNOSUPPORT), "Socket type not supported"),
-       "ESOCKTNOSUPPORT → Socket type not supported");
-ASSERT(!strcmp(strerror(ENOTSUP), "Operation not supported"),
-       "ENOTSUP → Operation not supported");
-ASSERT(!strcmp(strerror(EAFNOSUPPORT),
-	       "Address family not supported by protocol"),
-       "EAFNOSUPPORT → Address family not supported by protocol");
-ASSERT(!strcmp(strerror(EADDRINUSE), "Address already in use"),
-       "EADDRINUSE → Address already in use");
-ASSERT(!strcmp(strerror(EADDRNOTAVAIL), "Cannot assign requested address"),
-       "EADDRNOTAVAIL → Cannot assign requested address");
-ASSERT(!strcmp(strerror(ENETDOWN), "Network is down"),
-       "ENETDOWN → Network is down");
-ASSERT(!strcmp(strerror(ENETUNREACH), "Network is unreachable"),
-       "ENETUNREACH → Network is unreachable");
-ASSERT(!strcmp(strerror(ECONNABORTED), "Software caused connection abort"),
-       "ECONNABORTED → Software caused connection abort");
-ASSERT(!strcmp(strerror(ECONNRESET), "Connection reset by peer"),
-       "ECONNRESET → Connection reset by peer");
-ASSERT(!strcmp(strerror(ENOBUFS), "No buffer space available"),
-       "ENOBUFS → No buffer space available");
-ASSERT(!strcmp(strerror(EISCONN), "Transport endpoint is already connected"),
-       "EISCONN → Transport endpoint is already connected");
-ASSERT(!strcmp(strerror(ENOTCONN), "Transport endpoint is not connected"),
-       "ENOTCONN → Transport endpoint is not connected");
-ASSERT(!strcmp(strerror(ESHUTDOWN),
-	       "Cannot send after transport endpoint shutdown"),
-       "ESHUTDOWN → Cannot send after transport endpoint shutdown");
-ASSERT(!strcmp(strerror(ETIMEDOUT), "Connection timed out"),
-       "ETIMEDOUT → Connection timed out");
-ASSERT(!strcmp(strerror(ECONNREFUSED), "Connection refused"),
-       "ECONNREFUSED → Connection refused");
-ASSERT(!strcmp(strerror(EHOSTDOWN), "Host is down"),
-       "EHOSTDOWN → Host is down");
-ASSERT(!strcmp(strerror(EHOSTUNREACH), "No route to host"),
-       "EHOSTUNREACH → No route to host");
-ASSERT(!strcmp(strerror(EALREADY), "Operation already in progress"),
-       "EALREADY → Operation already in progress");
-ASSERT(!strcmp(strerror(EINPROGRESS), "Operation now in progress"),
-       "EINPROGRESS → Operation now in progress");
-ASSERT(!strcmp(strerror(EOVERFLOW), "Value too large for defined data type"),
-       "EOVERFLOW → Value too large for defined data type");
-ASSERT(!strcmp(strerror(ECANCELED), "Operation Canceled"),
-       "ECANCELED → Operation Canceled");
+	ASSERT(!strcmp(strerror(ENOTSOCK), "Socket operation on non-socket"),
+	       "ENOTSOCK → Socket operation on non-socket");
+	ASSERT(!strcmp(strerror(EDESTADDRREQ), "Destination address required"),
+	       "EDESTADDRREQ → Destination address required");
+	ASSERT(!strcmp(strerror(EMSGSIZE), "Message too long"),
+	       "EMSGSIZE → Message too long");
+	ASSERT(!strcmp(strerror(EPROTOTYPE), "Protocol wrong type for socket"),
+	       "EPROTOTYPE → Protocol wrong type for socket");
+	ASSERT(!strcmp(strerror(ENOPROTOOPT), "Protocol not available"),
+	       "ENOPROTOOPT → Protocol not available");
+	ASSERT(!strcmp(strerror(EPROTONOSUPPORT), "Protocol not supported"),
+	       "EPROTONOSUPPORT → Protocol not supported");
+	ASSERT(!strcmp(strerror(ESOCKTNOSUPPORT), "Socket type not supported"),
+	       "ESOCKTNOSUPPORT → Socket type not supported");
+	ASSERT(!strcmp(strerror(ENOTSUP), "Operation not supported"),
+	       "ENOTSUP → Operation not supported");
+	ASSERT(!strcmp(strerror(EAFNOSUPPORT),
+		       "Address family not supported by protocol"),
+	       "EAFNOSUPPORT → Address family not supported by protocol");
+	ASSERT(!strcmp(strerror(EADDRINUSE), "Address already in use"),
+	       "EADDRINUSE → Address already in use");
+	ASSERT(
+	    !strcmp(strerror(EADDRNOTAVAIL), "Cannot assign requested address"),
+	    "EADDRNOTAVAIL → Cannot assign requested address");
+	ASSERT(!strcmp(strerror(ENETDOWN), "Network is down"),
+	       "ENETDOWN → Network is down");
+	ASSERT(!strcmp(strerror(ENETUNREACH), "Network is unreachable"),
+	       "ENETUNREACH → Network is unreachable");
+	ASSERT(
+	    !strcmp(strerror(ECONNABORTED), "Software caused connection abort"),
+	    "ECONNABORTED → Software caused connection abort");
+	ASSERT(!strcmp(strerror(ECONNRESET), "Connection reset by peer"),
+	       "ECONNRESET → Connection reset by peer");
+	ASSERT(!strcmp(strerror(ENOBUFS), "No buffer space available"),
+	       "ENOBUFS → No buffer space available");
+	ASSERT(!strcmp(strerror(EISCONN),
+		       "Transport endpoint is already connected"),
+	       "EISCONN → Transport endpoint is already connected");
+	ASSERT(
+	    !strcmp(strerror(ENOTCONN), "Transport endpoint is not connected"),
+	    "ENOTCONN → Transport endpoint is not connected");
+	ASSERT(!strcmp(strerror(ESHUTDOWN),
+		       "Cannot send after transport endpoint shutdown"),
+	       "ESHUTDOWN → Cannot send after transport endpoint shutdown");
+	ASSERT(!strcmp(strerror(ETIMEDOUT), "Connection timed out"),
+	       "ETIMEDOUT → Connection timed out");
+	ASSERT(!strcmp(strerror(ECONNREFUSED), "Connection refused"),
+	       "ECONNREFUSED → Connection refused");
+	ASSERT(!strcmp(strerror(EHOSTDOWN), "Host is down"),
+	       "EHOSTDOWN → Host is down");
+	ASSERT(!strcmp(strerror(EHOSTUNREACH), "No route to host"),
+	       "EHOSTUNREACH → No route to host");
+	ASSERT(!strcmp(strerror(EALREADY), "Operation already in progress"),
+	       "EALREADY → Operation already in progress");
+	ASSERT(!strcmp(strerror(EINPROGRESS), "Operation now in progress"),
+	       "EINPROGRESS → Operation now in progress");
+	ASSERT(!strcmp(strerror(EOVERFLOW),
+		       "Value too large for defined data type"),
+	       "EOVERFLOW → Value too large for defined data type");
+	ASSERT(!strcmp(strerror(ECANCELED), "Operation Canceled"),
+	       "ECANCELED → Operation Canceled");
 
-ASSERT(!strcmp(strerror(EWOULDBLOCK), "Resource temporarily unavailable"),
-       "EWOULDBLOCK → EAGAIN");
-ASSERT(!strcmp(strerror(EDEADLOCK), "Resource deadlock would occur"),
-       "EDEADLOCK → EDEADLK");
+	ASSERT(
+	    !strcmp(strerror(EWOULDBLOCK), "Resource temporarily unavailable"),
+	    "EWOULDBLOCK → EAGAIN");
+	ASSERT(!strcmp(strerror(EDEADLOCK), "Resource deadlock would occur"),
+	       "EDEADLOCK → EDEADLK");
 
-ASSERT(!strcmp(strerror(EDUPLICATE), "Duplicate entry"),
-       "EDUPLICATE → Duplicate entry");
-ASSERT(!strcmp(strerror(ETODO), "Feature not implemented"),
-       "ETODO → Feature not implemented");
+	ASSERT(!strcmp(strerror(EDUPLICATE), "Duplicate entry"),
+	       "EDUPLICATE → Duplicate entry");
+	ASSERT(!strcmp(strerror(ETODO), "Feature not implemented"),
+	       "ETODO → Feature not implemented");
 
-ASSERT(!strcmp(strerror(-1337), "Unknown error"),
-       "Negative unknown → Unknown error");
-ASSERT(!strcmp(strerror(99999), "Unknown error"),
-       "Large unknown → Unknown error");
+	ASSERT(!strcmp(strerror(-1337), "Unknown error"),
+	       "Negative unknown → Unknown error");
+	ASSERT(!strcmp(strerror(99999), "Unknown error"),
+	       "Large unknown → Unknown error");
 
-_debug_no_write = true;
-perror("test");
-_debug_no_write = false;
+	_debug_no_write = true;
+	perror("test");
+	_debug_no_write = false;
 }
 
 Test(errors2) {
@@ -738,7 +719,7 @@ Test(clone) {
 	pid = fork();
 	ASSERT(pid >= 0, "fork");
 	if (!pid) {
-		__aadd64(val, 1);
+		__atomic_fetch_add(val, 1, __ATOMIC_SEQ_CST);
 		while (1) yield();
 	} else {
 	}
@@ -746,20 +727,19 @@ Test(clone) {
 	pid2 = fork();
 	ASSERT(pid2 >= 0, "fork2");
 	if (!pid2) {
-		__aadd64(val, 1);
+		__atomic_fetch_add(val, 1, __ATOMIC_SEQ_CST);
 		while (1) yield();
 	} else {
 	}
 
-	while (__aload64(val) != 2) yield();
+	while (__atomic_load_n(val, __ATOMIC_SEQ_CST) != 2) yield();
 	kill(pid, SIGKILL);
 	kill(pid2, SIGKILL);
 	munmap(val, sizeof(u64));
 }
 
-void global_async_start_loop(void *ctx);
-
 Test(open1) {
+	i32 res;
 	struct statx st = {0};
 	u64 size = 4097;
 	unlink("/tmp/open1.dat");
@@ -768,15 +748,16 @@ Test(open1) {
 	errno = 0;
 	i32 fd = open("/tmp/open1.dat", O_CREAT | O_RDWR, 0600);
 	ASSERT(!fsize(fd), "fsize=0");
-	fdatasync(fd);
+	ASSERT(!fdatasync(fd), "fdatasync");
 	ASSERT(fd > 0, "fd>0 1");
-	ASSERT(!statx("/tmp/open1.dat", &st), "statx");
+	res = statx("/tmp/open1.dat", &st);
+	ASSERT(!res, "statx");
 	ASSERT(!st.stx_size, "size=0");
 
 	ASSERT(!fallocate(fd, size), "fallocate");
 
 	pwrite(fd, "abc", 3, 5);
-	fsync(fd);
+	ASSERT(!fsync(fd), "fsync");
 	u8 buf[4] = {0};
 	u8 cmp[4] = {0};
 	cmp[1] = 'a';
@@ -792,8 +773,6 @@ Test(open1) {
 	close(fd);
 	unlink("/tmp/open1.dat");
 	unlink("/tmp/open2.dat");
-
-	global_async_start_loop(NULL);
 }
 
 Test(gettime) {
@@ -805,7 +784,7 @@ bool sig_recv = false;
 u64 *val = NULL;
 void test_handler(i32 sig) {
 	ASSERT_EQ(sig, SIGUSR1, "sigusr1");
-	__aadd64(val, 1);
+	__atomic_fetch_add(val, 1, __ATOMIC_SEQ_CST);
 	sig_recv = true;
 }
 
@@ -851,31 +830,6 @@ Test(nanosleep) {
 	ASSERT_EQ(res, -1, "nsleep overflow");
 }
 
-extern Async *__global_async;
-Test(async_errs) {
-	u8 buf[1];
-	struct statx stx = {0};
-	async_add_queue(__global_async);
-	ASSERT_EQ(pwrite(2, "x", 1, 0), -1, "pwrite err");
-	ASSERT_EQ(pread(0, buf, 1, 0), -1, "pread err");
-	ASSERT_EQ(open("/tmp/abc", O_CREAT | O_RDONLY, 0600), -1, "open err");
-	ASSERT_EQ(close(-1), -1, "close err");
-	ASSERT_EQ(fallocate(2, 100), -1, "fallocate err");
-	ASSERT_EQ(fsync(2), -1, "fsync err");
-	ASSERT_EQ(fdatasync(2), -1, "fdatasync err");
-	ASSERT_EQ(nsleep(0), -1, "nsleep err");
-	ASSERT_EQ(usleep(0), -1, "usleep err");
-	ASSERT_EQ(unlink("/tmp/abc"), -1, "unlink err");
-	ASSERT_EQ(statx("/tmp/abc", NULL), -1, "statx err");
-	ASSERT_EQ(waitpid(1), -1, "waitpid err");
-	ASSERT_EQ(fstatx(2, &stx), -1, "fstatx err");
-	ASSERT_EQ(socket(0, 0, 0), -1, "socket err");
-	ASSERT_EQ(sendmsg(-1, NULL, 0), -1, "sendmsg err");
-	ASSERT_EQ(recvmsg(-1, NULL, 0), -1, "recvmsg err");
-	ASSERT_EQ(bind(0, NULL, 0), -1, "bind err");
-	async_sub_queue(__global_async);
-}
-
 Test(secure_zero) {
 	__attribute__((aligned(32))) u8 buf[32] = {1, 2, 3, 4};
 	ASSERT(memcmp(buf, (u8[32]){0}, 32), "not zero");
@@ -883,6 +837,7 @@ Test(secure_zero) {
 	ASSERT(!memcmp(buf, (u8[32]){0}, 32), "not zero");
 }
 
+/*
 Test(map) {
 	void *x;
 	u64 c = cycle_counter();

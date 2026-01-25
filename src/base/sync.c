@@ -108,27 +108,33 @@ i32 sync_init(Sync **s) {
 	*s = sync;
 	return 0;
 }
+
 i32 sync_execute(Sync *sync, const struct io_uring_sqe sqe) {
-	i32 res;
-	u32 index = *sync->sq_tail & *sync->sq_mask;
-	u32 cq_head = *sync->cq_head, idx;
+	i32 ret, result;
+	u32 cq_mask = *sync->cq_mask;
+	u32 sq_mask = *sync->sq_mask;
+	u32 sq_tail = *sync->sq_tail;
+	u32 index = sq_tail & sq_mask;
+	u32 cq_head = *sync->cq_head;
+	u32 idx, flag = IORING_ENTER_GETEVENTS;
 	sync->sq_array[index] = index;
 	sync->sqes[index] = sqe;
 	__atomic_fetch_add(sync->sq_tail, 1, __ATOMIC_SEQ_CST);
-	res = io_uring_enter2(sync->ring_fd, 1, 1, 0, NULL, 0);
+	ret = io_uring_enter2(sync->ring_fd, 1, 1, flag, NULL, 0);
 
-	if (res >= 0) {
-		idx = cq_head & *sync->cq_mask;
+	if (ret >= 0) {
+		idx = cq_head & cq_mask;
+		result = sync->cqes[idx].res;
 		if (sync->cqes[idx].res < 0) {
-			res = -1;
-			errno = -sync->cqes[idx].res;
+			ret = -1;
+			errno = -result;
 		} else
-			res = sync->cqes[idx].res;
+			ret = result;
 	}
 
 	__atomic_fetch_add(sync->cq_head, 1, __ATOMIC_RELEASE);
 
-	return res < 0 ? -1 : res;
+	return ret < 0 ? -1 : ret;
 }
 void sync_destroy(Sync *sync) {
 	if (sync) {
