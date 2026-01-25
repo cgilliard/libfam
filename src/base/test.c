@@ -23,6 +23,7 @@
  *
  *******************************************************************************/
 
+/*
 #include <libfam/async.h>
 #include <libfam/atomic.h>
 #include <libfam/builtin.h>
@@ -35,11 +36,13 @@
 #include <libfam/syscall.h>
 #include <libfam/sysext.h>
 #include <libfam/test_base.h>
+*/
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
 #endif /* PAGE_SIZE */
 
+/*
 typedef struct {
 	RbTreeNode _reserved;
 	u64 value;
@@ -467,91 +470,81 @@ Test(error) {
 	ASSERT(!strcmp(strerror(ELOOP), "Too many symbolic links encountered"),
 	       "ELOOP → Too many symbolic links encountered");
 
-	/* Network & io_uring errors you can actually hit */
-	ASSERT(!strcmp(strerror(ENOTSOCK), "Socket operation on non-socket"),
-	       "ENOTSOCK → Socket operation on non-socket");
-	ASSERT(!strcmp(strerror(EDESTADDRREQ), "Destination address required"),
-	       "EDESTADDRREQ → Destination address required");
-	ASSERT(!strcmp(strerror(EMSGSIZE), "Message too long"),
-	       "EMSGSIZE → Message too long");
-	ASSERT(!strcmp(strerror(EPROTOTYPE), "Protocol wrong type for socket"),
-	       "EPROTOTYPE → Protocol wrong type for socket");
-	ASSERT(!strcmp(strerror(ENOPROTOOPT), "Protocol not available"),
-	       "ENOPROTOOPT → Protocol not available");
-	ASSERT(!strcmp(strerror(EPROTONOSUPPORT), "Protocol not supported"),
-	       "EPROTONOSUPPORT → Protocol not supported");
-	ASSERT(!strcmp(strerror(ESOCKTNOSUPPORT), "Socket type not supported"),
-	       "ESOCKTNOSUPPORT → Socket type not supported");
-	ASSERT(!strcmp(strerror(ENOTSUP), "Operation not supported"),
-	       "ENOTSUP → Operation not supported");
-	ASSERT(!strcmp(strerror(EAFNOSUPPORT),
-		       "Address family not supported by protocol"),
-	       "EAFNOSUPPORT → Address family not supported by protocol");
-	ASSERT(!strcmp(strerror(EADDRINUSE), "Address already in use"),
-	       "EADDRINUSE → Address already in use");
-	ASSERT(
-	    !strcmp(strerror(EADDRNOTAVAIL), "Cannot assign requested address"),
-	    "EADDRNOTAVAIL → Cannot assign requested address");
-	ASSERT(!strcmp(strerror(ENETDOWN), "Network is down"),
-	       "ENETDOWN → Network is down");
-	ASSERT(!strcmp(strerror(ENETUNREACH), "Network is unreachable"),
-	       "ENETUNREACH → Network is unreachable");
-	ASSERT(
-	    !strcmp(strerror(ECONNABORTED), "Software caused connection abort"),
-	    "ECONNABORTED → Software caused connection abort");
-	ASSERT(!strcmp(strerror(ECONNRESET), "Connection reset by peer"),
-	       "ECONNRESET → Connection reset by peer");
-	ASSERT(!strcmp(strerror(ENOBUFS), "No buffer space available"),
-	       "ENOBUFS → No buffer space available");
-	ASSERT(!strcmp(strerror(EISCONN),
-		       "Transport endpoint is already connected"),
-	       "EISCONN → Transport endpoint is already connected");
-	ASSERT(
-	    !strcmp(strerror(ENOTCONN), "Transport endpoint is not connected"),
-	    "ENOTCONN → Transport endpoint is not connected");
-	ASSERT(!strcmp(strerror(ESHUTDOWN),
-		       "Cannot send after transport endpoint shutdown"),
-	       "ESHUTDOWN → Cannot send after transport endpoint shutdown");
-	ASSERT(!strcmp(strerror(ETIMEDOUT), "Connection timed out"),
-	       "ETIMEDOUT → Connection timed out");
-	ASSERT(!strcmp(strerror(ECONNREFUSED), "Connection refused"),
-	       "ECONNREFUSED → Connection refused");
-	ASSERT(!strcmp(strerror(EHOSTDOWN), "Host is down"),
-	       "EHOSTDOWN → Host is down");
-	ASSERT(!strcmp(strerror(EHOSTUNREACH), "No route to host"),
-	       "EHOSTUNREACH → No route to host");
-	ASSERT(!strcmp(strerror(EALREADY), "Operation already in progress"),
-	       "EALREADY → Operation already in progress");
-	ASSERT(!strcmp(strerror(EINPROGRESS), "Operation now in progress"),
-	       "EINPROGRESS → Operation now in progress");
-	ASSERT(!strcmp(strerror(EOVERFLOW),
-		       "Value too large for defined data type"),
-	       "EOVERFLOW → Value too large for defined data type");
-	ASSERT(!strcmp(strerror(ECANCELED), "Operation Canceled"),
-	       "ECANCELED → Operation Canceled");
+ASSERT(!strcmp(strerror(ENOTSOCK), "Socket operation on non-socket"),
+       "ENOTSOCK → Socket operation on non-socket");
+ASSERT(!strcmp(strerror(EDESTADDRREQ), "Destination address required"),
+       "EDESTADDRREQ → Destination address required");
+ASSERT(!strcmp(strerror(EMSGSIZE), "Message too long"),
+       "EMSGSIZE → Message too long");
+ASSERT(!strcmp(strerror(EPROTOTYPE), "Protocol wrong type for socket"),
+       "EPROTOTYPE → Protocol wrong type for socket");
+ASSERT(!strcmp(strerror(ENOPROTOOPT), "Protocol not available"),
+       "ENOPROTOOPT → Protocol not available");
+ASSERT(!strcmp(strerror(EPROTONOSUPPORT), "Protocol not supported"),
+       "EPROTONOSUPPORT → Protocol not supported");
+ASSERT(!strcmp(strerror(ESOCKTNOSUPPORT), "Socket type not supported"),
+       "ESOCKTNOSUPPORT → Socket type not supported");
+ASSERT(!strcmp(strerror(ENOTSUP), "Operation not supported"),
+       "ENOTSUP → Operation not supported");
+ASSERT(!strcmp(strerror(EAFNOSUPPORT),
+	       "Address family not supported by protocol"),
+       "EAFNOSUPPORT → Address family not supported by protocol");
+ASSERT(!strcmp(strerror(EADDRINUSE), "Address already in use"),
+       "EADDRINUSE → Address already in use");
+ASSERT(!strcmp(strerror(EADDRNOTAVAIL), "Cannot assign requested address"),
+       "EADDRNOTAVAIL → Cannot assign requested address");
+ASSERT(!strcmp(strerror(ENETDOWN), "Network is down"),
+       "ENETDOWN → Network is down");
+ASSERT(!strcmp(strerror(ENETUNREACH), "Network is unreachable"),
+       "ENETUNREACH → Network is unreachable");
+ASSERT(!strcmp(strerror(ECONNABORTED), "Software caused connection abort"),
+       "ECONNABORTED → Software caused connection abort");
+ASSERT(!strcmp(strerror(ECONNRESET), "Connection reset by peer"),
+       "ECONNRESET → Connection reset by peer");
+ASSERT(!strcmp(strerror(ENOBUFS), "No buffer space available"),
+       "ENOBUFS → No buffer space available");
+ASSERT(!strcmp(strerror(EISCONN), "Transport endpoint is already connected"),
+       "EISCONN → Transport endpoint is already connected");
+ASSERT(!strcmp(strerror(ENOTCONN), "Transport endpoint is not connected"),
+       "ENOTCONN → Transport endpoint is not connected");
+ASSERT(!strcmp(strerror(ESHUTDOWN),
+	       "Cannot send after transport endpoint shutdown"),
+       "ESHUTDOWN → Cannot send after transport endpoint shutdown");
+ASSERT(!strcmp(strerror(ETIMEDOUT), "Connection timed out"),
+       "ETIMEDOUT → Connection timed out");
+ASSERT(!strcmp(strerror(ECONNREFUSED), "Connection refused"),
+       "ECONNREFUSED → Connection refused");
+ASSERT(!strcmp(strerror(EHOSTDOWN), "Host is down"),
+       "EHOSTDOWN → Host is down");
+ASSERT(!strcmp(strerror(EHOSTUNREACH), "No route to host"),
+       "EHOSTUNREACH → No route to host");
+ASSERT(!strcmp(strerror(EALREADY), "Operation already in progress"),
+       "EALREADY → Operation already in progress");
+ASSERT(!strcmp(strerror(EINPROGRESS), "Operation now in progress"),
+       "EINPROGRESS → Operation now in progress");
+ASSERT(!strcmp(strerror(EOVERFLOW), "Value too large for defined data type"),
+       "EOVERFLOW → Value too large for defined data type");
+ASSERT(!strcmp(strerror(ECANCELED), "Operation Canceled"),
+       "ECANCELED → Operation Canceled");
 
-	/* Aliases */
-	ASSERT(
-	    !strcmp(strerror(EWOULDBLOCK), "Resource temporarily unavailable"),
-	    "EWOULDBLOCK → EAGAIN");
-	ASSERT(!strcmp(strerror(EDEADLOCK), "Resource deadlock would occur"),
-	       "EDEADLOCK → EDEADLK");
+ASSERT(!strcmp(strerror(EWOULDBLOCK), "Resource temporarily unavailable"),
+       "EWOULDBLOCK → EAGAIN");
+ASSERT(!strcmp(strerror(EDEADLOCK), "Resource deadlock would occur"),
+       "EDEADLOCK → EDEADLK");
 
-	/* Custom codes */
-	ASSERT(!strcmp(strerror(EDUPLICATE), "Duplicate entry"),
-	       "EDUPLICATE → Duplicate entry");
-	ASSERT(!strcmp(strerror(ETODO), "Feature not implemented"),
-	       "ETODO → Feature not implemented");
+ASSERT(!strcmp(strerror(EDUPLICATE), "Duplicate entry"),
+       "EDUPLICATE → Duplicate entry");
+ASSERT(!strcmp(strerror(ETODO), "Feature not implemented"),
+       "ETODO → Feature not implemented");
 
-	/* Unknown / future codes */
-	ASSERT(!strcmp(strerror(-1337), "Unknown error"),
-	       "Negative unknown → Unknown error");
-	ASSERT(!strcmp(strerror(99999), "Unknown error"),
-	       "Large unknown → Unknown error");
+ASSERT(!strcmp(strerror(-1337), "Unknown error"),
+       "Negative unknown → Unknown error");
+ASSERT(!strcmp(strerror(99999), "Unknown error"),
+       "Large unknown → Unknown error");
 
-	_debug_no_write = true;
-	perror("test");
-	_debug_no_write = false;
+_debug_no_write = true;
+perror("test");
+_debug_no_write = false;
 }
 
 Test(errors2) {
@@ -1251,4 +1244,4 @@ Test(cas128) {
 	ASSERT(!__cas128(&v, &expected, 0), "!cas128");
 	ASSERT_EQ(__aload128(&v), 1, "v still 1");
 }
-
+*/

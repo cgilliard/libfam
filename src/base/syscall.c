@@ -154,23 +154,6 @@ i32 getpid(void) {
 	RETURN_VALUE(v);
 }
 
-i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
-	       u64 option_len) {
-	i32 v;
-	v = (i32)raw_syscall(SYS_setsockopt, (i64)socket, (i64)level,
-			     (i64)option_name, (i64)option_value, option_len,
-			     0);
-	RETURN_VALUE(v);
-}
-
-i32 getsockname(i32 sockfd, struct sockaddr *restrict addr,
-		u64 *restrict addrlen) {
-	i32 v;
-	v = (i32)raw_syscall(SYS_getsockname, (i64)sockfd, (i64)addr,
-			     (i64)addrlen, 0, 0, 0);
-	RETURN_VALUE(v);
-}
-
 i32 kill(i32 pid, i32 signal) {
 	i32 v;
 	v = (i32)raw_syscall(SYS_kill, (i64)pid, (i64)signal, 0, 0, 0, 0);
@@ -295,6 +278,23 @@ i32 raw_close(i32 fd) {
 	if (!v) __asub64(&open_fds, 1);
 #endif /* TEST */
 
+	RETURN_VALUE(v);
+}
+
+i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
+	       u64 option_len) {
+	i32 v;
+	v = (i32)raw_syscall(SYS_setsockopt, (i64)socket, (i64)level,
+			     (i64)option_name, (i64)option_value, option_len,
+			     0);
+	RETURN_VALUE(v);
+}
+
+i32 getsockname(i32 sockfd, struct sockaddr *restrict addr,
+		u64 *restrict addrlen) {
+	i32 v;
+	v = (i32)raw_syscall(SYS_getsockname, (i64)sockfd, (i64)addr,
+			     (i64)addrlen, 0, 0, 0);
 	RETURN_VALUE(v);
 }
 

@@ -30,6 +30,7 @@
 
 struct statx;
 struct sockaddr;
+struct msghdr;
 
 void yield(void);
 u64 cycle_counter(void);
