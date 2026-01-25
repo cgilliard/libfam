@@ -842,10 +842,12 @@ Test(secure_zero) {
 }
 
 bool cas128(u128 *value, u128 *expected, u128 desired);
+/*
 PUBLIC bool cas128(u128 *value, u128 *expected, u128 desired) {
 	return __atomic_compare_exchange(value, expected, &desired, false,
 					 __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
 }
+*/
 
 Test(cas128) {
 	u128 value = 1;
