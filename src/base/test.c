@@ -680,6 +680,10 @@ Test(stack_fails) {
 	_debug_no_exit = false;
 }
 
+#ifndef PAGE_SIZE
+#define PAGE_SIZE 4096
+#endif /* PAGE_SIZE */
+
 Test(syscall) {
 	i32 pid = getpid();
 	i32 ret = kill(pid, 0);
@@ -696,13 +700,13 @@ Test(syscall) {
 	v = get_heap_bytes();
 	ASSERT_EQ(v, 0, "heap bytes = 0");
 
-	void *ptr = mmap(NULL, 4096, PROT_READ | PROT_WRITE,
+	void *ptr = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
 			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	ASSERT(ptr, "mmap");
 
 	v = get_heap_bytes();
-	ASSERT_EQ(v, 4096, "heap bytes = 4096");
-	ASSERT(!munmap(ptr, 4096), "munmap");
+	ASSERT_EQ(v, PAGE_SIZE, "heap bytes = PAGE_SIZE");
+	ASSERT(!munmap(ptr, PAGE_SIZE), "munmap");
 
 	v = get_heap_bytes();
 	ASSERT_EQ(v, 0, "heap bytes = 0 (munmap)");
@@ -838,12 +842,10 @@ Test(secure_zero) {
 }
 
 bool cas128(u128 *value, u128 *expected, u128 desired);
-/*
 PUBLIC bool cas128(u128 *value, u128 *expected, u128 desired) {
 	return __atomic_compare_exchange(value, expected, &desired, false,
 					 __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
 }
-*/
 
 Test(cas128) {
 	u128 value = 1;
