@@ -517,15 +517,21 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void *value_out,
 
 	do GET_PAGE(impl, &page, pageno, key, key_len);
 	while (PAGE_IS_INTERNAL(page));
+	perror("getpage");
 
-	println("elems={},pageno={}", PAGE_ELEMENTS(page), *pageno);
+	// println("elems={},pageno={}", PAGE_ELEMENTS(page), (u64)*pageno);
+	perror("z");
 
 	u64 nindex = PAGE_FIND_INDEX(page, key, key_len);
+	perror("y");
 	i32 cmp = PAGE_COMPARE_KEYS(page, key, key_len, nindex);
+	perror("x");
 	if (cmp) {
 		errno = ENOENT;
 		return -1;
 	}
+	// println("found!");
+	perror("pre memcpy");
 	u64 value_len =
 	    PAGE_KV_LEN(page, nindex) - PAGE_READ_KEY_LEN(page, nindex);
 	u64 min_len = min(value_out_capacity, value_len);

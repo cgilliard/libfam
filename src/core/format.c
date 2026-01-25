@@ -157,16 +157,17 @@ STATIC const u8 *find_next_placeholder(const u8 *p, FormatSpec *spec) {
 
 STATIC i32 format_try_resize(Formatter *f, u64 len) {
 	u64 needed = len + f->pos;
-
 	if (needed > f->capacity) {
 		u64 to_alloc = (needed + PAGE_SIZE - 1) & PAGE_MASK;
 		void *tmp = map(to_alloc);
 		if (!tmp) return -1;
+
 		fastmemcpy(tmp, f->buf, f->pos);
-		munmap(f->buf, f->capacity);
+		if (f->capacity) munmap(f->buf, f->capacity);
 		f->buf = tmp;
 		f->capacity = to_alloc;
 	}
+
 	return 0;
 }
 
@@ -340,7 +341,7 @@ cleanup:
 }
 
 PUBLIC void format_clear(Formatter *f) {
-	munmap(f->buf, f->capacity);
+	if (f->capacity) munmap(f->buf, f->capacity);
 	f->capacity = f->pos = 0;
 	f->buf = NULL;
 }

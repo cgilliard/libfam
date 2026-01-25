@@ -497,3 +497,11 @@ Test(hashtable_collisions) {
 
 	munmap(buckets, sizeof(void *) * 4);
 }
+
+Test(formaterr) {
+	errno = 0;
+	Formatter f = {0};
+	ASSERT_EQ(format_append(&f, "abc"), 0, "format_append");
+	format_clear(&f);
+	ASSERT_EQ(errno, 0, "no err");
+}
