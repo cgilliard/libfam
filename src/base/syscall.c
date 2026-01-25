@@ -153,13 +153,13 @@ PUBLIC void exit_group(i32 status) {
 		return v;           \
 	} while (0);
 
-i32 getpid(void) {
+PUBLIC i32 getpid(void) {
 	i32 v;
 	v = (i32)raw_syscall(SYS_getpid, 0, 0, 0, 0, 0, 0);
 	RETURN_VALUE(v);
 }
 
-i32 kill(i32 pid, i32 signal) {
+PUBLIC i32 kill(i32 pid, i32 signal) {
 	i32 v;
 	v = (i32)raw_syscall(SYS_kill, (i64)pid, (i64)signal, 0, 0, 0, 0);
 	RETURN_VALUE(v);
@@ -255,24 +255,6 @@ i32 clock_gettime(i32 clockid, struct timespec *tp) {
 			     0);
 	RETURN_VALUE(v);
 }
-
-#ifdef __aarch64__
-#define SYSCALL_RESTORER     \
-	__asm__ volatile(    \
-	    "mov x8, #139\n" \
-	    "svc #0\n" ::    \
-		: "x8", "memory");
-#elif defined(__x86_64__)
-#define SYSCALL_RESTORER        \
-	__asm__ volatile(       \
-	    "movq $15, %%rax\n" \
-	    "syscall\n"         \
-	    :                   \
-	    :                   \
-	    : "%rax", "%rcx", "%r11", "memory");
-#else
-#error "Unsupported platform"
-#endif /* ARCH */
 
 i32 raw_close(i32 fd) {
 	i32 v;
