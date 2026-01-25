@@ -561,13 +561,28 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 i32 famdb_txn_commit(FamDbTxn *txn) {
 	FamDbTxnImpl *impl = (void *)txn;
 	FamDb *db = impl->db;
-	i32 result = 0;
+	i32 result = 0, res;
 	u32 flags = IORING_ENTER_SQ_WAKEUP, index, cq_head, cq_tail;
 	u64 size = sizeof(HashtableEntry);
 	u64 count = 0;
+	struct iovec *iov =
+	    map(sizeof(struct iovec) * db->config.scratch_max_pages);
 
-	i32 res = io_uring_enter2(db->ring_fd, 0, 0, flags, NULL, 0);
-	if (res < 0) return -1;
+	for (u64 i = 0; i < db->config.scratch_max_pages; i++) {
+		iov[i].iov_len = PAGE_SIZE;
+		iov[i].iov_base = impl->scratch->space + i * PAGE_SIZE;
+	}
+
+	io_uring_register(db->ring_fd, IORING_UNREGISTER_BUFFERS, NULL, 0);
+	io_uring_register(db->ring_fd, IORING_REGISTER_BUFFERS, (void *)iov,
+			  db->config.scratch_max_pages);
+
+	res = io_uring_enter2(db->ring_fd, 0, 0, flags, NULL, 0);
+	if (res < 0) {
+		munmap(iov,
+		       sizeof(struct iovec) * db->config.scratch_max_pages);
+		return -1;
+	}
 
 	for (u64 i = impl->scratch_off;
 	     i > sizeof(void *) * impl->db->config.scratch_hash_buckets +
@@ -580,12 +595,17 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		u8 *page = impl->scratch->space + count * PAGE_SIZE;
 		fastmemcpy(page, ent->value.page, PAGE_SIZE);
 
-		struct io_uring_sqe write_sqe = {.opcode = IORING_OP_WRITE,
-						 .flags = IOSQE_FIXED_FILE,
-						 .addr = (u64)page,
-						 .off = (*npagenum) * PAGE_SIZE,
-						 .len = PAGE_SIZE,
-						 .user_data = ++count};
+		struct io_uring_sqe write_sqe = {
+		    .opcode = IORING_OP_WRITE_FIXED,
+		    .flags = IOSQE_FIXED_FILE,
+		    .buf_index = count,
+		    .fd = 0,
+		    .addr = (u64)page,
+		    .off = (*npagenum) * PAGE_SIZE,
+		    .len = PAGE_SIZE,
+		    .user_data = count + 1};
+
+		count++;
 
 		index = *db->sq_tail & *db->sq_mask;
 		db->sq_array[index] = index;
@@ -615,7 +635,11 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 
 		__aadd32(db->cq_head, 1);
 	}
-	if (result < 0) return -1;
+	if (result < 0) {
+		munmap(iov,
+		       sizeof(struct iovec) * db->config.scratch_max_pages);
+		return -1;
+	}
 
 	struct io_uring_sqe sync_sqe = {.opcode = IORING_OP_FSYNC,
 					.fd = db->fd,
@@ -642,7 +666,11 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		}
 	} while (true);
 
-	if (result < 0) return -1;
+	if (result < 0) {
+		munmap(iov,
+		       sizeof(struct iovec) * db->config.scratch_max_pages);
+		return -1;
+	}
 
 	__aadd32(db->cq_head, 1);
 	CommitUnion commit = {.commit.seqno = impl->commit.commit.seqno + 1,
@@ -651,5 +679,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	SuperBlock *sb = (void *)db->map;
 	CommitUnion expected = impl->commit;
 	result = !__cas128(&sb->commit.value, &expected.value, commit.value);
+	munmap(iov, sizeof(struct iovec) * db->config.scratch_max_pages);
+
 	return result;
 }
