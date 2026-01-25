@@ -120,8 +120,4 @@ Test(famdb1) {
 
 	famdb_close(db);
 	famdb_destroy_scratch(&scratch);
-
-	errno = 0;
-	println("x {}", errno);
-	perror("println");
 }
