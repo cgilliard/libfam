@@ -857,7 +857,7 @@ Test(cas128) {
 	ASSERT(!__atomic_compare_exchange(&value, &expected, &desired, false,
 					  __ATOMIC_SEQ_CST, __ATOMIC_RELAXED),
 	       "cas");
-	ASSERT_EQ(value, 1, "not updated");
+	ASSERT_EQ(__atomic_load_n(&value, __ATOMIC_SEQ_CST), 1, "not updated");
 }
 
 /*

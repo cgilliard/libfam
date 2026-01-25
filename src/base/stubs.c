@@ -49,3 +49,9 @@ PUBLIC _Bool __atomic_compare_exchange_16(volatile void *ptr, void *expected,
 					  i32 failure_memorder) {
 	return cas128(ptr, expected, desired);
 }
+
+PUBLIC u128 __atomic_load_16(volatile void *ptr, i32 memorder) {
+	u128 ret = 0;
+	cas128(ptr, &ret, ret);
+	return ret;
+}

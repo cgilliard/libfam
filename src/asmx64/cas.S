@@ -9,10 +9,10 @@ cas128:
    mov    0x8(%rsi),%rdx
    lock   cmpxchg16b (%rdi)
    sete   %cl
-   je     cas_success;
+   je     .Lsuccess;
    mov    %rax,(%rsi)
    mov    %rdx,0x8(%rsi)
-cas_success:
+.Lsuccess:
    mov    %ecx,%eax
    pop    %rbx
    ret
