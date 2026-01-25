@@ -25,8 +25,10 @@
 
 #include <libfam/format.h>
 #include <libfam/limits.h>
+#include <libfam/lru.h>
+#include <libfam/rng.h>
 #include <libfam/string.h>
-#include <libfam/test_base.h>
+#include <libfam/test.h>
 
 Test(string_u128) {
 	u128 i;
@@ -294,5 +296,114 @@ Test(format_errs) {
 	format_clear(&f3);
 	format_clear(&f4);
 	format_clear(&f5);
+}
+
+Test(lru_errors) {
+	ASSERT(!lru_init(0, 0), "einval");
+	_debug_alloc_count = 0;
+	ASSERT(!lru_init(1, 1), "alloc1");
+	_debug_alloc_count = I64_MAX;
+	_debug_alloc_count = 1;
+	ASSERT(!lru_init(1, 1), "alloc2");
+	_debug_alloc_count = I64_MAX;
+}
+
+Test(lru_cache) {
+	LruCache *cache = lru_init(1024, 2048);
+	ASSERT(cache, "cache");
+	u64 value = 2;
+	lru_put(cache, 1, &value);
+	ASSERT_EQ(&value, lru_head(cache), "head");
+	ASSERT_EQ(lru_get(cache, 2), NULL, "cache not found");
+	u64 *x = lru_get(cache, 1);
+	ASSERT_EQ(*x, 2, "cache found");
+	lru_destroy(cache);
+}
+
+Test(lru_cache_cycle) {
+	LruCache *cache = lru_init(256, 512);
+	u64 values[256];
+
+	ASSERT(cache, "cache");
+	for (u64 i = 0; i < 256; i++) {
+		values[i] = i + 1000;
+		lru_put(cache, i, &values[i]);
+	}
+	for (u64 i = 0; i < 256; i++) {
+		u64 *value = lru_get(cache, i);
+		ASSERT(value, "found {}", i);
+		ASSERT_EQ(*value, i + 1000, "value {}", i);
+	}
+
+	u64 x = 1256;
+	lru_put(cache, 256, &x);
+
+	ASSERT(!lru_get(cache, 0), "evicted");
+	x = 1001;
+	ASSERT(!memcmp(lru_get(cache, 1), &x, sizeof(u64)), "not evicted");
+
+	u64 x1 = 2000;
+	lru_put(cache, 1000, &x1);
+	ASSERT(!lru_get(cache, 2), "evicted");
+	x = 1001;
+	ASSERT(!memcmp(lru_get(cache, 1), &x, sizeof(u64)), "not evicted");
+	x = 1003;
+	ASSERT(!memcmp(lru_get(cache, 3), &x, sizeof(u64)), "not evicted");
+
+	lru_destroy(cache);
+}
+
+Test(lru_cache_consistent) {
+	LruCache *cache = lru_init(4, 2);
+	Rng rng;
+
+	rng_init(&rng);
+	u64 values[8] = {0};
+	rng_gen(&rng, values, sizeof(values));
+
+	for (u64 i = 0; i < 8; i++) lru_put(cache, i, &values[i]);
+	for (u64 i = 0; i < 4; i++) ASSERT(!lru_get(cache, i), "evicted {}", i);
+
+	u64 *tail = lru_tail(cache);
+	ASSERT_EQ(*tail, values[4], "tail");
+
+	for (u64 i = 4; i < 8; i++)
+		ASSERT_EQ(*(u64 *)lru_get(cache, i), values[i], "found {}", i);
+
+	lru_destroy(cache);
+}
+
+Bench(lru_cache_perf) {
+#define TRIALS 1000
+#define PRELOAD 100000
+	u64 arr[PRELOAD];
+	LruCache *cache = lru_init(1024 * 16, 1024 * 32);
+	u64 put_sum = 0, get_sum = 0;
+
+	for (u64 i = 0; i < PRELOAD; i++) arr[i] = i;
+
+	for (u64 i = 0; i < PRELOAD; i++) {
+		lru_put(cache, i, arr + i);
+	}
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		u64 cc = cycle_counter();
+		lru_put(cache, i, arr + i);
+		put_sum += cycle_counter() - cc;
+	}
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		u64 cc = cycle_counter();
+		u64 *x = lru_get(cache, i);
+		get_sum += cycle_counter() - cc;
+		ASSERT_EQ(*x, i, "x=i");
+	}
+
+	ASSERT(!lru_get(cache, TRIALS), "not found");
+
+	println("avg_get={} cycles,avg_put={} cycles", get_sum / TRIALS,
+		put_sum / TRIALS);
+
+	lru_destroy(cache);
 }
 
