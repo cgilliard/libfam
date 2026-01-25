@@ -508,10 +508,14 @@ void famdb_txn_begin(FamDbTxn *txn, FamDb *db, FamDbScratch *scratch) {
 	fastmemset(scratch->space, 0, scratch->capacity);
 
 	impl->scratch_off = sizeof(void *) * db->config.scratch_hash_buckets +
-			    sizeof(Hashtable);
-	impl->hashtable = (void *)impl->scratch->space;
+			    sizeof(Hashtable) +
+			    PAGE_SIZE * db->config.scratch_max_pages;
+	impl->hashtable = (void *)(impl->scratch->space +
+				   PAGE_SIZE * db->config.scratch_max_pages);
 	hashtable_init(impl->hashtable, db->config.scratch_hash_buckets,
-		       (void *)(impl->scratch->space + sizeof(Hashtable)));
+		       (void *)(impl->scratch->space +
+				PAGE_SIZE * db->config.scratch_max_pages +
+				sizeof(Hashtable)));
 	impl->commit.value = __aload128(&sb->commit.value);
 	impl->root = impl->commit.commit.root;
 }
@@ -578,6 +582,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 
 	for (u64 i = impl->scratch_off;
 	     i > sizeof(void *) * impl->db->config.scratch_hash_buckets +
+		     impl->db->config.scratch_max_pages * PAGE_SIZE +
 		     sizeof(Hashtable);
 	     i -= size) {
 		HashtableEntry *ent =
