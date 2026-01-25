@@ -301,7 +301,6 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 
 			if (result < 0 && cq_head != cq_tail) errno = -result;
 			if (result != PAGE_SIZE) {
-				println("xresult={},ps={}", result, PAGE_SIZE);
 				errno = EIO;
 				result = -1;
 			}
@@ -528,21 +527,13 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void *value_out,
 
 	do GET_PAGE(impl, &page, pageno, key, key_len);
 	while (PAGE_IS_INTERNAL(page));
-	perror("getpage");
-
-	// println("elems={},pageno={}", PAGE_ELEMENTS(page), (u64)*pageno);
-	perror("z");
 
 	u64 nindex = PAGE_FIND_INDEX(page, key, key_len);
-	perror("y");
 	i32 cmp = PAGE_COMPARE_KEYS(page, key, key_len, nindex);
-	perror("x");
 	if (cmp) {
 		errno = ENOENT;
 		return -1;
 	}
-	// println("found!");
-	perror("pre memcpy");
 	u64 value_len =
 	    PAGE_KV_LEN(page, nindex) - PAGE_READ_KEY_LEN(page, nindex);
 	u64 min_len = min(value_out_capacity, value_len);
@@ -578,8 +569,6 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	i32 res = io_uring_enter2(db->ring_fd, 0, 0, flags, NULL, 0);
 	if (res < 0) return -1;
 
-	u8 *tpage = map(PAGE_SIZE);
-
 	for (u64 i = impl->scratch_off;
 	     i > sizeof(void *) * impl->db->config.scratch_hash_buckets +
 		     impl->db->config.scratch_max_pages * PAGE_SIZE +
@@ -587,15 +576,13 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	     i -= size) {
 		HashtableEntry *ent =
 		    (void *)(impl->scratch->space + i - sizeof(HashtableEntry));
-		u8 *page = ent->value.page;
 		u64 *npagenum = &ent->key;
+		u8 *page = impl->scratch->space + count * PAGE_SIZE;
+		fastmemcpy(page, ent->value.page, PAGE_SIZE);
 
-		memcpy(tpage, page, PAGE_SIZE);
-
-		println("write pn={},page={X}", *npagenum, (u64)page);
 		struct io_uring_sqe write_sqe = {.opcode = IORING_OP_WRITE,
 						 .flags = IOSQE_FIXED_FILE,
-						 .addr = (u64)tpage,
+						 .addr = (u64)page,
 						 .off = (*npagenum) * PAGE_SIZE,
 						 .len = PAGE_SIZE,
 						 .user_data = ++count};
@@ -607,7 +594,6 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		if (IS_VALGRIND())
 			io_uring_enter2(db->ring_fd, 1, 0, flags, NULL, 0);
 	}
-	println("loop complete");
 
 	for (u64 i = 0; i < count; i++) {
 		do {
@@ -616,13 +602,10 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 			if (cq_tail != cq_head) {
 				u32 idx = cq_head & *db->cq_mask;
 				result = db->cqes[idx].res;
-				u64 ud = db->cqes[idx].user_data;
 
 				if (result < 0 && cq_head != cq_tail)
 					errno = -result;
 				if (result != PAGE_SIZE) {
-					println("yresult={},ps={},ud={}",
-						result, PAGE_SIZE, ud);
 					errno = EIO;
 					result = -1;
 				}
@@ -633,7 +616,6 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		__aadd32(db->cq_head, 1);
 	}
 	if (result < 0) return -1;
-	println("1");
 
 	struct io_uring_sqe sync_sqe = {.opcode = IORING_OP_FSYNC,
 					.fd = db->fd,
@@ -659,7 +641,6 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 			break;
 		}
 	} while (true);
-	println("2");
 
 	if (result < 0) return -1;
 
@@ -670,6 +651,5 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	SuperBlock *sb = (void *)db->map;
 	CommitUnion expected = impl->commit;
 	result = !__cas128(&sb->commit.value, &expected.value, commit.value);
-	munmap(tpage, PAGE_SIZE);
 	return result;
 }
