@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/format.h>
+#include <libfam/hashtable.h>
 #include <libfam/limits.h>
 #include <libfam/lru.h>
 #include <libfam/rng.h>
@@ -405,5 +406,43 @@ Bench(lru_cache_perf) {
 		put_sum / TRIALS);
 
 	lru_destroy(cache);
+#undef TRIALS
 }
 
+typedef struct {
+	u64 abc;
+	u32 def;
+	u8 ghi;
+	u64 xyz;
+	u8 padding[24];
+} MyValue;
+
+typedef struct {
+	u8 _reserved[HASHTABLE_KEY_VALUE_OVERHEAD];
+	u64 key;
+	MyValue value;
+} TestHashtableKeyValue;
+
+Test(hashtable) {
+#define HASH_BUCKETS 256
+#define TRIALS 512
+	Hashtable h;
+	u64 hash_buckets[HASH_BUCKETS] = {0};
+	__attribute__((aligned(32))) TestHashtableKeyValue kvs[TRIALS] = {0};
+	Rng rng;
+	hashtable_init(&h, HASH_BUCKETS, (void *)hash_buckets);
+	rng_init(&rng);
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		rng_gen(&rng, (void *)&kvs[i], sizeof(TestHashtableKeyValue));
+		hashtable_put(&h, (void *)&kvs[i]);
+	}
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		MyValue *value = hashtable_get(&h, kvs[i].key);
+		ASSERT(value, "found {}", i);
+		ASSERT_EQ(value->abc, kvs[i].value.abc, "value {}", i);
+	}
+
+	ASSERT(!hashtable_get(&h, 0), "not found");
+}
