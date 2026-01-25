@@ -23,12 +23,12 @@
  *
  *******************************************************************************/
 
-#include <libfam/main.h>
-#include <libfam/sysext.h>
+#include <libfam/types.h>
 
-i32 main(i32 argc, u8 **argv, u8 **envp) {
-	pwrite(2, "hi\n", 3, 0);
-	pwrite(2, "ok\n", 3, 0);
-	return 0;
-}
+typedef struct Sync Sync;
+struct io_uring_sqe;
+
+i32 sync_init(Sync **sync);
+i32 sync_execute(Sync *sync, const struct io_uring_sqe event, bool idle);
+void sync_destroy(Sync *sync);
 

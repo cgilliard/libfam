@@ -23,7 +23,26 @@
  *
  *******************************************************************************/
 
+#include <libfam/iouring.h>
+#include <libfam/sync.h>
 #include <libfam/sysext.h>
+#include <libfam/utils.h>
 
-i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) { return 0; }
+Sync *__global_sync = NULL;
+
+STATIC i32 global_sync_init(void) {
+	if (__global_sync) return 0;
+	return sync_init(&__global_sync);
+}
+
+PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
+	struct io_uring_sqe sqe = {.opcode = IORING_OP_WRITE,
+				   .addr = (u64)buf,
+				   .fd = fd,
+				   .len = len,
+				   .off = offset,
+				   .user_data = 1};
+	if (global_sync_init() < 0) return -1;
+	return sync_execute(__global_sync, sqe, true);
+}
 
