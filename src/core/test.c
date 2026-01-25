@@ -445,4 +445,19 @@ Test(hashtable) {
 	}
 
 	ASSERT(!hashtable_get(&h, 0), "not found");
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		HashtableKeyValue *kv =
+		    (void *)hashtable_remove(&h, kvs[i].key);
+		ASSERT(kv, "found on rem {}", i);
+		MyValue *mv = ((MyValue *)kv->value);
+		ASSERT_EQ(mv->abc, kvs[i].value.abc, "remove match {}", i);
+	}
+
+	ASSERT(!hashtable_remove(&h, kvs[0].key), "not found");
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		MyValue *value = hashtable_get(&h, kvs[i].key);
+		ASSERT(!value, "found {}", i);
+	}
 }
