@@ -46,7 +46,6 @@ i32 io_uring_register(u32 fd, u32 opcode, void *arg, u32 nr_args);
 i32 raw_close(i32 fd);
 i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
 		 struct rt_sigaction *oldact, u64 sigsetsize);
-void restorer(void);
 i32 getpid(void);
 i32 kill(i32 pid, i32 signal);
 

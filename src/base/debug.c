@@ -30,6 +30,7 @@ bool _debug_no_exit = false;
 
 #if TEST == 1
 bool _debug_io_uring_enter2_fail = false;
+bool _debug_io_uring_setup_fail = false;
 bool _debug_no_write = false;
 bool _debug_proc_format_all = false;
 bool _debug_compress_fail = false;

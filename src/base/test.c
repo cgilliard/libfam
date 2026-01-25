@@ -29,9 +29,14 @@
 #include <libfam/linux.h>
 #include <libfam/rbtree.h>
 #include <libfam/string.h>
+#include <libfam/sync.h>
 #include <libfam/syscall.h>
 #include <libfam/sysext.h>
 #include <libfam/test_base.h>
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE 4096
+#endif /* PAGE_SIZE */
 
 typedef struct {
 	RbTreeNode _reserved;
@@ -680,10 +685,6 @@ Test(stack_fails) {
 	_debug_no_exit = false;
 }
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE 4096
-#endif /* PAGE_SIZE */
-
 Test(syscall) {
 	i32 pid = getpid();
 	i32 ret = kill(pid, 0);
@@ -802,7 +803,7 @@ Test(signal) {
 	i32 pid;
 	act.k_sa_handler = test_handler;
 	act.k_sa_flags = SA_RESTORER;
-	act.k_sa_restorer = restorer;
+	act.k_sa_restorer = NULL;
 	i32 v = rt_sigaction(SIGUSR1, &act, NULL, 8);
 	ASSERT(!v, "rt_sigaction");
 	if ((pid = fork()))
@@ -860,7 +861,27 @@ Test(cas128) {
 	ASSERT_EQ(__atomic_load_n(&value, __ATOMIC_SEQ_CST), 1, "not updated");
 }
 
-/*
+Test(openfds) {
+	ASSERT(!get_open_fds(), "get open fds");
+	i32 fd = open("/tmp/openfds", O_CREAT | O_RDWR, 0600);
+	ASSERT_EQ(get_open_fds(), 1, "one open");
+	close(fd);
+	ASSERT(!get_open_fds(), "get open fds 0");
+	open_fds_reset();
+	ASSERT(!get_open_fds(), "get open fds 0");
+}
+
+Test(write_num) {
+	u64 cc = cycle_counter();
+	unlink("/tmp/write_num0");
+	i32 fd = open("/tmp/write_num0", O_CREAT | O_RDWR, 0600);
+	ASSERT(!write_num(fd, 0), "write_num");
+	close(fd);
+	unlink("/tmp/write_num0");
+	cc = cycle_counter() - cc;
+	ASSERT(cc, "cycle_counter");
+}
+
 Test(map) {
 	void *x;
 	u64 c = cycle_counter();
@@ -879,24 +900,6 @@ Test(map) {
 	close(fd);
 }
 
-Test(write_num) {
-	unlink("/tmp/write_num0");
-	i32 fd = open("/tmp/write_num0", O_CREAT | O_RDWR, 0600);
-	ASSERT(!write_num(fd, 0), "write_num");
-	close(fd);
-	unlink("/tmp/write_num0");
-}
-
-Test(openfds) {
-	ASSERT(!get_open_fds(), "get open fds");
-	i32 fd = open("/tmp/openfds", O_CREAT | O_RDWR, 0600);
-	ASSERT_EQ(get_open_fds(), 1, "one open");
-	close(fd);
-	ASSERT(!get_open_fds(), "get open fds 0");
-	open_fds_reset();
-	ASSERT(!get_open_fds(), "get open fds 0");
-}
-
 Test(pwrite_pread_fail) {
 	_debug_pwrite_fail = 0;
 	ASSERT_EQ(pwrite(2, "x\n", 2, 0), -1, "pwrite err");
@@ -906,164 +909,6 @@ Test(pwrite_pread_fail) {
 	u8 buf[2];
 	ASSERT_EQ(pread(0, buf, 2, 0), -1, "pread err");
 	_debug_pread_fail = I64_MAX;
-}
-
-Test(open) {
-	u8 buf[1024] = {0};
-	i32 fd;
-	const u8 *path = "/tmp/open_test1.dat";
-	unlink(path);
-	ASSERT_EQ(open(path, O_RDONLY, 0), -1, "not exist");
-	fd = open(path, O_CREAT | O_RDWR, 0700);
-	ASSERT(fd > 0, "fd");
-	ASSERT_EQ(pwrite(fd, "abc", 3, 0), 3, "pwrite");
-	close(fd);
-	fd = open(path, O_RDONLY, 0);
-	ASSERT(fd > 0, "rdonly");
-	ASSERT_EQ(pread(fd, buf, 3, 0), 3, "pread");
-	ASSERT(!memcmp(buf, "abc", 3), "eq");
-	ASSERT_EQ(pwrite(fd, "xyz", 3, 0), -1, "perm");
-	close(fd);
-	fd = open(path, O_RDWR, 0);
-	ASSERT(fd > 0, "rdwr");
-	ASSERT_EQ(pread(fd, buf, 3, 0), 3, "pread");
-	ASSERT(!memcmp(buf, "abc", 3), "eq");
-	ASSERT_EQ(pwrite(fd, "xyz", 3, 0), 3, "pwrite rdwr");
-	ASSERT_EQ(pread(fd, buf, 3, 0), 3, "pread");
-	ASSERT(!memcmp(buf, "xyz", 3), "eq");
-	close(fd);
-	unlink(path);
-}
-
-i32 complete_counter = 0;
-
-void on_complete(i32 res, u64 user_data, void *ctx) {
-	ASSERT_EQ(user_data, 123, "user_data");
-	ASSERT(res > 0, "new fd");
-	ASSERT(!ctx, "ctx");
-	__aadd64(&open_fds, 1);
-	close(res);
-	complete_counter++;
-}
-
-void on_start_loop(void *ctx) {}
-
-Test(async) {
-	u32 count;
-	struct open_how how = {.flags = O_CREAT | O_RDWR, .mode = 0600};
-	Async *async = NULL;
-	struct io_uring_sqe sqe1 = {
-	    .opcode = IORING_OP_OPENAT2,
-	    .fd = AT_FDCWD,
-	    .addr = (u64) "/tmp/async.dat",
-	    .len = sizeof(struct open_how),
-	    .off = (u64)&how,
-	    .user_data = 123,
-	};
-
-	unlink("/tmp/async.dat");
-	ASSERT(!exists("/tmp/async.dat"), "!exists");
-	ASSERT(!async_init(&async, 8, on_complete, on_start_loop, NULL),
-	       "async_init");
-	ASSERT(async, "async");
-	count = async_execute(async, (struct io_uring_sqe[]){sqe1}, 1, true);
-	ASSERT_EQ(complete_counter, 1, "callback");
-	ASSERT_EQ(count, 1, "count");
-	ASSERT(exists("/tmp/async.dat"), "exists");
-	async_destroy(async);
-	unlink("/tmp/async.dat");
-}
-
-u32 chain_status = 0;
-i32 chain_fd = 0;
-
-typedef struct {
-	Async *async;
-} AsyncHolder;
-
-void chain_complete(i32 res, u64 user_data, void *ctx) {
-	AsyncHolder *holder = ctx;
-	if (user_data == 123) {
-		chain_fd = res;
-		struct io_uring_sqe sqe1 = {
-		    .opcode = IORING_OP_FALLOCATE,
-		    .fd = res,
-		    .addr = 4096,
-		    .user_data = 124,
-		};
-
-		async_execute(holder->async, (struct io_uring_sqe[]){sqe1}, 1,
-			      false);
-	} else {
-		chain_status = 1;
-	}
-}
-
-Test(async_chain) {
-	AsyncHolder holder;
-	struct open_how how = {.flags = O_CREAT | O_RDWR, .mode = 0600};
-	Async *async = NULL;
-	struct io_uring_sqe sqe1 = {
-	    .opcode = IORING_OP_OPENAT2,
-	    .fd = AT_FDCWD,
-	    .addr = (u64) "/tmp/async_chain.dat",
-	    .len = sizeof(struct open_how),
-	    .off = (u64)&how,
-	    .user_data = 123,
-	};
-
-	unlink("/tmp/async_chain.dat");
-	ASSERT(!exists("/tmp/async_chain.dat"), "!exists");
-	ASSERT(!async_init(&async, 8, chain_complete, on_start_loop, &holder),
-	       "async_init");
-	holder.async = async;
-	ASSERT(async, "async");
-	async_execute(async, (struct io_uring_sqe[]){sqe1}, 1, false);
-	while (!chain_status) async_execute(async, NULL, 0, true);
-	ASSERT(exists("/tmp/async_chain.dat"), "exists");
-
-	struct statx st = {0};
-
-	statx("/tmp/async_chain.dat", &st);
-	ASSERT_EQ(st.stx_size, 4096, "size=4096");
-
-	close(chain_fd);
-	__aadd64(&open_fds, 1);
-
-	async_destroy(async);
-	unlink("/tmp/async_chain.dat");
-}
-
-Test(async_errors) {
-	Async *async;
-	ASSERT_EQ(
-	    async_init(&async, U32_MAX, chain_complete, on_start_loop, NULL),
-	    -1, "queue too large");
-
-	_debug_alloc_count = 0;
-	ASSERT_EQ(async_init(&async, 1, chain_complete, on_start_loop, NULL),
-		  -1, "alloc0");
-	_debug_alloc_count = I64_MAX;
-
-	_debug_alloc_count = 1;
-	ASSERT_EQ(async_init(&async, 1, chain_complete, on_start_loop, NULL),
-		  -1, "alloc1");
-	_debug_alloc_count = I64_MAX;
-
-	_debug_alloc_count = 2;
-	ASSERT_EQ(async_init(&async, 1, chain_complete, on_start_loop, NULL),
-		  -1, "alloc2");
-	_debug_alloc_count = I64_MAX;
-
-	_debug_alloc_count = 3;
-	ASSERT_EQ(async_init(&async, 1, chain_complete, on_start_loop, NULL),
-		  -1, "alloc3");
-	_debug_alloc_count = I64_MAX;
-
-	ASSERT(!async_init(&async, 1, chain_complete, on_start_loop, NULL),
-	       "init success");
-	ASSERT_EQ(async_execute(async, NULL, 2, false), -1, "queue too big");
-	async_destroy(async);
 }
 
 Test(misc) {
@@ -1144,6 +989,30 @@ Test(socket) {
 	close(sfd);
 }
 
+Test(sync_errors) {
+	Sync *sync;
+	_debug_alloc_count = 0;
+	ASSERT_EQ(sync_init(&sync), -1, "alloc0");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 1;
+	ASSERT_EQ(sync_init(&sync), -1, "alloc1");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 2;
+	ASSERT_EQ(sync_init(&sync), -1, "alloc2");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_alloc_count = 3;
+	ASSERT_EQ(sync_init(&sync), -1, "alloc3");
+	_debug_alloc_count = I64_MAX;
+
+	_debug_io_uring_setup_fail = true;
+	ASSERT_EQ(sync_init(&sync), -1, "io_uring_setup fail");
+	_debug_io_uring_setup_fail = false;
+}
+
+/*
 u64 *test_async_value = NULL;
 u64 *ensure_inflight = NULL;
 

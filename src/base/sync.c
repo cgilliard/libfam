@@ -48,6 +48,7 @@ struct Sync {
 	u32 *cq_mask;
 };
 
+#include <libfam/sysext.h>
 i32 sync_init(Sync **s) {
 	Sync *sync = NULL;
 
@@ -93,6 +94,7 @@ i32 sync_init(Sync **s) {
 	if (sync->sqes == MAP_FAILED) {
 		sync->sqes = NULL;
 		sync_destroy(sync);
+		return -1;
 	}
 
 	sync->sq_tail = (u32 *)(sync->sq_ring + sync->params.sq_off.tail);

@@ -284,3 +284,75 @@ PUBLIC i32 exists(const u8 *pathname) {
 	return 0;
 }
 
+PUBLIC i32 socket(i32 domain, i32 type, i32 protocol) {
+	i32 res;
+	struct io_uring_sqe sqe = {
+	    .opcode = IORING_OP_SOCKET,
+	    .fd = domain,
+	    .off = type,
+	    .len = protocol,
+	    .user_data = 1,
+	};
+
+	if (global_sync_init() < 0) return -1;
+	res = sync_execute(__global_sync, sqe);
+
+#if TEST == 1
+	if (res > 0) __atomic_fetch_add(&open_fds, 1, __ATOMIC_SEQ_CST);
+#endif /* TEST */
+
+	return res;
+}
+
+PUBLIC i64 sendmsg(i32 socket, const struct msghdr *message, i32 flags) {
+	struct io_uring_sqe sqe = {
+	    .opcode = IORING_OP_SENDMSG,
+	    .fd = socket,
+	    .addr = (u64)message,
+	    .msg_flags = flags,
+	    .user_data = 1,
+	};
+	if (global_sync_init() < 0) return -1;
+	return sync_execute(__global_sync, sqe);
+}
+
+PUBLIC i64 recvmsg(i32 socket, struct msghdr *message, i32 flags) {
+	struct io_uring_sqe sqe = {.opcode = IORING_OP_RECVMSG,
+				   .fd = socket,
+				   .addr = (u64)message,
+				   .msg_flags = flags,
+				   .user_data = 1};
+	if (global_sync_init() < 0) return -1;
+	return sync_execute(__global_sync, sqe);
+}
+
+PUBLIC i64 bind(i32 sockfd, const struct sockaddr *addr, u64 addrlen) {
+	struct io_uring_sqe sqe = {.opcode = IORING_OP_BIND,
+				   .fd = sockfd,
+				   .addr = (u64)addr,
+				   .addr2 = addrlen,
+				   .user_data = 1};
+	if (global_sync_init() < 0) return -1;
+	return sync_execute(__global_sync, sqe);
+}
+
+PUBLIC void *map(u64 length) {
+	void *v = mmap(NULL, length, PROT_READ | PROT_WRITE,
+		       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (v == MAP_FAILED) return NULL;
+	return v;
+}
+PUBLIC void *fmap(i32 fd, i64 size, i64 offset) {
+	void *v =
+	    mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+	if (v == MAP_FAILED) return NULL;
+	return v;
+}
+
+PUBLIC void *smap(u64 length) {
+	void *v = mmap(NULL, length, PROT_READ | PROT_WRITE,
+		       MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+	if (v == MAP_FAILED) return NULL;
+	return v;
+}
+

@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/debug.h>
+#include <libfam/exit.h>
 #include <libfam/linux.h>
 #include <libfam/sysext.h>
 #include <libfam/types.h>
@@ -131,23 +132,8 @@ void __gcov_dump(void);
 	SYSCALL_EXIT
 #endif /* COVERAGE */
 
-#define MAX_EXITS 100
-
-typedef struct {
-	void (*exit_fn)(void);
-} ExitEntry;
-
-static i32 cur_exits = 0;
-static ExitEntry exits[MAX_EXITS];
-
-void add_exit_fn(void (*exit_fn)(void)) {
-	if (cur_exits >= MAX_EXITS) {
-		const u8 *msg = (void *)"too many exits!";
-		pwrite(2, msg, __builtin_strlen((void *)msg), 0);
-		return;
-	}
-	exits[cur_exits++].exit_fn = exit_fn;
-}
+i32 cur_exits = 0;
+ExitEntry exits[MAX_EXITS];
 
 PUBLIC void exit_group(i32 status) {
 	for (u32 i = 0; i < cur_exits; i++) exits[i].exit_fn();
@@ -233,6 +219,9 @@ i32 rt_sigaction(i32 signum, const struct rt_sigaction *act,
 
 i32 io_uring_setup(u32 entries, struct io_uring_params *params) {
 	i32 v;
+#if TEST == 1
+	if (_debug_io_uring_setup_fail) return -1;
+#endif /* TEST */
 
 	v = (i32)raw_syscall(SYS_io_uring_setup, (i64)entries, (i64)params, 0,
 			     0, 0, 0);
@@ -281,14 +270,6 @@ i32 clock_gettime(i32 clockid, struct timespec *tp) {
 	    :                   \
 	    :                   \
 	    : "%rax", "%rcx", "%r11", "memory");
-#else
-#error "Unsupported platform"
-#endif /* ARCH */
-
-#ifdef __aarch64__
-void restorer(void) { SYSCALL_RESTORER; }
-#elif defined(__x86_64__)
-__attribute__((naked)) void restorer(void) { SYSCALL_RESTORER; }
 #else
 #error "Unsupported platform"
 #endif /* ARCH */

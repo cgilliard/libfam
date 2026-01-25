@@ -26,7 +26,26 @@
 #ifndef _EXIT_H
 #define _EXIT_H
 
-void add_exit_fn(void (*exit_fn)(void));
+#include <libfam/sysext.h>
+#include <libfam/types.h>
+
+#define MAX_EXITS 100
+
+typedef struct {
+	void (*exit_fn)(void);
+} ExitEntry;
+
+extern i32 cur_exits;
+extern ExitEntry exits[MAX_EXITS];
+
+static inline void add_exit_fn(void (*exit_fn)(void)) {
+	if (cur_exits >= MAX_EXITS) {
+		const u8 *msg = (void *)"too many exits!";
+		pwrite(2, msg, __builtin_strlen((void *)msg), 0);
+		return;
+	}
+	exits[cur_exits++].exit_fn = exit_fn;
+}
 
 #define ON_EXIT(name)                                                  \
 	void __##name##__on_exit(void);                                \
@@ -36,3 +55,4 @@ void add_exit_fn(void (*exit_fn)(void));
 	void __##name##__on_exit(void)
 
 #endif /* _EXIT_H */
+
