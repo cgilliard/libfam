@@ -23,7 +23,6 @@
  *
  *******************************************************************************/
 
-#include <libfam/atomic.h>
 #include <libfam/debug.h>
 #include <libfam/linux.h>
 #include <libfam/types.h>
@@ -173,7 +172,9 @@ void *mmap(void *addr, u64 length, i32 prot, i32 flags, i32 fd, i64 offset) {
 		return (void *)-1;
 	} else {
 #if TEST == 1
-		__aadd64(&heap_bytes, (length + PAGE_SIZE - 1) & PAGE_MASK);
+		__atomic_fetch_add(&heap_bytes,
+				   (length + PAGE_SIZE - 1) & PAGE_MASK,
+				   __ATOMIC_SEQ_CST);
 #endif /* TEST */
 		return ret;
 	}
@@ -188,7 +189,8 @@ i32 munmap(void *addr, u64 len) {
 	}
 
 #if TEST == 1
-	__asub64(&heap_bytes, (len + PAGE_SIZE - 1) & PAGE_MASK);
+	__atomic_fetch_sub(&heap_bytes, (len + PAGE_SIZE - 1) & PAGE_MASK,
+			   __ATOMIC_SEQ_CST);
 #endif /* TEST */
 
 	return v;
@@ -215,7 +217,7 @@ i32 io_uring_setup(u32 entries, struct io_uring_params *params) {
 	v = (i32)raw_syscall(SYS_io_uring_setup, (i64)entries, (i64)params, 0,
 			     0, 0, 0);
 #if TEST == 1
-	if (v >= 0) __aadd64(&open_fds, 1);
+	if (v >= 0) __atomic_fetch_add(&open_fds, 1, __ATOMIC_SEQ_CST);
 #endif /* TEST */
 	RETURN_VALUE(v);
 }
@@ -275,7 +277,7 @@ i32 raw_close(i32 fd) {
 	i32 v;
 	v = (i32)raw_syscall(SYS_close, (i64)fd, 0, 0, 0, 0, 0);
 #if TEST == 1
-	if (!v) __asub64(&open_fds, 1);
+	if (!v) __atomic_fetch_sub(&open_fds, 1, __ATOMIC_SEQ_CST);
 #endif /* TEST */
 
 	RETURN_VALUE(v);
