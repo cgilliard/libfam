@@ -1,0 +1,165 @@
+/********************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2025-2026 Christopher Gilliard
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
+
+#include <libfam/limits.h>
+#include <libfam/string.h>
+#include <libfam/test_base.h>
+
+Test(string_u128) {
+	u128 i;
+	u128 v1 = 1234;
+	i128 v2 = -5678;
+	u8 buf[MAX_I128_STRING_LEN];
+	ASSERT(u128_to_string(buf, v1, Int128DisplayTypeDecimal) > 0,
+	       "u128_to_string");
+	ASSERT(!strcmp(buf, "1234"), "1234");
+
+	ASSERT(i128_to_string(buf, v2, Int128DisplayTypeDecimal) > 0,
+	       "i128_to_string");
+	ASSERT(!strcmp(buf, "-5678"), "-5678");
+
+	for (i = 0; i < 100000 * 10000; i += 10000) {
+		u128 v = i;
+		u128 vout;
+		u128_to_string(buf, v, Int128DisplayTypeDecimal);
+		string_to_u128(buf, strlen(buf), &vout);
+		ASSERT_EQ(v, vout, "v=vout");
+	}
+
+	ASSERT_EQ(i128_to_string(buf, 0x123, Int128DisplayTypeHexUpper), 5,
+		  "len=5");
+	ASSERT(!strcmp(buf, "0x123"), "string 0x123");
+
+	ASSERT_EQ(i128_to_string(buf, 0xF, Int128DisplayTypeBinary), 4,
+		  "binary 0xF");
+	ASSERT(!strcmp(buf, "1111"), "string 1111");
+
+	ASSERT(u128_to_string(buf, 9993, Int128DisplayTypeCommas) > 0,
+	       "commas");
+	ASSERT(!strcmp(buf, "9,993"), "comma verify");
+}
+
+u128 __umodti3(u128 a, u128 b);
+u128 __udivti3(u128 a, u128 b);
+
+Test(stubs) {
+	u128 v1 = (u128)111 << 77;
+	u128 v2 = (u128)333 << 77;
+	ASSERT_EQ(__umodti3(v2, v1), 0, "umod0");
+
+	v1 = 1;
+	v2 = (u128)U64_MAX + 1;
+	ASSERT_EQ(__umodti3(v2, v1), 0, "umod1");
+
+	ASSERT_EQ(__udivti3(100, 7), 14, "div_small1");
+	ASSERT_EQ(__umodti3(100, 7), 2, "mod_small1");
+
+	ASSERT_EQ(__udivti3(123456789ULL, 12345), 10000, "div_small2");
+	ASSERT_EQ(__umodti3(123456789ULL, 12345), 6789, "mod_small2");
+
+	ASSERT_EQ(__udivti3(0xFFFFFFFFFFFFFFFFULL, 1), 0xFFFFFFFFFFFFFFFFULL,
+		  "div_by_1");
+	ASSERT_EQ(__umodti3(0xFFFFFFFFFFFFFFFFULL, 1), 0, "mod_by_1");
+
+	ASSERT_EQ(__udivti3(0, 42), 0, "div_zero");
+	ASSERT_EQ(__umodti3(0, 42), 0, "mod_zero");
+
+	u128 max = (u128)~0ULL;
+	ASSERT_EQ(__udivti3(max, max), 1, "div_max_max");
+	ASSERT_EQ(__umodti3(max, max), 0, "mod_max_max");
+
+	ASSERT_EQ(__udivti3(max, 1), max, "div_max_1");
+	ASSERT_EQ(__umodti3(max, 1), 0, "mod_max_1");
+
+	u128 pow2_64 = (u128)1 << 64;
+	ASSERT_EQ(__udivti3(pow2_64, (u128)1 << 32), (u128)1 << 32,
+		  "div_pow2_1");
+	ASSERT_EQ(__umodti3(pow2_64, (u128)1 << 32), 0, "mod_pow2_1");
+
+	ASSERT_EQ(__udivti3(max, (u128)1 << 70), max >> 70, "div_max_pow2");
+	ASSERT_EQ(__umodti3(max, (u128)1 << 70), max & (((u128)1 << 70) - 1),
+		  "mod_max_pow2");
+
+	u128 a = ((u128)1 << 70) + 0x123456789ABCDEF0ULL;
+	u128 b = (u128)0xFEDCBA9876543210ULL;
+	u128 expected_q = a / b;
+	u128 expected_r = a % b;
+	ASSERT_EQ(__udivti3(a, b), expected_q, "div_high_bits");
+	ASSERT_EQ(__umodti3(a, b), expected_r, "mod_high_bits");
+
+	u128 big_divisor = ((u128)1 << 64) + 12345;
+	u128 multiple = big_divisor * 1000;
+	ASSERT_EQ(__udivti3(multiple, big_divisor), 1000,
+		  "div_big_divisor_exact");
+	ASSERT_EQ(__umodti3(multiple, big_divisor), 0, "mod_big_divisor_exact");
+
+	ASSERT_EQ(__umodti3(1000, 999), 1, "mod_large_remainder");
+	ASSERT_EQ(__udivti3(1000, 999), 1, "div_large_remainder");
+
+	ASSERT_EQ(__udivti3(7, 8), 0, "div_small_divisor_larger");
+	ASSERT_EQ(__umodti3(7, 8), 7, "mod_small_divisor_larger");
+}
+
+Test(stubs2) {
+	u128 a = (u128)0xFFFFFFFFFFFFFFFF << 64 | 0xFFFFFFFFFFFFFFFF;
+	u128 b = (u128)0x8000000000000000ULL;
+	u128 c;
+	u128 x = a % b;
+	ASSERT_EQ(x, 9223372036854775807, "9223372036854775807");
+	a = (u128)0xFFFFFFFFFFFFFFFF << 64 | 0xFFFFFFFFFFFFFFFF;
+	b = (u128)0xFFFFFFFFFFFFFFFFULL;
+	x = a % b;
+	ASSERT(!x, "x=0");
+	a = (u128)0x0000000100000000 << 64 | 0xFFFFFFFFFFFFFFFF;
+	b = (u128)0x0000000100000001ULL;
+	x = a % b;
+	ASSERT_EQ(x, 4294967296, "x=4294967296");
+	a = ((u128)0xFFFFFFFF00000000ULL << 64) | 0xFFFFFFFFFFFFFFFFULL;
+	b = 0xFFFFFFFF80000000ULL;
+	x = a % b;
+	ASSERT_EQ(x, 13835058055282163711ULL, "x=13835058055282163711");
+
+	a = 12345;
+	b = 123;
+	c = a / b;
+	ASSERT_EQ(c, 100, "100");
+	a = ((u128)0x1) << 70;
+	b = 1;
+	c = a / b;
+	ASSERT_EQ(c, a, "c=a");
+
+	a = 1;
+	b = ((u128)0x1) << 70;
+	c = a / b;
+	ASSERT(!c, "c=0");
+}
+
+Test(strstr) {
+	const char *s = "abcdefghi";
+	ASSERT_EQ(strstr(s, "def"), s + 3, "strstr1");
+	ASSERT_EQ(strstr(s, "x"), NULL, "no match");
+	ASSERT_EQ(get_heap_bytes(), 0, "heap bytes");
+}
+
