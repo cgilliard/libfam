@@ -573,6 +573,8 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	i32 res = io_uring_enter2(db->ring_fd, 0, 0, flags, NULL, 0);
 	if (res < 0) return -1;
 
+	u8 *tpage = map(PAGE_SIZE);
+
 	for (u64 i = impl->scratch_off;
 	     i > sizeof(void *) * impl->db->config.scratch_hash_buckets +
 		     sizeof(Hashtable);
@@ -582,10 +584,12 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		u8 *page = ent->value.page;
 		u64 *npagenum = &ent->key;
 
+		memcpy(tpage, page, PAGE_SIZE);
+
 		println("write pn={},page={X}", *npagenum, (u64)page);
 		struct io_uring_sqe write_sqe = {.opcode = IORING_OP_WRITE,
 						 .flags = IOSQE_FIXED_FILE,
-						 .addr = (u64)page,
+						 .addr = (u64)tpage,
 						 .off = (*npagenum) * PAGE_SIZE,
 						 .len = PAGE_SIZE,
 						 .user_data = ++count};
@@ -655,5 +659,6 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	SuperBlock *sb = (void *)db->map;
 	CommitUnion expected = impl->commit;
 	result = !__cas128(&sb->commit.value, &expected.value, commit.value);
+	munmap(tpage, PAGE_SIZE);
 	return result;
 }
