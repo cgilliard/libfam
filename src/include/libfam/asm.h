@@ -23,29 +23,11 @@
  *
  *******************************************************************************/
 
-#include <libfam/asm.h>
-#include <libfam/string.h>
-#include <libfam/syscall.h>
-#include <libfam/sysext.h>
-#include <libfam/utils.h>
+#ifndef _ASM_H
+#define _ASM_H
 
-PUBLIC void __stack_chk_fail(void) {
-	i32 __attribute__((unused)) _v;
-	const u8 *msg = "STACK_CHK_FAIL\n";
-	_v = pwrite(2, msg, __builtin_strlen(msg), 0);
-	exit_group(-1);
-}
+#include <libfam/types.h>
 
-PUBLIC void __stack_chk_guard(void) {
-	i32 __attribute__((unused)) _v;
-	const u8 *msg = "STACK_CHK_GUARD\n";
-	_v = pwrite(2, msg, __builtin_strlen(msg), 0);
-	exit_group(-1);
-}
+bool cas128(volatile u128 *value, u128 *expected, u128 desired);
 
-PUBLIC _Bool __atomic_compare_exchange_16(volatile void *ptr, void *expected,
-					  u128 desired, _Bool weak,
-					  i32 success_memorder,
-					  i32 failure_memorder) {
-	return cas128(ptr, expected, desired);
-}
+#endif /* _ASM_H */

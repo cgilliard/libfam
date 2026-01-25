@@ -820,9 +820,9 @@ Test(exists) {
 
 Test(nanosleep) {
 	i32 res;
-	res = nsleep(150000000);
+	res = nsleep(15000);
 	ASSERT(!res, "nsleep");
-	res = usleep(100000);
+	res = usleep(100);
 	ASSERT(!res, "usleep");
 	res = usleep(U64_MAX / 1000);
 	ASSERT_EQ(res, -1, "usleep overflow");
@@ -837,14 +837,25 @@ Test(secure_zero) {
 	ASSERT(!memcmp(buf, (u8[32]){0}, 32), "not zero");
 }
 
-Test(cas128) {
-	u64 value = 1;
-	u64 expected = 1;
-	u64 desired = 2;
+bool cas128(u128 *value, u128 *expected, u128 desired);
+/*
+PUBLIC bool cas128(u128 *value, u128 *expected, u128 desired) {
+	return __atomic_compare_exchange(value, expected, &desired, false,
+					 __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
+}
+*/
 
+Test(cas128) {
+	u128 value = 1;
+	u128 expected = 1;
+	u128 desired = 2;
+
+	/*
 	ASSERT(__atomic_compare_exchange(&value, &expected, &desired, false,
 					 __ATOMIC_SEQ_CST, __ATOMIC_RELAXED),
 	       "cas");
+	       */
+	ASSERT(cas128(&value, &expected, desired), "cas128 success");
 
 	ASSERT_EQ(value, desired, "cas success");
 	value = 1;
