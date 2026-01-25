@@ -108,22 +108,16 @@ i32 sync_init(Sync **s) {
 	*s = sync;
 	return 0;
 }
-i32 sync_execute(Sync *sync, const struct io_uring_sqe event, bool block) {
+i32 sync_execute(Sync *sync, const struct io_uring_sqe sqe) {
 	i32 res;
 	u32 index = *sync->sq_tail & *sync->sq_mask;
-	u32 cq_head = *sync->cq_head, cq_tail, idx;
+	u32 cq_head = *sync->cq_head, idx;
 	sync->sq_array[index] = index;
-	sync->sqes[index] = event;
+	sync->sqes[index] = sqe;
 	__atomic_fetch_add(sync->sq_tail, 1, __ATOMIC_SEQ_CST);
-	res = io_uring_enter2(sync->ring_fd, 1, block ? 1 : 0, 0, NULL, 0);
+	res = io_uring_enter2(sync->ring_fd, 1, 1, 0, NULL, 0);
 
 	if (res >= 0) {
-		if (!block) {
-			do
-				cq_tail = __atomic_load_n(sync->cq_tail,
-							  __ATOMIC_ACQUIRE);
-			while (cq_tail == cq_head);
-		}
 		idx = cq_head & *sync->cq_mask;
 		if (sync->cqes[idx].res < 0) {
 			res = -1;

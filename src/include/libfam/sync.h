@@ -29,6 +29,6 @@ typedef struct Sync Sync;
 struct io_uring_sqe;
 
 i32 sync_init(Sync **sync);
-i32 sync_execute(Sync *sync, const struct io_uring_sqe event, bool idle);
+i32 sync_execute(Sync *sync, const struct io_uring_sqe event);
 void sync_destroy(Sync *sync);
 

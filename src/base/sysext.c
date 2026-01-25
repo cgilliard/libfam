@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/debug.h>
+#include <libfam/exit.h>
 #include <libfam/iouring.h>
 #include <libfam/linux.h>
 #include <libfam/sync.h>
@@ -38,7 +39,10 @@ STATIC i32 global_sync_init(void) {
 	return sync_init(&__global_sync);
 }
 
-void __global_sync_shutdown(void) { sync_destroy(__global_sync); }
+ON_EXIT(global_shutdown) {
+	sync_destroy(__global_sync);
+	__global_sync = NULL;
+}
 
 PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 	struct io_uring_sqe sqe = {.opcode = IORING_OP_WRITE,
@@ -48,7 +52,7 @@ PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 				   .off = offset,
 				   .user_data = 1};
 	if (global_sync_init() < 0) return -1;
-	return sync_execute(__global_sync, sqe, true);
+	return sync_execute(__global_sync, sqe);
 }
 
 PUBLIC i32 usleep(u64 micros) {
@@ -59,7 +63,7 @@ PUBLIC i32 usleep(u64 micros) {
 				   .len = 1,
 				   .user_data = 1};
 	if (global_sync_init() < 0) return -1;
-	return sync_execute(__global_sync, sqe, true);
+	return sync_execute(__global_sync, sqe);
 }
 
 PUBLIC i64 micros(void) {

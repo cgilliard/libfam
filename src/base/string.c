@@ -37,7 +37,6 @@
 #ifdef USE_AVX2
 #include <immintrin.h>
 #endif /* USE_AVX2 */
-#include <libfam/types.h>
 
 PUBLIC u64 strlen(const char *x) {
 	const char *y = x;
@@ -213,7 +212,7 @@ PUBLIC void secure_zero32(u8 buf[32]) {
 #ifdef USE_AVX2
 	__m256i zero = _mm256_setzero_si256();
 	_mm256_store_si256((__m256i *)buf, zero);
-	__asm__ __volatile__("" ::: "memory");	// barrier
+	__asm__ __volatile__("" ::: "memory");
 #else
 	secure_zero(buf, 32);
 #endif /* !USE_AVX2 */

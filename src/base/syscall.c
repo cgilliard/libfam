@@ -25,6 +25,8 @@
 
 #include <libfam/debug.h>
 #include <libfam/linux.h>
+#include <libfam/main.h>
+#include <libfam/sysext.h>
 #include <libfam/types.h>
 #include <libfam/utils.h>
 
@@ -130,9 +132,26 @@ void __gcov_dump(void);
 	SYSCALL_EXIT
 #endif /* COVERAGE */
 
-#include <libfam/sysext.h>
+#define MAX_EXITS 100
+
+typedef struct {
+	void (*exit_fn)(void);
+} ExitEntry;
+
+static i32 cur_exits = 0;
+static ExitEntry exits[MAX_EXITS];
+
+void add_exit_fn(void (*exit_fn)(void)) {
+	if (cur_exits >= MAX_EXITS) {
+		const u8 *msg = (void *)"too many exits!";
+		pwrite(2, msg, __builtin_strlen((void *)msg), 0);
+		return;
+	}
+	exits[cur_exits++].exit_fn = exit_fn;
+}
+
 PUBLIC void exit_group(i32 status) {
-	__global_sync_shutdown();
+	for (u32 i = 0; i < cur_exits; i++) exits[i].exit_fn();
 #ifdef COVERAGE
 	SYSCALL_EXIT_COV
 #else
