@@ -565,7 +565,7 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 i32 famdb_txn_commit(FamDbTxn *txn) {
 	FamDbTxnImpl *impl = (void *)txn;
 	FamDb *db = impl->db;
-	i32 result;
+	i32 result = 0;
 	u32 flags = IORING_ENTER_SQ_WAKEUP, index, cq_head, cq_tail;
 	u64 size = sizeof(HashtableEntry);
 	u64 count = 0;
