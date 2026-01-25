@@ -25,7 +25,6 @@
 
 #include <libfam/debug.h>
 #include <libfam/linux.h>
-#include <libfam/main.h>
 #include <libfam/sysext.h>
 #include <libfam/types.h>
 #include <libfam/utils.h>

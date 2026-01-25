@@ -837,6 +837,25 @@ Test(secure_zero) {
 	ASSERT(!memcmp(buf, (u8[32]){0}, 32), "not zero");
 }
 
+Test(cas128) {
+	u64 value = 1;
+	u64 expected = 1;
+	u64 desired = 2;
+
+	ASSERT(__atomic_compare_exchange(&value, &expected, &desired, false,
+					 __ATOMIC_SEQ_CST, __ATOMIC_RELAXED),
+	       "cas");
+
+	ASSERT_EQ(value, desired, "cas success");
+	value = 1;
+	expected = 2;
+	desired = 3;
+	ASSERT(!__atomic_compare_exchange(&value, &expected, &desired, false,
+					  __ATOMIC_SEQ_CST, __ATOMIC_RELAXED),
+	       "cas");
+	ASSERT_EQ(value, 1, "not updated");
+}
+
 /*
 Test(map) {
 	void *x;
