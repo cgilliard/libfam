@@ -51,6 +51,7 @@ Test(famdb1) {
 	    .lru_capacity = 512,
 	    .debug_split_delete = true,
 	    .scratch_hash_buckets = 512,
+	    .scratch_max_pages = 256,
 	};
 
 	res = famdb_open(&db, &config);
@@ -103,12 +104,8 @@ Test(famdb1) {
 		       32),
 	       "value_out");
 
-	errno = 0;
-	perror("pre");
 	res = famdb_get(&txn, "0123456789012342", 16, value_out,
 			sizeof(value_out), 0);
-	perror("famdb_get2");
-	println("res2={}", res);
 	ASSERT_EQ(res, 32, "fam_get2");
 	ASSERT(!memcmp(value_out,
 		       "0123456789012345"

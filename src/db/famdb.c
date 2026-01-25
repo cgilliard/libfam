@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/atomic.h>
+#include <libfam/env.h>
 #include <libfam/famdb.h>
 #include <libfam/format.h>
 #include <libfam/hashtable.h>
@@ -598,7 +599,10 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		db->sq_array[index] = index;
 		db->sqes[index] = write_sqe;
 		__aadd32(db->sq_tail, 1);
+		if (IS_VALGRIND())
+			io_uring_enter2(db->ring_fd, 1, 0, flags, NULL, 0);
 	}
+	println("loop complete");
 
 	for (u64 i = 0; i < count; i++) {
 		do {
@@ -624,6 +628,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		__aadd32(db->cq_head, 1);
 	}
 	if (result < 0) return -1;
+	println("1");
 
 	struct io_uring_sqe sync_sqe = {.opcode = IORING_OP_FSYNC,
 					.fd = db->fd,
@@ -649,6 +654,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 			break;
 		}
 	} while (true);
+	println("2");
 
 	if (result < 0) return -1;
 

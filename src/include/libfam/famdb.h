@@ -49,6 +49,7 @@ typedef struct {
 	u64 lru_capacity;
 	u64 lru_hash_buckets;
 	u64 scratch_hash_buckets;
+	u64 scratch_max_pages;
 #if TEST == 1
 	bool debug_split_delete;
 #endif /* TEST */
