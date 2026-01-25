@@ -23,6 +23,7 @@
  *
  *******************************************************************************/
 
+#include <libfam/debug.h>
 #include <libfam/iouring.h>
 #include <libfam/linux.h>
 #include <libfam/sync.h>
@@ -36,6 +37,8 @@ STATIC i32 global_sync_init(void) {
 	if (__global_sync) return 0;
 	return sync_init(&__global_sync);
 }
+
+void __global_sync_shutdown(void) { sync_destroy(__global_sync); }
 
 PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 	struct io_uring_sqe sqe = {.opcode = IORING_OP_WRITE,
@@ -88,5 +91,15 @@ PUBLIC i64 write_num(i32 fd, u64 num) {
 	if (written < 0) return -1;
 	if ((u64)written != len) ERR(EIO);
 	return 0;
+}
+
+PUBLIC i32 fork(void) {
+#if TEST == 1
+	if (_debug_fork_fail) return -1;
+#endif /* TEST */
+
+	i32 ret = clone(SIGCHLD, 0);
+	if (!ret) __global_sync = NULL;
+	return ret;
 }
 

@@ -130,7 +130,9 @@ void __gcov_dump(void);
 	SYSCALL_EXIT
 #endif /* COVERAGE */
 
+#include <libfam/sysext.h>
 PUBLIC void exit_group(i32 status) {
+	__global_sync_shutdown();
 #ifdef COVERAGE
 	SYSCALL_EXIT_COV
 #else

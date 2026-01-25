@@ -33,6 +33,7 @@ struct sockaddr;
 struct msghdr;
 
 void yield(void);
+void __global_sync_shutdown(void);
 u64 cycle_counter(void);
 i64 write_num(i32 fd, u64 value);
 i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset);
