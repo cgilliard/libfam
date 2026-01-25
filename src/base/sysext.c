@@ -24,7 +24,9 @@
  *******************************************************************************/
 
 #include <libfam/iouring.h>
+#include <libfam/linux.h>
 #include <libfam/sync.h>
+#include <libfam/syscall.h>
 #include <libfam/sysext.h>
 #include <libfam/utils.h>
 
@@ -44,5 +46,47 @@ PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
 				   .user_data = 1};
 	if (global_sync_init() < 0) return -1;
 	return sync_execute(__global_sync, sqe, true);
+}
+
+PUBLIC i32 usleep(u64 micros) {
+	if (micros * 1000 < micros) ERR(EOVERFLOW);
+	struct timespec ts = {.tv_nsec = micros * 1000};
+	struct io_uring_sqe sqe = {.opcode = IORING_OP_TIMEOUT,
+				   .addr = (u64)&ts,
+				   .len = 1,
+				   .user_data = 1};
+	if (global_sync_init() < 0) return -1;
+	return sync_execute(__global_sync, sqe, true);
+}
+
+PUBLIC i64 micros(void) {
+	struct timespec ts;
+	if (clock_gettime(CLOCK_REALTIME, &ts) < 0) return -1;
+	return (i64)ts.tv_sec * 1000000LL + (i64)(ts.tv_nsec / 1000);
+}
+
+PUBLIC i64 write_num(i32 fd, u64 num) {
+	u8 buf[21];
+	u8 *p;
+	u64 len;
+	i64 written;
+	if (fd < 0) ERR(EBADF);
+
+	p = buf + sizeof(buf) - 1;
+	*p = '\0';
+
+	if (num == 0)
+		*--p = '0';
+	else
+		while (num > 0) {
+			*--p = '0' + (num % 10);
+			num /= 10;
+		}
+
+	len = buf + sizeof(buf) - 1 - p;
+	written = pwrite(fd, p, len, 0);
+	if (written < 0) return -1;
+	if ((u64)written != len) ERR(EIO);
+	return 0;
 }
 

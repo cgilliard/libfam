@@ -23,6 +23,9 @@
  *
  *******************************************************************************/
 
+#include <libfam/test_base.h>
+
+Test(basic) {}
 /*
 #include <libfam/async.h>
 #include <libfam/atomic.h>
