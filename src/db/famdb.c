@@ -106,6 +106,7 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 
 #define PAGE_TYPE_INTERNAL_FLAG (0x1 << 0)
 
+#define TAG_LEN 16
 #define FIRST_OFFSET 512
 #define PAGE_IS_INTERNAL(page) ((page[0] & PAGE_TYPE_INTERNAL_FLAG))
 #define PAGE_IS_LEAF(page) (!(page[0] & PAGE_TYPE_INTERNAL_FLAG))
@@ -176,6 +177,26 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 			((u16 *)page)[i + 3] = ((u16 *)page)[i + 2] +         \
 					       PAGE_KV_LEN(page, i - 1) +     \
 					       sizeof(u16) + sizeof(u32);     \
+	})
+#define PAGE_SPLIT(page, rpage)                                                \
+	({                                                                     \
+		u16 page_elements = PAGE_ELEMENTS(page);                       \
+		u16 total_bytes = PAGE_TOTAL_BYTES(page);                      \
+		u16 left_elems = page_elements >> 1;                           \
+		u16 right_elems = page_elements - left_elems;                  \
+		((u16 *)page)[1] = left_elems;                                 \
+		((u16 *)rpage)[1] = right_elems;                               \
+		u16 split_bytes =                                              \
+		    PAGE_OFFSET_OF(page, left_elems) - FIRST_OFFSET;           \
+		((u16 *)page)[2] = split_bytes;                                \
+		((u16 *)rpage)[2] = total_bytes - ((u16 *)page)[2];            \
+		fastmemcpy(((u16 *)rpage) + 3, ((u16 *)page) + 3 + left_elems, \
+			   right_elems << 1);                                  \
+		for (u16 i = 0; i < right_elems; i++)                          \
+			((u16 *)rpage)[3 + i] -= split_bytes;                  \
+		fastmemcpy(rpage + FIRST_OFFSET,                               \
+			   page + FIRST_OFFSET + split_bytes,                  \
+			   total_bytes - split_bytes);                         \
 	})
 #define GET_PAGE(impl, page_ptr, pageno, key, key_len)                       \
 	({                                                                   \
@@ -263,6 +284,18 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 			impl->scratch_off += size;                         \
 		}                                                          \
 		_ret__;                                                    \
+	})
+#define ALLOC_PAGE(impl)                                                    \
+	({                                                                  \
+		i64 pagenum = BITMAP_ALLOC_PAGE(impl->db);                  \
+		if (pagenum < 0) return -1;                                 \
+		HashtableEntry *nent = ALLOC(impl, sizeof(HashtableEntry)); \
+		if (!nent) return -1;                                       \
+		nent->value.replaced_pageno = pagenum;                      \
+		nent->key = pagenum;                                        \
+		hashtable_put(impl->hashtable, (void *)nent);               \
+		fastmemset(nent->value.page, 0, PAGE_SIZE);                 \
+		nent->value.page;                                           \
 	})
 
 STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
@@ -553,6 +586,17 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 	while (PAGE_IS_INTERNAL(page));
 
 	u64 index = PAGE_FIND_INDEX(page, key, key_len);
+	u64 total_bytes = PAGE_TOTAL_BYTES(page);
+	u64 sum = FIRST_OFFSET + total_bytes + key_len + value_len +
+		  sizeof(u16) + sizeof(u32) + TAG_LEN;
+	println("total={},sum={}", total_bytes, sum);
+
+	if (FIRST_OFFSET + total_bytes + key_len + value_len + sizeof(u16) +
+		sizeof(u32) + TAG_LEN >
+	    PAGE_SIZE) {
+		u8 *rpage = ALLOC_PAGE(impl);
+		PAGE_SPLIT(page, rpage);
+	}
 	PAGE_INSERT_BEFORE(page, index, key, key_len, value, value_len);
 
 	return ret;
@@ -599,7 +643,6 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 		    .opcode = IORING_OP_WRITE_FIXED,
 		    .flags = IOSQE_FIXED_FILE,
 		    .buf_index = count,
-		    .fd = 0,
 		    .addr = (u64)page,
 		    .off = (*npagenum) * PAGE_SIZE,
 		    .len = PAGE_SIZE,
