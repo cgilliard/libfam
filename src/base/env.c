@@ -47,7 +47,7 @@ EnvNode __env_values[MAX_ENV_VARS];
 STATIC i32 compare_env_keys(const EnvNode *v1, const EnvNode *v2) {
 	i32 cmp;
 	u64 min_len = v1->key_len < v2->key_len ? v1->key_len : v2->key_len;
-	if ((cmp = strncmp(v1->key, v2->key, min_len))) return cmp;
+	if ((cmp = __builtin_strncmp(v1->key, v2->key, min_len))) return cmp;
 	return v1->key_len < v2->key_len   ? -1
 	       : v1->key_len > v2->key_len ? 1
 					   : 0;
@@ -78,7 +78,7 @@ STATIC i32 env_rbtree_search(RbTreeNode *cur, const RbTreeNode *value,
 
 PUBLIC char *getenv(const char *name) {
 	RbTreeNodePair pair = {0};
-	EnvNode node = {.key = name, .key_len = faststrlen(name)};
+	EnvNode node = {.key = name, .key_len = __builtin_strlen(name)};
 	env_rbtree_search(__env_tree.root, (const RbTreeNode *)&node, &pair);
 	return pair.self ? (u8 *)((EnvNode *)pair.self)->value : NULL;
 }

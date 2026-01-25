@@ -58,18 +58,6 @@ i32 string_to_u128(const u8 *buf, u64 len, u128 *result);
 u8 i128_to_string(u8 buf[MAX_I128_STRING_LEN], i128 value, Int128DisplayType t);
 u8 u128_to_string(u8 buf[MAX_U128_STRING_LEN], u128 value, Int128DisplayType t);
 
-#define fastmemcpy(dst, src, n) __builtin_memcpy((dst), (src), (n))
-#define fastmemmove(dst, src, n) __builtin_memmove((dst), (src), (n))
-#define fastmemset(dst, v, n) __builtin_memset((dst), (v), (n))
-#define fastmemcmp(v1, v2, n) __builtin_memcmp((v1), (v2), (n))
-#define faststrlen(s) __builtin_strlen((s))
-#define faststrcpy(dst, src) __builtin_strcpy((dst), (src))
-#define faststrncpy(dst, src, n) __builtin_strncpy((dst), (src), (n))
-#define faststrcmp(s1, s2) __builtin_strcmp((s1), (s2))
-#define faststrncmp(s1, s2, n) __builtin_strncmp((s1), (s2), (n))
-#define faststrchr(s, c) __builtin_strchr((s), (c))
-#define faststrrchr(s, c) __builtin_strrchr((s), (c))
-
 __attribute__((unused, noinline)) static void secure_zero(void *ptr, u64 len) {
 	volatile u8 *p = (volatile u8 *)ptr;
 	while (len--) *p++ = 0;
