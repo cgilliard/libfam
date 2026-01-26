@@ -129,6 +129,7 @@ Test(bible) {
 	bible_destroy(b);
 }
 
+#include <libfam/format.h>
 Test(bible_mine) {
 	const Bible *b;
 	u32 nonce = 0;
@@ -148,15 +149,14 @@ Test(bible_mine) {
 
 	memset(target, 0xFF, 32);
 	target[0] = 0;
-	target[1] = 0;
 	bible_sbox8_64(sbox);
 	mine_block(b, header, target, output, &nonce, U32_MAX, sbox);
 
-	ASSERT_EQ(nonce, 45890, "nonce");
-	ASSERT(!memcmp(output, (u8[]){0,   0,	178, 28,  75,  191, 58,	 214,
-				      17,  30,	146, 59,  42,  211, 72,	 59,
-				      10,  5,	143, 171, 234, 121, 165, 205,
-				      143, 221, 59,  50,  245, 97,  236, 73},
+	ASSERT_EQ(nonce, 424, "nonce");
+	ASSERT(!memcmp(output, (u8[]){0,   146, 88,  41,  142, 170, 4,	 207,
+				      227, 86,	96,  150, 120, 76,  87,	 206,
+				      233, 226, 235, 176, 236, 131, 108, 184,
+				      73,  12,	110, 231, 128, 227, 229, 207},
 		       32),
 	       "hash");
 	bible_destroy(b);
