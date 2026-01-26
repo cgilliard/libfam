@@ -23,8 +23,12 @@
  *
  *******************************************************************************/
 
+#include <libfam/bible.h>
 #include <libfam/compress.h>
+#include <libfam/env.h>
+#include <libfam/limits.h>
 #include <libfam/linux.h>
+#include <libfam/storm.h>
 #include <libfam/test.h>
 
 Test(compress) {
@@ -80,3 +84,124 @@ Test(compress_special_cases) {
 	ASSERT_EQ(compress_read_raw(block, 100, out, sizeof(out)), -1,
 		  "read raw");
 }
+
+#define BIBLE_PATH "resources/test_bible.dat"
+
+Test(bible) {
+	const Bible *b;
+	u64 sbox[256];
+	__attribute__((aligned(32))) static const u8 input[128] = {
+	    1,	2,  3,	4,  5,	6,  7,	8,  9,	10, 11, 12, 13, 14, 15, 16,
+	    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+	__attribute__((aligned(32))) u8 output[32];
+
+	if (!exists(BIBLE_PATH)) {
+		if (IS_VALGRIND()) return;
+		b = bible_gen(true);
+		bible_store(b, BIBLE_PATH);
+	} else
+		b = bible_load(BIBLE_PATH);
+
+	bible_sbox8_64(sbox);
+	bible_hash(b, input, output, sbox);
+
+	u8 expected[32] = {65, 229, 114, 172, 92,  145, 119, 123, 197, 180, 165,
+			   88, 178, 42,	 104, 69,  194, 222, 84,  105, 136, 8,
+			   80, 225, 180, 104, 222, 54,	137, 45,  62,  205};
+
+	ASSERT(!memcmp(output, expected, 32), "hash");
+	bible_destroy(b);
+	b = bible_load(BIBLE_PATH);
+	bible_destroy(b);
+}
+
+Test(bible_mine) {
+	const Bible *b;
+	u32 nonce = 0;
+	u64 sbox[256];
+	__attribute__((aligned(32))) u8 output[32] = {0};
+	u8 target[32];
+	__attribute((aligned(32))) u8 header[HASH_INPUT_LEN];
+
+	for (u32 i = 0; i < HASH_INPUT_LEN; i++) header[i] = i;
+
+	if (!exists(BIBLE_PATH)) {
+		if (IS_VALGRIND()) return;
+		b = bible_gen(false);
+		bible_store(b, BIBLE_PATH);
+	} else
+		b = bible_load(BIBLE_PATH);
+
+	memset(target, 0xFF, 32);
+	target[0] = 0;
+	target[1] = 0;
+	bible_sbox8_64(sbox);
+	mine_block(b, header, target, output, &nonce, U32_MAX, sbox);
+
+	ASSERT_EQ(nonce, 45890, "nonce");
+	ASSERT(!memcmp(output, (u8[]){0,   0,	178, 28,  75,  191, 58,	 214,
+				      17,  30,	146, 59,  42,  211, 72,	 59,
+				      10,  5,	143, 171, 234, 121, 165, 205,
+				      143, 221, 59,  50,  245, 97,  236, 73},
+		       32),
+	       "hash");
+	bible_destroy(b);
+}
+
+Test(bible_dat) {
+	u8 *bible;
+	__attribute__((aligned(32))) static const u8 BIBLE_GEN_DOMAIN[32] = {
+	    0x9e, 0x37, 0x79, 0xb9, 0x7f, 0x4a, 0x7c, 0x15, 0x85, 0xeb,
+	    0xca, 0x6b, 0xc2, 0xb2, 0xae, 0x35, 0x51, 0x7c, 0xc1, 0xb7,
+	    0x27, 0x22, 0x0a, 0x95, 0x07, 0x00, 0x00, 0x01};
+	StormContext ctx;
+	const Bible *b;
+
+	bible = map(BIBLE_UNCOMPRESSED_SIZE);
+	ASSERT(bible, "map");
+
+	if (!exists(BIBLE_PATH)) {
+		if (IS_VALGRIND()) return;
+		b = bible_gen(true);
+		bible_store(b, BIBLE_PATH);
+	} else
+		b = bible_load(BIBLE_PATH);
+
+	bible_expand(b, bible);
+
+	storm_init(&ctx, BIBLE_GEN_DOMAIN);
+	__attribute__((aligned(32))) u8 buffer[32];
+	u64 off = 0;
+	while (off < (BIBLE_UNCOMPRESSED_SIZE & ~31U)) {
+		__builtin_memcpy(buffer, bible + off, 32);
+		storm_next_block(&ctx, buffer);
+		off += 32;
+	}
+
+	const u8 *check =
+	    "Genesis||1||1||In the beginning God created the heaven "
+	    "and the "
+	    "earth.";
+
+	ASSERT(!__builtin_memcmp(bible, check, strlen(check)), "first verse");
+	ASSERT(!__builtin_memcmp(
+		   buffer,
+		   (u8[]){40,  57,  160, 40,  170, 236, 126, 115, 174, 135, 8,
+			  248, 200, 93,	 24,  249, 138, 33,  80,  188, 155, 201,
+			  175, 93,  32,	 107, 130, 188, 4,   167, 155, 219},
+		   32),
+	       "hash");
+
+	bible_destroy(b);
+	munmap(bible, BIBLE_UNCOMPRESSED_SIZE);
+}
+
+Test(bible_store_fail) {
+	if (IS_VALGRIND()) return;
+	const Bible *bible = bible_load(BIBLE_PATH);
+	_debug_pwrite_fail = 0;
+	ASSERT_EQ(bible_store(bible, "/tmp/bible_err"), -1, "pwrite_fail");
+	_debug_pwrite_fail = I64_MAX;
+	bible_destroy(bible);
+}
+
