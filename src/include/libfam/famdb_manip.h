@@ -173,48 +173,51 @@
 		__builtin_memcpy(page + data_off + sizeof(u64), key,       \
 				 key_length);                              \
 	})
-#define INTERNAL_INSERT(page, data_off, key, key_length, index, lpageno,  \
-			rpageno)                                          \
-	({                                                                \
-		u16 elements = PAGE_ELEMENTS(page);                       \
-		u16 elem_off = PAGE_OFFSET_OF(page, index);               \
-		u16 cur_len = ((u16 *)page)[3 + index + 1] -              \
-			      ((u16 *)page)[3 + index] - sizeof(u64);     \
-		if (index < elements - 1) {                               \
-			u16 len_to_move =                                 \
-			    data_off + PAGE_TOTAL_BYTES(page) - elem_off; \
-			__builtin_memmove(                                \
-			    page + elem_off + key_length + sizeof(u64),   \
-			    page + elem_off, len_to_move);                \
-		}                                                         \
-		for (u16 i = index + 1; i < elements; i++) {              \
-			((u16 *)page)[3 + i] += key_length - cur_len;     \
-		}                                                         \
-		((u16 *)page)[3 + elements] =                             \
-		    data_off + PAGE_TOTAL_BYTES(page) + key_length;       \
-		__builtin_memcpy(page + elem_off + sizeof(u64), key,      \
-				 key_length);                             \
-		*(u64 *)(page + elem_off) = lpageno;                      \
-		((u16 *)page)[1]++;                                       \
-		((u16 *)page)[2] += key_length + sizeof(u64);             \
-		u16 next_offset = PAGE_OFFSET_OF(page, index + 1);        \
-		*(u64 *)(page + next_offset) = rpageno;                   \
+#define INTERNAL_INSERT(page, data_off, key, key_length, index, lpageno,       \
+			rpageno)                                               \
+	({                                                                     \
+		u16 elements = PAGE_ELEMENTS(page);                            \
+		u16 elem_off = PAGE_OFFSET_OF(page, index);                    \
+		u16 cur_len = ((u16 *)page)[3 + index + 1] -                   \
+			      ((u16 *)page)[3 + index] - sizeof(u64);          \
+		if (index < elements - 1) {                                    \
+			u16 len_to_move =                                      \
+			    data_off + PAGE_TOTAL_BYTES(page) - elem_off;      \
+			__builtin_memmove(                                     \
+			    page + elem_off + key_length + sizeof(u64),        \
+			    page + elem_off, len_to_move);                     \
+		}                                                              \
+		for (u16 i = index + 1; i < elements; i++) {                   \
+			u16 cur_len_next = ((u16 *)page)[3 + i + 1] -          \
+					   ((u16 *)page)[3 + i] - sizeof(u64); \
+			((u16 *)page)[3 + i] += key_length - cur_len;          \
+			cur_len = cur_len_next;                                \
+		}                                                              \
+		((u16 *)page)[3 + elements] =                                  \
+		    data_off + PAGE_TOTAL_BYTES(page) + key_length;            \
+		__builtin_memcpy(page + elem_off + sizeof(u64), key,           \
+				 key_length);                                  \
+		*(u64 *)(page + elem_off) = lpageno;                           \
+		((u16 *)page)[1]++;                                            \
+		((u16 *)page)[2] += key_length + sizeof(u64);                  \
+		u16 next_offset = PAGE_OFFSET_OF(page, index + 1);             \
+		*(u64 *)(page + next_offset) = rpageno;                        \
 	})
-#define INTERNAL_PRINT_ELEMENT(page, data_off, elem)                       \
-	({                                                                 \
-		u8 tmpkey[1024] = {0};                                     \
-		u64 index = INTERNAL_READ_INDEX(page, elem);               \
-		u64 offset = PAGE_OFFSET_OF(page, elem);                   \
-		u16 elem_key_off = PAGE_OFFSET_OF(page, elem);             \
-		u16 elements = PAGE_ELEMENTS(page);                        \
-		u16 elem_key_len = elem >= elements - 1                    \
-				       ? 0                                 \
-				       : PAGE_OFFSET_OF(page, elem + 1) -  \
-					     (elem_key_off + sizeof(u64)); \
-		__builtin_memcpy(tmpkey, page + offset + sizeof(u64),      \
-				 elem_key_len);                            \
-		println("page[{}]={} '{}' ({} bytes)", i, index, tmpkey,   \
-			elem_key_len);                                     \
+#define INTERNAL_PRINT_ELEMENT(page, data_off, elem)                        \
+	({                                                                  \
+		u8 tmpkey[1024] = {0};                                      \
+		u64 index = INTERNAL_READ_INDEX(page, elem);                \
+		u64 offset = PAGE_OFFSET_OF(page, elem);                    \
+		u16 elem_key_off = PAGE_OFFSET_OF(page, elem);              \
+		u16 elements = PAGE_ELEMENTS(page);                         \
+		u16 elem_key_len = elem >= elements - 1                     \
+				       ? 0                                  \
+				       : PAGE_OFFSET_OF(page, elem + 1) -   \
+					     (elem_key_off + sizeof(u64));  \
+		__builtin_memcpy(tmpkey, page + offset + sizeof(u64),       \
+				 elem_key_len);                             \
+		println("page[{}]={} '{}' ({} bytes, offset={})", i, index, \
+			tmpkey, elem_key_len, offset);                      \
 	})
 #define INTERNAL_PRINT_ELEMENTS(page, data_off)                         \
 	({                                                              \
