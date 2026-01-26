@@ -374,7 +374,7 @@ Test(lru_cache_consistent) {
 	lru_destroy(cache);
 }
 
-Bench(lru_cache_perf) {
+Bench(lru) {
 #define TRIALS 1000
 #define PRELOAD 100000
 	u64 arr[PRELOAD];
