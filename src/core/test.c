@@ -23,7 +23,6 @@
  *
  *******************************************************************************/
 
-#include <libfam/format.h>
 #include <libfam/hashtable.h>
 #include <libfam/limits.h>
 #include <libfam/lru.h>

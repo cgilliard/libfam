@@ -23,7 +23,7 @@
  *
  *******************************************************************************/
 
-#include <libfam/format.h>
+#include <libfam/errno.h>
 #include <libfam/lru.h>
 #include <libfam/rng.h>
 #include <libfam/syscall.h>

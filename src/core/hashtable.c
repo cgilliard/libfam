@@ -23,7 +23,6 @@
  *
  *******************************************************************************/
 
-#include <libfam/format.h>
 #include <libfam/hashtable.h>
 #include <libfam/rng.h>
 #include <libfam/syscall.h>

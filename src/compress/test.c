@@ -129,7 +129,6 @@ Test(bible) {
 	bible_destroy(b);
 }
 
-#include <libfam/format.h>
 Test(bible_mine) {
 	const Bible *b;
 	u32 nonce = 0;
