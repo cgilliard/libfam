@@ -59,3 +59,24 @@ Test(compress2) {
 	ASSERT_EQ(decompress_block(out, 3, verify, sizeof(verify)), 0,
 		  "zer len decomp");
 }
+
+i32 compress_read_block(const u8 *in, u32 len, u8 *out, u32 capacity);
+i32 compress_read_raw(const u8 *in, u32 len, u8 *out, u32 capacity);
+
+Test(compress_special_cases) {
+	u8 block[16384] = {0}, out[2048];
+	ASSERT_EQ(compress_read_block("", 0, NULL, 0), -1, "too small");
+	ASSERT_EQ(compress_read_block(block, 16384, out, sizeof(out)), -1,
+		  "read block overflow");
+	ASSERT_EQ(compress_read_raw("", 0, out, sizeof(out)), -1, "len<3");
+	ASSERT_EQ(compress_read_raw("abc", 3, out, sizeof(out)), -1,
+		  "len==3 bad val");
+	ASSERT_EQ(compress_read_raw("abcd", 4, out, 0), -1,
+		  "block_len > capacity");
+	__builtin_memset(block, 0xFF, sizeof(block));
+	block[0] = 0;
+	block[1] = 1;
+	block[2] = 0;
+	ASSERT_EQ(compress_read_raw(block, 100, out, sizeof(out)), -1,
+		  "read raw");
+}

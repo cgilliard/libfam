@@ -40,8 +40,10 @@ STATIC i32 global_sync_init(void) {
 }
 
 ON_EXIT(global_shutdown) {
-	sync_destroy(__global_sync);
+#ifndef COVERAGE
+	if (__global_sync) sync_destroy(__global_sync);
 	__global_sync = NULL;
+#endif /* COVERAGE */
 }
 
 PUBLIC i64 pwrite(i32 fd, const void *buf, u64 len, u64 offset) {
