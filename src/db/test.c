@@ -294,3 +294,81 @@ Test(insert_ordered) {
 #undef MAX_KEY_LEN
 #undef MAX_VALUE_LEN
 }
+
+Test(page_split) {
+#define TRIALS 33
+#define MAX_KEY_LEN 32
+#define MAX_VALUE_LEN 64
+	u8 page[PAGE_SIZE] = {0};
+	u8 rpage[PAGE_SIZE] = {0};
+	Rng rng;
+	u64 total_bytes = 0;
+	__attribute__((aligned(32))) u8 keys[TRIALS][MAX_KEY_LEN] = {0};
+	__attribute__((aligned(32))) u8 values[TRIALS][MAX_VALUE_LEN] = {0};
+	__attribute__((aligned(32))) u8 klens[TRIALS] = {0};
+	__attribute__((aligned(32))) u8 vlens[TRIALS] = {0};
+	u8 keys_read[TRIALS][MAX_KEY_LEN] = {0};
+	u8 values_read[TRIALS][MAX_VALUE_LEN] = {0};
+	u8 keys_compare[TRIALS][MAX_KEY_LEN] = {0};
+	u8 values_compare[TRIALS][MAX_VALUE_LEN] = {0};
+
+	rng_init(&rng);
+	rng_gen(&rng, klens, TRIALS);
+	rng_gen(&rng, vlens, TRIALS);
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		rng_gen(&rng, keys[i], MAX_KEY_LEN);
+		rng_gen(&rng, values[i], MAX_VALUE_LEN);
+		klens[i] %= (MAX_KEY_LEN / 2);
+		klens[i] += (MAX_KEY_LEN / 2);
+		vlens[i] %= (MAX_VALUE_LEN / 2);
+		vlens[i] += (MAX_VALUE_LEN / 2);
+		total_bytes += klens[i] + vlens[i] + sizeof(u32) + sizeof(u16);
+	}
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		LEAF_INSERT_AT(page, 512, 0, keys[i], klens[i], values[i],
+			       vlens[i]);
+	}
+	for (u64 i = 0; i < TRIALS; i++) {
+		__builtin_memcpy(keys_read[i], LEAF_READ_KEY(page, i),
+				 LEAF_KEY_LEN(page, i));
+		__builtin_memcpy(values_read[i], LEAF_READ_VALUE(page, i),
+				 LEAF_VALUE_LEN(page, i));
+	}
+
+	ASSERT_EQ(PAGE_ELEMENTS(page), TRIALS, "elements pre split");
+	ASSERT_EQ(PAGE_TOTAL_BYTES(page), total_bytes, "bytes pre split");
+
+	LEAF_SPLIT(page, 512, rpage);
+	ASSERT_EQ(PAGE_ELEMENTS(page), TRIALS / 2, "elements left post split");
+	ASSERT_EQ(PAGE_ELEMENTS(rpage), TRIALS / 2 + 1,
+		  "elements right post split");
+	ASSERT_EQ(total_bytes, PAGE_TOTAL_BYTES(page) + PAGE_TOTAL_BYTES(rpage),
+		  "sum split");
+
+	u64 i;
+	for (i = 0; i < PAGE_ELEMENTS(page); i++) {
+		__builtin_memcpy(keys_compare[i], LEAF_READ_KEY(page, i),
+				 LEAF_KEY_LEN(page, i));
+		__builtin_memcpy(values_compare[i], LEAF_READ_VALUE(page, i),
+				 LEAF_VALUE_LEN(page, i));
+	}
+	for (u64 j = 0; j < PAGE_ELEMENTS(rpage); j++) {
+		__builtin_memcpy(keys_compare[i], LEAF_READ_KEY(rpage, j),
+				 LEAF_KEY_LEN(rpage, j));
+		__builtin_memcpy(values_compare[i], LEAF_READ_VALUE(rpage, j),
+				 LEAF_VALUE_LEN(rpage, j));
+		i++;
+	}
+
+	for (i = 0; i < TRIALS; i++) {
+		ASSERT(!strcmp(keys_read[i], keys_compare[i]), "key eq {}", i);
+		ASSERT(!strcmp(values_read[i], values_compare[i]),
+		       "value eq {}", i);
+	}
+
+#undef TRIALS
+#undef MAX_KEY_LEN
+#undef MAX_VALUE_LEN
+}

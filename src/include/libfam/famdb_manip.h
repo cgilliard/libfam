@@ -134,5 +134,25 @@
 		LEAF_INSERT_AT(page, data_off, index, (key), (key_len), \
 			       (value), (value_len));                   \
 	})
+#define LEAF_SPLIT(page, data_off, rpage)                                      \
+	({                                                                     \
+		u16 page_elements = PAGE_ELEMENTS(page);                       \
+		u16 total_bytes = PAGE_TOTAL_BYTES(page);                      \
+		u16 left_elems = page_elements >> 1;                           \
+		u16 right_elems = page_elements - left_elems;                  \
+		((u16 *)page)[1] = left_elems;                                 \
+		((u16 *)rpage)[1] = right_elems;                               \
+		u16 split_bytes = PAGE_OFFSET_OF(page, left_elems) - data_off; \
+		((u16 *)page)[2] = split_bytes;                                \
+		((u16 *)rpage)[2] = total_bytes - ((u16 *)page)[2];            \
+		__builtin_memcpy(((u16 *)rpage) + 3,                           \
+				 ((u16 *)page) + 3 + left_elems,               \
+				 right_elems << 1);                            \
+		for (u16 i = 0; i < right_elems; i++)                          \
+			((u16 *)rpage)[3 + i] -= split_bytes;                  \
+		__builtin_memcpy(rpage + data_off,                             \
+				 page + data_off + split_bytes,                \
+				 total_bytes - split_bytes);                   \
+	})
 
 #endif /* _FAMDB_MANIP_H */
