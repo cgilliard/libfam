@@ -85,6 +85,20 @@ Test(compress_special_cases) {
 		  "read raw");
 }
 
+Test(compress_cut_off) {
+	const u8 *path = "./resources/test_min.txt";
+	i32 fd = open(path, O_RDWR, 0);
+	u32 size = fsize(fd);
+	u8 *in = fmap(fd, size, 0);
+	ASSERT(in, "fmap");
+	u8 out[100000] = {0}, verify[100000] = {0};
+	i32 result = compress_block(in, size, out, sizeof(out));
+	ASSERT_EQ(compress_read_block(out, result, verify, 1000), -1,
+		  "cut off");
+	munmap(in, size);
+	close(fd);
+}
+
 #define BIBLE_PATH "resources/test_bible.dat"
 
 Test(bible) {
