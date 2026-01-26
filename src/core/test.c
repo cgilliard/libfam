@@ -460,4 +460,56 @@ Test(hashtable) {
 		MyValue *value = hashtable_get(&h, kvs[i].key);
 		ASSERT(!value, "found {}", i);
 	}
+#undef HASH_BUCKETS
+#undef TRIALS
+}
+
+Bench(hashtable) {
+#define HASH_BUCKETS 2048
+#define TRIALS 16384
+	u64 put_sum = 0, get_sum = 0, rem_sum = 0, cc;
+	Hashtable h = {0};
+	u64 hash_buckets[HASH_BUCKETS] = {0};
+	__attribute__((aligned(32))) TestHashtableKeyValue kvs[TRIALS] = {0};
+	Rng rng;
+	hashtable_init(&h, HASH_BUCKETS, (void *)hash_buckets);
+	rng_init(&rng);
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		rng_gen(&rng, (void *)&kvs[i], sizeof(TestHashtableKeyValue));
+		cc = cycle_counter();
+		hashtable_put(&h, (void *)&kvs[i]);
+		put_sum += cycle_counter() - cc;
+	}
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		cc = cycle_counter();
+		MyValue *value = hashtable_get(&h, kvs[i].key);
+		get_sum += cycle_counter() - cc;
+		ASSERT(value, "found {}", i);
+		ASSERT_EQ(value->abc, kvs[i].value.abc, "value {}", i);
+	}
+
+	ASSERT(!hashtable_get(&h, 0), "not found");
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		cc = cycle_counter();
+		HashtableKeyValue *kv =
+		    (void *)hashtable_remove(&h, kvs[i].key);
+		rem_sum += cycle_counter() - cc;
+		ASSERT(kv, "found on rem {}", i);
+		MyValue *mv = ((MyValue *)kv->value);
+		ASSERT_EQ(mv->abc, kvs[i].value.abc, "remove match {}", i);
+	}
+
+	ASSERT(!hashtable_remove(&h, kvs[0].key), "not found");
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		MyValue *value = hashtable_get(&h, kvs[i].key);
+		ASSERT(!value, "found {}", i);
+	}
+	println(
+	    "avg get = {} cycles, avg put = {} cycles, avg rem = {} cycles.",
+	    get_sum / TRIALS, put_sum / TRIALS, rem_sum / TRIALS);
+#undef TRIALS
 }
