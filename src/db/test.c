@@ -372,3 +372,15 @@ Test(page_split) {
 #undef MAX_KEY_LEN
 #undef MAX_VALUE_LEN
 }
+
+Test(internal) {
+	u8 page[PAGE_SIZE] = {0};
+	INTERNAL_CREATE(page, 512, "mmm", 3, 3, 4);
+	INTERNAL_PRINT_ELEMENTS(page, 512);
+	INTERNAL_INSERT(page, 512, "dddxyz", 6, 0, 5, 6);
+	INTERNAL_PRINT_ELEMENTS(page, 512);
+	INTERNAL_INSERT(page, 512, "lox", 3, 1, 7, 8);
+	INTERNAL_PRINT_ELEMENTS(page, 512);
+	INTERNAL_INSERT(page, 512, "xxxx", 4, 3, 9, 10);
+	INTERNAL_PRINT_ELEMENTS(page, 512);
+}
