@@ -376,17 +376,20 @@ Test(page_split) {
 Test(internal) {
 	u8 page[PAGE_SIZE] = {0};
 	INTERNAL_CREATE(page, 512, "mmm", 3, 3, 4);
-	INTERNAL_PRINT_ELEMENTS(page, 512);
 	INTERNAL_INSERT(page, 512, "dddxyz", 6, 0, 5, 6);
-	INTERNAL_PRINT_ELEMENTS(page, 512);
 	INTERNAL_INSERT(page, 512, "lox", 3, 1, 7, 8);
-	INTERNAL_PRINT_ELEMENTS(page, 512);
 	INTERNAL_INSERT(page, 512, "xxxx", 4, 3, 9, 10);
-	INTERNAL_PRINT_ELEMENTS(page, 512);
 	INTERNAL_INSERT(page, 512, "b123456789", 10, 0, 11, 12);
-	INTERNAL_PRINT_ELEMENTS(page, 512);
 	INTERNAL_INSERT(page, 512, "abcd", 4, 0, 13, 14);
-	INTERNAL_PRINT_ELEMENTS(page, 512);
 	INTERNAL_INSERT(page, 512, "y0000", 5, 6, 15, 16);
-	INTERNAL_PRINT_ELEMENTS(page, 512);
+	u8 *key1 = "aaaaaaa", *key2 = "b0", *key3 = "b2av", *key4 = "lox",
+	   *key5 = "ly", *key6 = "mzzz", *key7 = "xyz123", *key8 = "z";
+	ASSERT_EQ(INTERNAL_FIND_PAGE(page, key1, strlen(key1)), 13, "key1");
+	ASSERT_EQ(INTERNAL_FIND_PAGE(page, key2, strlen(key2)), 14, "key2");
+	ASSERT_EQ(INTERNAL_FIND_PAGE(page, key3, strlen(key3)), 12, "key3");
+	ASSERT_EQ(INTERNAL_FIND_PAGE(page, key4, strlen(key4)), 7, "key4");
+	ASSERT_EQ(INTERNAL_FIND_PAGE(page, key5, strlen(key5)), 8, "key5");
+	ASSERT_EQ(INTERNAL_FIND_PAGE(page, key6, strlen(key6)), 9, "key6");
+	ASSERT_EQ(INTERNAL_FIND_PAGE(page, key7, strlen(key7)), 15, "key7");
+	ASSERT_EQ(INTERNAL_FIND_PAGE(page, key8, strlen(key8)), 16, "key8");
 }

@@ -173,35 +173,84 @@
 		__builtin_memcpy(page + data_off + sizeof(u64), key,       \
 				 key_length);                              \
 	})
-#define INTERNAL_INSERT(page, data_off, key, key_length, index, lpageno,       \
-			rpageno)                                               \
-	({                                                                     \
-		u16 elements = PAGE_ELEMENTS(page);                            \
-		u16 elem_off = PAGE_OFFSET_OF(page, index);                    \
-		u16 cur_len = ((u16 *)page)[3 + index + 1] -                   \
-			      ((u16 *)page)[3 + index] - sizeof(u64);          \
-		if (index < elements - 1) {                                    \
-			u16 len_to_move =                                      \
-			    data_off + PAGE_TOTAL_BYTES(page) - elem_off;      \
-			__builtin_memmove(                                     \
-			    page + elem_off + key_length + sizeof(u64),        \
-			    page + elem_off, len_to_move);                     \
-		}                                                              \
-		for (u16 i = index + 1; i < elements; i++) {                   \
-			u16 cur_len_next = ((u16 *)page)[3 + i + 1] -          \
-					   ((u16 *)page)[3 + i] - sizeof(u64); \
-			((u16 *)page)[3 + i] += key_length - cur_len;          \
-			cur_len = cur_len_next;                                \
-		}                                                              \
-		((u16 *)page)[3 + elements] =                                  \
-		    data_off + PAGE_TOTAL_BYTES(page) + key_length;            \
-		__builtin_memcpy(page + elem_off + sizeof(u64), key,           \
-				 key_length);                                  \
-		*(u64 *)(page + elem_off) = lpageno;                           \
-		((u16 *)page)[1]++;                                            \
-		((u16 *)page)[2] += key_length + sizeof(u64);                  \
-		u16 next_offset = PAGE_OFFSET_OF(page, index + 1);             \
-		*(u64 *)(page + next_offset) = rpageno;                        \
+#define INTERNAL_INSERT(page, data_off, key, key_length, index, lpageno,    \
+			rpageno)                                            \
+	({                                                                  \
+		u16 elements = PAGE_ELEMENTS(page);                         \
+		u16 elem_off = PAGE_OFFSET_OF(page, index);                 \
+		u16 cur_len = ((u16 *)page)[3 + index + 1] -                \
+			      ((u16 *)page)[3 + index] - sizeof(u64);       \
+		if (__builtin_expect(index < elements - 1, 1)) {            \
+			u16 len_to_move =                                   \
+			    data_off + PAGE_TOTAL_BYTES(page) - elem_off;   \
+			__builtin_memmove(                                  \
+			    page + elem_off + key_length + sizeof(u64),     \
+			    page + elem_off, len_to_move);                  \
+		}                                                           \
+		for (u16 i = index + 1; i <= elements; i++) {               \
+			u16 cur = ((u16 *)page)[3 + i];                     \
+			((u16 *)page)[3 + i] += key_length - cur_len;       \
+			cur_len = ((u16 *)page)[4 + i] - cur - sizeof(u64); \
+		}                                                           \
+		__builtin_memcpy(page + elem_off + sizeof(u64), key,        \
+				 key_length);                               \
+		*(u64 *)(page + elem_off) = lpageno;                        \
+		((u16 *)page)[1]++;                                         \
+		((u16 *)page)[2] += key_length + sizeof(u64);               \
+		u16 next_offset = PAGE_OFFSET_OF(page, index + 1);          \
+		*(u64 *)(page + next_offset) = rpageno;                     \
+	})
+/*
+ * #define LEAF_COMPARE_KEYS(page, elem, key, key_len)                       \
+	({                                                                \
+		u16 elem_key_off = PAGE_OFFSET_OF(page, elem);            \
+		u16 elem_key_len = LEAF_KEY_LEN(page, elem);              \
+		u16 min_len = min(key_len, elem_key_len);                 \
+		i32 cmp = __builtin_memcmp(                               \
+		    key, page + elem_key_off + sizeof(u32) + sizeof(u16), \
+		    min_len);                                             \
+		cmp != 0                 ? cmp                            \
+		: key_len > elem_key_len ? 1                              \
+		: key_len < elem_key_len ? -1                             \
+					 : 0;                             \
+	})
+
+*/
+#define INTERNAL_COMPARE_KEYS(page, elem, key, key_len)                   \
+	({                                                                \
+		u16 elem_key_off = PAGE_OFFSET_OF(page, elem);            \
+		u16 elem_key_len = ((u16 *)page)[3 + elem + 1] -          \
+				   ((u16 *)page)[3 + elem] - sizeof(u64); \
+		u16 min_len = min(key_len, elem_key_len);                 \
+		i32 cmp = __builtin_memcmp(                               \
+		    key, page + elem_key_off + sizeof(u64), min_len);     \
+		cmp != 0		 ? cmp                            \
+		: key_len > elem_key_len ? 1                              \
+		: key_len < elem_key_len ? -1                             \
+					 : 0;                             \
+	})
+#define INTERNAL_FIND_INDEX(page, key, key_len)                               \
+	({                                                                    \
+		u16 min = 0, max = PAGE_ELEMENTS(page) - 1, mid;              \
+		i32 cmp;                                                      \
+		while (min < max) {                                           \
+			mid = min + ((max - min) >> 1);                       \
+			cmp = INTERNAL_COMPARE_KEYS(page, mid, key, key_len); \
+			if (cmp == 0) {                                       \
+				min = mid;                                    \
+				break;                                        \
+			} else if (cmp < 0)                                   \
+				max = mid;                                    \
+			else                                                  \
+				min = mid + 1;                                \
+		}                                                             \
+		min;                                                          \
+	})
+#define INTERNAL_FIND_PAGE(page, key, key_len)                       \
+	({                                                           \
+		u16 index = INTERNAL_FIND_INDEX(page, key, key_len); \
+		u16 offset = PAGE_OFFSET_OF(page, index);            \
+		*(u64 *)(page + offset);                             \
 	})
 #define INTERNAL_PRINT_ELEMENT(page, data_off, elem)                        \
 	({                                                                  \
