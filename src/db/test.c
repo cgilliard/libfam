@@ -141,8 +141,8 @@ Test(famdb_rand) {
 	u64 total_bytes = 0;
 	__attribute__((aligned(32))) u8 keys[TRIALS][MAX_KEY_LEN] = {0};
 	__attribute__((aligned(32))) u8 values[TRIALS][MAX_VALUE_LEN] = {0};
-	__attribute__((aligned(32))) u8 klens[TRIALS];
-	__attribute__((aligned(32))) u8 vlens[TRIALS];
+	__attribute__((aligned(32))) u8 klens[TRIALS] = {0};
+	__attribute__((aligned(32))) u8 vlens[TRIALS] = {0};
 
 	rng_init(&rng);
 	rng_gen(&rng, klens, TRIALS);
@@ -242,8 +242,8 @@ Test(insert_ordered) {
 	u64 total_bytes = 0;
 	__attribute__((aligned(32))) u8 keys[TRIALS][MAX_KEY_LEN] = {0};
 	__attribute__((aligned(32))) u8 values[TRIALS][MAX_VALUE_LEN] = {0};
-	__attribute__((aligned(32))) u8 klens[TRIALS];
-	__attribute__((aligned(32))) u8 vlens[TRIALS];
+	__attribute__((aligned(32))) u8 klens[TRIALS] = {0};
+	__attribute__((aligned(32))) u8 vlens[TRIALS] = {0};
 	RbTree tree = RBTREE_INIT;
 	TestKeyValueNode nodes[TRIALS] = {0};
 
