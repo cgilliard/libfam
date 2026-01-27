@@ -50,6 +50,8 @@ typedef struct {
 	u64 lru_hash_buckets;
 	u64 scratch_hash_buckets;
 	u64 scratch_max_pages;
+	u16 leaf_max_keys;
+	u16 internal_max_keys;
 #if TEST == 1
 	bool debug_split_delete;
 #endif /* TEST */
@@ -60,8 +62,8 @@ typedef enum { CURSOR_FORWARD, CURSOR_BACKWARDS } CursorConfig;
 i32 famdb_open(FamDb **db, const FamDbConfig *config);
 void famdb_close(FamDb *db);
 void famdb_txn_begin(FamDbTxn *txn, FamDb *db, FamDbScratch *scratch);
-i32 famdb_get(FamDbTxn *txn, const void *key, u64 key_len, void *value_out,
-	      u64 value_out_capacity, u64 offset);
+i32 famdb_get(FamDbTxn *txn, const void *key, u16 key_len, void *value_out,
+	      u32 value_out_capacity, u32 offset);
 i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 	      u64 value_len, u64 offset);
 i32 famdb_del(FamDbTxn *txn, const void *key, u64 key_len);

@@ -100,6 +100,27 @@
 		}                                                         \
 		min;                                                      \
 	})
+#define LEAF_FIND_MATCH(page, key, key_len, value_out, value_capacity,       \
+			ret_len)                                             \
+	({                                                                   \
+		u16 min = 0, max = PAGE_ELEMENTS(page), mid;                 \
+		i32 cmp;                                                     \
+		while (min < max) {                                          \
+			mid = min + ((max - min) >> 1);                      \
+			cmp = LEAF_COMPARE_KEYS(page, mid, key, key_len);    \
+			if (cmp == 0) {                                      \
+				u32 value_len = LEAF_VALUE_LEN(page, mid);   \
+				*ret_len = min(value_len, value_capacity);   \
+				__builtin_memcpy(value_out,                  \
+						 LEAF_READ_VALUE(page, mid), \
+						 *ret_len);                  \
+				break;                                       \
+			} else if (cmp < 0)                                  \
+				max = mid;                                   \
+			else                                                 \
+				min = mid + 1;                               \
+		}                                                            \
+	})
 #define LEAF_INSERT_AT(page, data_off, elem, key, key_len, value, value_len)   \
 	({                                                                     \
 		u16 _offset__ = PAGE_OFFSET_OF(page, elem);                    \
@@ -200,22 +221,6 @@
 		u16 next_offset = PAGE_OFFSET_OF(page, index + 1);          \
 		*(u64 *)(page + next_offset) = rpageno;                     \
 	})
-/*
- * #define LEAF_COMPARE_KEYS(page, elem, key, key_len)                       \
-	({                                                                \
-		u16 elem_key_off = PAGE_OFFSET_OF(page, elem);            \
-		u16 elem_key_len = LEAF_KEY_LEN(page, elem);              \
-		u16 min_len = min(key_len, elem_key_len);                 \
-		i32 cmp = __builtin_memcmp(                               \
-		    key, page + elem_key_off + sizeof(u32) + sizeof(u16), \
-		    min_len);                                             \
-		cmp != 0                 ? cmp                            \
-		: key_len > elem_key_len ? 1                              \
-		: key_len < elem_key_len ? -1                             \
-					 : 0;                             \
-	})
-
-*/
 #define INTERNAL_COMPARE_KEYS(page, elem, key, key_len)                   \
 	({                                                                \
 		u16 elem_key_off = PAGE_OFFSET_OF(page, elem);            \
@@ -276,6 +281,70 @@
 		    PAGE_ELEMENTS(page), PAGE_TOTAL_BYTES(page));       \
 		for (u16 i = 0; i < PAGE_ELEMENTS(page); i++)           \
 			INTERNAL_PRINT_ELEMENT(page, data_off, i);      \
+	})
+#define BITMAP_ALLOC_PAGE(db)                                                  \
+	({                                                                     \
+		i64 ret = -1;                                                  \
+		u64 bit = 0, lw_offset, initial_offset = db->last_free;        \
+		while (true) {                                                 \
+			lw_offset = db->last_free;                             \
+			u64 *map_ptr = (u64 *)(db->map + PAGE_SIZE +           \
+					       lw_offset * sizeof(u64));       \
+			u64 cur = __atomic_load_n(map_ptr, __ATOMIC_SEQ_CST);  \
+			if (cur == U64_MAX) {                                  \
+				db->last_free = (db->last_free + 1) %          \
+						(db->bitmap_bits >> 6);        \
+				if (db->last_free == initial_offset) {         \
+					errno = ENOMEM;                        \
+					break;                                 \
+				}                                              \
+			} else {                                               \
+				bit = __builtin_ctzll(~cur);                   \
+				u64 nblock = cur | (1UL << bit);               \
+				if (__atomic_compare_exchange(                 \
+					map_ptr, &cur, &nblock, false,         \
+					__ATOMIC_SEQ_CST, __ATOMIC_RELAXED)) { \
+					ret = bit + (lw_offset << 6) +         \
+					      db->fmap_pages;                  \
+					break;                                 \
+				}                                              \
+			}                                                      \
+		}                                                              \
+		ret;                                                           \
+	})
+#define BITMAP_RELEASE_PAGE(db, pageno)                                     \
+	({                                                                  \
+		if (pageno < db->fmap_pages)                                \
+			panic(                                              \
+			    "Invali"                                        \
+			    "d "                                            \
+			    "page "                                         \
+			    "releas"                                        \
+			    "ed!");                                         \
+		u64 bit_offset = pageno - db->fmap_pages;                   \
+		u64 cur;                                                    \
+		u64 bit_to_zero = (1ULL << (bit_offset & 0x3F));            \
+		u64 lw_offset = bit_offset >> 6;                            \
+		u64 *map_ptr =                                              \
+		    (u64 *)(db->map + PAGE_SIZE + lw_offset * sizeof(u64)); \
+		do {                                                        \
+			cur = __aload64(map_ptr);                           \
+			if (!(cur & bit_to_zero))                           \
+				panic("double free {}", pageno);            \
+		} while (!__cas64(map_ptr, &cur, cur & ~bit_to_zero));      \
+		db->last_free = lw_offset;                                  \
+	})
+#define ALLOC(impl, size)                                                  \
+	({                                                                 \
+		void *_ret__;                                              \
+		if (size + impl->scratch_off > impl->scratch->capacity) {  \
+			errno = ENOMEM;                                    \
+			_ret__ = NULL;                                     \
+		} else {                                                   \
+			_ret__ = impl->scratch->space + impl->scratch_off; \
+			impl->scratch_off += size;                         \
+		}                                                          \
+		_ret__;                                                    \
 	})
 
 #endif /* _FAMDB_MANIP_H */
