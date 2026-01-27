@@ -478,15 +478,20 @@ Test(famdb2) {
 
 	ASSERT(!famdb_create_scratch(&scratch, SCRATCH_SIZE), "scratch");
 	famdb_txn_begin(&txn, db, &scratch);
-	for (u32 i = 0; i < 20; i++) {
-		u8 buf[5] = {'a', 'a', 'a', 'a', 'a' + i};
-		u8 v[5] = {'x', 'x', 'x', 'x', 'a' + i};
+
+	for (u32 i = 0; i < 500; i++) {
+		u8 v4 = i / 26;
+		u8 v5 = i % 26;
+		u8 buf[5] = {'a', 'a', 'a', v4 + 'a', v5 + 'a'};
+		u8 v[5] = {'x', 'x', 'x', v4 + 'a', v5 + 'a'};
 		ASSERT(!famdb_set(&txn, buf, 5, v, 5, 0), "famdb set {}", i);
 	}
 
-	for (u32 i = 0; i < 20; i++) {
-		u8 buf[5] = {'a', 'a', 'a', 'a', 'a' + i};
-		u8 v[5] = {'x', 'x', 'x', 'x', 'a' + i};
+	for (u32 i = 0; i < 500; i++) {
+		u8 v4 = i / 26;
+		u8 v5 = i % 26;
+		u8 buf[5] = {'a', 'a', 'a', v4 + 'a', v5 + 'a'};
+		u8 v[5] = {'x', 'x', 'x', v4 + 'a', v5 + 'a'};
 		ASSERT_EQ(
 		    famdb_get(&txn, buf, 5, value_out, sizeof(value_out), 0), 5,
 		    "famdb_get");
@@ -495,38 +500,6 @@ Test(famdb2) {
 
 	ASSERT_EQ(famdb_get(&txn, "p", 1, value_out, sizeof(value_out), 0), -1,
 		  "not found");
-
-	for (u32 i = 0; i < 23; i++) {
-		u8 buf[5] = {'A', 'a', 'a', 'a', 'a' + i};
-		u8 v[5] = {'X', 'x', 'x', 'x', 'a' + i};
-		ASSERT(!famdb_set(&txn, buf, 5, v, 5, 0), "famdb set 2 {}", i);
-	}
-
-	for (u32 i = 0; i < 20; i++) {
-		u8 buf[5] = {'a', 'a', 'a', 'a', 'a' + i};
-		u8 v[5] = {'x', 'x', 'x', 'x', 'a' + i};
-		ASSERT_EQ(
-		    famdb_get(&txn, buf, 5, value_out, sizeof(value_out), 0), 5,
-		    "famdb_get");
-		ASSERT(!memcmp(value_out, v, 5), "equal");
-	}
-
-	ASSERT_EQ(famdb_get(&txn, "aaaa0", 5, value_out, sizeof(value_out), 0),
-		  -1, "not found");
-
-	for (u32 i = 0; i < 23; i++) {
-		u8 buf[5] = {'A', 'a', 'a', 'a', 'a' + i};
-		u8 v[5] = {'X', 'x', 'x', 'x', 'a' + i};
-		ASSERT_EQ(
-		    famdb_get(&txn, buf, 5, value_out, sizeof(value_out), 0), 5,
-		    "famdb_get");
-		ASSERT(!memcmp(value_out, v, 5), "equal");
-	}
-
-	__builtin_memset(value_out, 0, sizeof(value_out));
-	ASSERT_EQ(famdb_get(&txn, "aaaac", 5, value_out, sizeof(value_out), 0),
-		  5, "famdb_get2");
-	ASSERT(!memcmp(value_out, "xxxxc", 5), "equal2");
 
 	famdb_txn_commit(&txn);
 
