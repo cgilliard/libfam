@@ -99,6 +99,10 @@ typedef struct {
 
 STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 
+#define MAX_LEVELS 256
+#define PAGE_RESV 16
+#define AVAILABLE(data_off) (PAGE_SIZE - (data_off + PAGE_RESV))
+
 #define GET_PAGE(impl, page_ptr, pageno, key, key_len)                       \
 	({                                                                   \
 		*(page_ptr) = hashtable_get(impl->hashtable, *pageno);       \
@@ -106,18 +110,21 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 			if (famdb_get_page(impl, &(*page_ptr), *pageno) < 0) \
 				return -1;                                   \
 	})
-#define NEXT_PAGE(impl, page_ptr, pageno, key, key_len)                      \
+#define NEXT_PAGE(impl, page_ptr, pageno, key, key_len, level, ptrs)         \
 	({                                                                   \
 		*(page_ptr) = hashtable_get(impl->hashtable, *pageno);       \
 		if (!*(page_ptr)) {                                          \
 			if (famdb_get_page(impl, &(*page_ptr), *pageno) < 0) \
 				return -1;                                   \
-			HashtableEntry *nent =                               \
-			    ALLOC(impl, sizeof(HashtableEntry));             \
-			if (!nent) return -1;                                \
-			nent->value.disk_pageno = *pageno;                   \
 			i64 npage = BITMAP_ALLOC_PAGE(impl->db);             \
 			if (npage < 0) return -1;                            \
+			HashtableEntry *nent =                               \
+			    ALLOC(impl, sizeof(HashtableEntry));             \
+			if (!nent) {                                         \
+				BITMAP_RELEASE_PAGE(impl->db, npage);        \
+				return -1;                                   \
+			}                                                    \
+			nent->value.disk_pageno = *pageno;                   \
 			nent->key = npage;                                   \
 			hashtable_put(impl->hashtable, (void *)nent);        \
 			__builtin_memcpy(nent->value.page, *(page_ptr),      \
@@ -128,6 +135,56 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 			/* TODO: must replace parent pointer if this is not  \
 			 * the first page */                                 \
 		}                                                            \
+		ptrs[(*level)++] = *pageno;                                  \
+		if (PAGE_IS_INTERNAL(*(page_ptr))) {                         \
+			*pageno =                                            \
+			    INTERNAL_FIND_PAGE(*(page_ptr), key, key_len);   \
+		}                                                            \
+	})
+#define LEAF_INSERT_IMPL(impl, page, data_off, key, key_len, value, value_len, \
+			 level, ptrs, pageno)                                  \
+	({                                                                     \
+		u16 total_bytes = PAGE_TOTAL_BYTES(page);                      \
+		u16 needed = key_len + value_len + sizeof(u32) + sizeof(u16);  \
+		if (needed + total_bytes > AVAILABLE(data_off)) {              \
+			u8 *rpage = NULL, *ppage = NULL;                       \
+			i64 rpageno, ppageno;                                  \
+			rpageno = BITMAP_ALLOC_PAGE(impl->db);                 \
+			if (rpageno < 0) return -1;                            \
+			if (level > 1) {                                       \
+				ppageno = ptrs[level - 1];                     \
+				ppage =                                        \
+				    hashtable_get(impl->hashtable, ppageno);   \
+				INTERNAL_INSERT(ppage, data_off, key, key_len, \
+						indices[level - 1], pageno,    \
+						rpageno);                      \
+			} else {                                               \
+				ppageno = BITMAP_ALLOC_PAGE(impl->db);         \
+				if (ppageno < 0) {                             \
+					BITMAP_RELEASE_PAGE(impl->db,          \
+							    rpageno);          \
+					return -1;                             \
+				}                                              \
+				HashtableEntry *nent =                         \
+				    ALLOC(impl, sizeof(HashtableEntry));       \
+				if (!nent) {                                   \
+					BITMAP_RELEASE_PAGE(impl->db,          \
+							    rpageno);          \
+					BITMAP_RELEASE_PAGE(impl->db,          \
+							    ppageno);          \
+					return -1;                             \
+				}                                              \
+				nent->value.disk_pageno = ppageno;             \
+				nent->key = ppageno;                           \
+				hashtable_put(impl->hashtable, (void *)nent);  \
+				ppage = nent->value.page;                      \
+				INTERNAL_CREATE(ppage, data_off, key, key_len, \
+						pageno, rpageno);              \
+			}                                                      \
+			LEAF_SPLIT(page, data_off, rpage);                     \
+			(void)ppage;                                           \
+		}                                                              \
+		LEAF_INSERT(page, data_off, key, key_len, value, value_len);   \
 	})
 
 STATIC i32 famdb_init(FamDb *db) {
@@ -376,30 +433,28 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u16 key_len, void *value_out,
 
 	do GET_PAGE(impl, &page, &pageno, key, key_len);
 	while (PAGE_IS_INTERNAL(page));
-
 	LEAF_FIND_MATCH(page, key, key_len, value_out, value_out_capacity,
 			&ret);
-	if (ret < 0) errno = ENOENT;
+	if (__builtin_expect(ret < 0, 0)) errno = ENOENT;
 	return ret;
 }
 
 i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 	      u64 value_len, u64 offset) {
-	i32 ret = 0;
+	u64 ptrs[MAX_LEVELS];
+	u8 level = 0;
 	FamDbTxnImpl *impl = (void *)txn;
 	u64 pageno = impl->root;
 	u8 *page = NULL;
 
-	do NEXT_PAGE(impl, &page, &pageno, key, key_len);
+	do NEXT_PAGE(impl, &page, &pageno, key, key_len, &level, ptrs);
 	while (PAGE_IS_INTERNAL(page));
-
-	LEAF_INSERT(page, 512, key, key_len, value, value_len);
-
-	return ret;
+	LEAF_INSERT_IMPL(impl, page, 512, key, key_len, value, value_len, level,
+			 ptrs, pageno);
+	return 0;
 }
 
 i32 famdb_del(FamDbTxn *txn, const void *key, u64 key_len);
-void famdb_txn_abort(FamDbTxn *txn);
 
 i32 famdb_txn_commit(FamDbTxn *txn) { return 0; }
 

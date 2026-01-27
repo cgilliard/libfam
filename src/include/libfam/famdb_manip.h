@@ -312,27 +312,30 @@
 		}                                                              \
 		ret;                                                           \
 	})
-#define BITMAP_RELEASE_PAGE(db, pageno)                                     \
-	({                                                                  \
-		if (pageno < db->fmap_pages)                                \
-			panic(                                              \
-			    "Invali"                                        \
-			    "d "                                            \
-			    "page "                                         \
-			    "releas"                                        \
-			    "ed!");                                         \
-		u64 bit_offset = pageno - db->fmap_pages;                   \
-		u64 cur;                                                    \
-		u64 bit_to_zero = (1ULL << (bit_offset & 0x3F));            \
-		u64 lw_offset = bit_offset >> 6;                            \
-		u64 *map_ptr =                                              \
-		    (u64 *)(db->map + PAGE_SIZE + lw_offset * sizeof(u64)); \
-		do {                                                        \
-			cur = __aload64(map_ptr);                           \
-			if (!(cur & bit_to_zero))                           \
-				panic("double free {}", pageno);            \
-		} while (!__cas64(map_ptr, &cur, cur & ~bit_to_zero));      \
-		db->last_free = lw_offset;                                  \
+#define BITMAP_RELEASE_PAGE(db, pageno)                                      \
+	({                                                                   \
+		if (pageno < db->fmap_pages)                                 \
+			panic(                                               \
+			    "Invali"                                         \
+			    "d "                                             \
+			    "page "                                          \
+			    "releas"                                         \
+			    "ed!");                                          \
+		u64 bit_offset = pageno - db->fmap_pages;                    \
+		u64 cur, desired;                                            \
+		u64 bit_to_zero = (1ULL << (bit_offset & 0x3F));             \
+		u64 lw_offset = bit_offset >> 6;                             \
+		u64 *map_ptr =                                               \
+		    (u64 *)(db->map + PAGE_SIZE + lw_offset * sizeof(u64));  \
+		do {                                                         \
+			cur = __atomic_load_n(map_ptr, __ATOMIC_SEQ_CST);    \
+			if (!(cur & bit_to_zero))                            \
+				panic("double free {}", pageno);             \
+			desired = cur & ~bit_to_zero;                        \
+		} while (!__atomic_compare_exchange(map_ptr, &cur, &desired, \
+						    false, __ATOMIC_SEQ_CST, \
+						    __ATOMIC_RELAXED));      \
+		db->last_free = lw_offset;                                   \
 	})
 #define ALLOC(impl, size)                                                  \
 	({                                                                 \

@@ -67,7 +67,6 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u16 key_len, void *value_out,
 i32 famdb_set(FamDbTxn *txn, const void *key, u64 key_len, const void *value,
 	      u64 value_len, u64 offset);
 i32 famdb_del(FamDbTxn *txn, const void *key, u64 key_len);
-void famdb_txn_abort(FamDbTxn *txn);
 i32 famdb_txn_commit(FamDbTxn *txn);
 
 i32 famdb_cursor_open(FamDbCursor **cursor, FamDbTxn *txn, CursorConfig config);
