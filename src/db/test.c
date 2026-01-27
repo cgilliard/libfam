@@ -496,7 +496,7 @@ Test(famdb2) {
 	ASSERT_EQ(famdb_get(&txn, "p", 1, value_out, sizeof(value_out), 0), -1,
 		  "not found");
 
-	for (u32 i = 0; i < 22; i++) {
+	for (u32 i = 0; i < 23; i++) {
 		u8 buf[5] = {'A', 'a', 'a', 'a', 'a' + i};
 		u8 v[5] = {'X', 'x', 'x', 'x', 'a' + i};
 		ASSERT(!famdb_set(&txn, buf, 5, v, 5, 0), "famdb set 2 {}", i);
@@ -514,7 +514,7 @@ Test(famdb2) {
 	ASSERT_EQ(famdb_get(&txn, "aaaa0", 5, value_out, sizeof(value_out), 0),
 		  -1, "not found");
 
-	for (u32 i = 0; i < 20; i++) {
+	for (u32 i = 0; i < 23; i++) {
 		u8 buf[5] = {'A', 'a', 'a', 'a', 'a' + i};
 		u8 v[5] = {'X', 'x', 'x', 'x', 'a' + i};
 		ASSERT_EQ(

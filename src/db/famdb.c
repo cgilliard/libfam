@@ -104,12 +104,20 @@ typedef struct {
 } HashtableEntry;
 
 typedef struct {
+	u16 index;
+	u64 pageno;
+	u8 *page;
+	bool is_in_scratch;
+} LevelInfo;
+
+typedef struct {
 	u16 level;
 	u16 indices[MAX_LEVELS];
-	u64 ptrs[MAX_LEVELS];
+	u64 pagenos[MAX_LEVELS];
+	bool is_in_scratch[MAX_LEVELS];
 	u8 *page;
 	u64 pageno;
-} FamDbSetState;
+} FamDbState;
 
 STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 
@@ -190,6 +198,27 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 			*pageno = INTERNAL_FIND_PAGE(*page_ptr, key, key_len); \
 		}                                                              \
 	})
+#define GET_PAGE2(impl, state, key, key_len)                                  \
+	({                                                                    \
+		(state)->page =                                               \
+		    hashtable_get(impl->hashtable, (state)->pageno);          \
+		if (!(state)->page) {                                         \
+			(state)->is_in_scratch[(state)->level] = false;       \
+			if (famdb_get_page(impl, &((state)->page),            \
+					   (state)->pageno) < 0)              \
+				return -1;                                    \
+		} else                                                        \
+			(state)->is_in_scratch[(state)->level] = true;        \
+		(state)->pagenos[(state)->level] = (state)->pageno;           \
+		if (PAGE_IS_INTERNAL((state)->page)) {                        \
+			(state)->indices[(state)->level] =                    \
+			    INTERNAL_FIND_INDEX((state)->page, key, key_len); \
+			u16 offset = PAGE_OFFSET_OF(                          \
+			    (state)->page, (state)->indices[(state)->level]); \
+			(state)->pageno = *(u64 *)((state)->page + offset);   \
+		}                                                             \
+		(state)->level++;                                             \
+	})
 #define NEXT_PAGE(impl, state, key, key_len)                                 \
 	({                                                                   \
 		(state)->page =                                              \
@@ -216,7 +245,7 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 				impl->root = nent->key;                      \
 			(state)->pageno = nent->key;                         \
 		}                                                            \
-		(state)->ptrs[(state)->level] = (state)->pageno;             \
+		(state)->pagenos[(state)->level] = (state)->pageno;          \
 		(state)->level++;                                            \
 		if (PAGE_IS_INTERNAL((state)->page)) {                       \
 			(state)->pageno =                                    \
@@ -232,6 +261,7 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		u16 needed = key_len + value_len + sizeof(u32) + sizeof(u16); \
 		if (needed + total_bytes > AVAILABLE(data_off) ||             \
 		    PAGE_ELEMENTS((state)->page) > 40) {                      \
+			println("split");                                     \
 			u8 *rpage = NULL, *ppage = NULL;                      \
 			i64 rpageno, ppageno;                                 \
 			rpageno = BITMAP_ALLOC_PAGE(impl->db);                \
@@ -544,7 +574,19 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u16 key_len, void *value_out,
 i32 famdb_set(FamDbTxn *txn, const void *key, u16 key_len, const void *value,
 	      u32 value_len, u32 offset) {
 	FamDbTxnImpl *impl = (void *)txn;
-	FamDbSetState state = {.pageno = impl->root};
+	FamDbState state = {.pageno = impl->root},
+		   state2 = {.pageno = impl->root};
+	do GET_PAGE2(impl, &state2, key, key_len);
+	while (PAGE_IS_INTERNAL(state2.page));
+	println("level={}", state2.level);
+	for (i32 i = state2.level - 1; i >= 0; i--) {
+		println("[{}]=> index={},is_in_scratch={},pagenos={}", i,
+			state2.indices[i], state2.is_in_scratch[i],
+			state2.pagenos[i]);
+		if (!state2.is_in_scratch[i]) {
+		}
+	}
+
 	do NEXT_PAGE(impl, &state, key, key_len);
 	while (PAGE_IS_INTERNAL(state.page));
 	LEAF_INSERT_IMPL(impl, 512, &state, key, key_len, value, value_len);
