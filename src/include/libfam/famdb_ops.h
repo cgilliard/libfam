@@ -23,8 +23,8 @@
  *
  *******************************************************************************/
 
-#ifndef _FAMDB_MANIP_H
-#define _FAMDB_MANIP_H
+#ifndef _FAMDB_OPS_H
+#define _FAMDB_OPS_H
 
 #include <libfam/format.h>
 #include <libfam/types.h>
@@ -258,7 +258,35 @@
 		u16 offset = PAGE_OFFSET_OF(page, index);            \
 		*(u64 *)(page + offset);                             \
 	})
-#define INTERNAL_PRINT_ELEMENT(page, data_off, elem)                        \
+#define LEAF_PRINT_ELEMENT(page, elem)                                        \
+	({                                                                    \
+		u8 key_out[1024] = {0}, value_out[1024] = {0};                \
+		__builtin_memcpy(key_out, LEAF_READ_KEY(page, elem),          \
+				 LEAF_KEY_LEN(page, elem));                   \
+		__builtin_memcpy(                                             \
+		    value_out, LEAF_READ_VALUE(page, elem),                   \
+		    LEAF_ENTRY_LEN(page, elem) - LEAF_KEY_LEN(page, elem));   \
+		println(                                                      \
+		    "key[{}]={},key_len={},value[{}]={},kv_len={},offset={}", \
+		    elem, key_out, LEAF_KEY_LEN(page, elem), elem, value_out, \
+		    LEAF_ENTRY_LEN(page, elem), PAGE_OFFSET_OF(page, elem));  \
+	})
+#define LEAF_PRINT_ELEMENTS(page)                                              \
+	({                                                                     \
+		u64 elements = PAGE_ELEMENTS(page);                            \
+		u64 total_bytes = PAGE_TOTAL_BYTES(page);                      \
+		println("elements={},total_bytes={}", elements, total_bytes);  \
+		println(                                                       \
+		    "--------------------------------------------------------" \
+		    "-------------------------------");                        \
+		for (u32 i = 0; i < PAGE_ELEMENTS(page); i++) {                \
+			LEAF_PRINT_ELEMENT(page, i);                           \
+		}                                                              \
+		println(                                                       \
+		    "--------------------------------------------------------" \
+		    "-------------------------------");                        \
+	})
+#define INTERNAL_PRINT_ELEMENT(page, elem)                                  \
 	({                                                                  \
 		u8 tmpkey[1024] = {0};                                      \
 		u64 index = INTERNAL_READ_INDEX(page, elem);                \
@@ -274,81 +302,14 @@
 		println("page[{}]={} '{}' ({} bytes, offset={})", i, index, \
 			tmpkey, elem_key_len, offset);                      \
 	})
-#define INTERNAL_PRINT_ELEMENTS(page, data_off)                         \
+#define INTERNAL_PRINT_ELEMENTS(page)                                   \
 	({                                                              \
 		println(                                                \
 		    "=========Printing internal page ({} elements, {} " \
 		    "bytes)=========",                                  \
 		    PAGE_ELEMENTS(page), PAGE_TOTAL_BYTES(page));       \
 		for (u16 i = 0; i < PAGE_ELEMENTS(page); i++)           \
-			INTERNAL_PRINT_ELEMENT(page, data_off, i);      \
-	})
-#define BITMAP_ALLOC_PAGE(db)                                                  \
-	({                                                                     \
-		i64 ret = -1;                                                  \
-		u64 bit = 0, lw_offset, initial_offset = db->last_free;        \
-		while (true) {                                                 \
-			lw_offset = db->last_free;                             \
-			u64 *map_ptr = (u64 *)(db->map + PAGE_SIZE +           \
-					       lw_offset * sizeof(u64));       \
-			u64 cur = __atomic_load_n(map_ptr, __ATOMIC_SEQ_CST);  \
-			if (cur == U64_MAX) {                                  \
-				db->last_free = (db->last_free + 1) %          \
-						(db->bitmap_bits >> 6);        \
-				if (db->last_free == initial_offset) {         \
-					errno = ENOMEM;                        \
-					break;                                 \
-				}                                              \
-			} else {                                               \
-				bit = __builtin_ctzll(~cur);                   \
-				u64 nblock = cur | (1UL << bit);               \
-				if (__atomic_compare_exchange(                 \
-					map_ptr, &cur, &nblock, false,         \
-					__ATOMIC_SEQ_CST, __ATOMIC_RELAXED)) { \
-					ret = bit + (lw_offset << 6) +         \
-					      db->fmap_pages;                  \
-					break;                                 \
-				}                                              \
-			}                                                      \
-		}                                                              \
-		ret;                                                           \
-	})
-#define BITMAP_RELEASE_PAGE(db, pageno)                                      \
-	({                                                                   \
-		if (pageno < db->fmap_pages)                                 \
-			panic(                                               \
-			    "Invali"                                         \
-			    "d "                                             \
-			    "page "                                          \
-			    "releas"                                         \
-			    "ed!");                                          \
-		u64 bit_offset = pageno - db->fmap_pages;                    \
-		u64 cur, desired;                                            \
-		u64 bit_to_zero = (1ULL << (bit_offset & 0x3F));             \
-		u64 lw_offset = bit_offset >> 6;                             \
-		u64 *map_ptr =                                               \
-		    (u64 *)(db->map + PAGE_SIZE + lw_offset * sizeof(u64));  \
-		do {                                                         \
-			cur = __atomic_load_n(map_ptr, __ATOMIC_SEQ_CST);    \
-			if (!(cur & bit_to_zero))                            \
-				panic("double free {}", pageno);             \
-			desired = cur & ~bit_to_zero;                        \
-		} while (!__atomic_compare_exchange(map_ptr, &cur, &desired, \
-						    false, __ATOMIC_SEQ_CST, \
-						    __ATOMIC_RELAXED));      \
-		db->last_free = lw_offset;                                   \
-	})
-#define ALLOC(impl, size)                                                  \
-	({                                                                 \
-		void *_ret__;                                              \
-		if (size + impl->scratch_off > impl->scratch->capacity) {  \
-			errno = ENOMEM;                                    \
-			_ret__ = NULL;                                     \
-		} else {                                                   \
-			_ret__ = impl->scratch->space + impl->scratch_off; \
-			impl->scratch_off += size;                         \
-		}                                                          \
-		_ret__;                                                    \
+			INTERNAL_PRINT_ELEMENT(page, i);                \
 	})
 
-#endif /* _FAMDB_MANIP_H */
+#endif /* _FAMDB_OPS_H */
