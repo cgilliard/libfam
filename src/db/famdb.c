@@ -111,12 +111,8 @@ typedef struct {
 } LevelInfo;
 
 typedef struct {
-	u16 level;
-	u16 indices[MAX_LEVELS];
-	u64 pagenos[MAX_LEVELS];
-	bool is_in_scratch[MAX_LEVELS];
-	u8 *page;
-	u64 pageno;
+	u16 levels;
+	LevelInfo info[MAX_LEVELS];
 } FamDbState;
 
 STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
@@ -200,24 +196,27 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 	})
 #define GET_PAGE2(impl, state, key, key_len)                                  \
 	({                                                                    \
-		(state)->page =                                               \
-		    hashtable_get(impl->hashtable, (state)->pageno);          \
-		if (!(state)->page) {                                         \
-			(state)->is_in_scratch[(state)->level] = false;       \
-			if (famdb_get_page(impl, &((state)->page),            \
-					   (state)->pageno) < 0)              \
+		u8 *page;                                                     \
+		u64 pageno = (state)->info[(state)->levels].pageno;           \
+		u16 index = 0;                                                \
+		bool is_in_scratch;                                           \
+		page = hashtable_get(impl->hashtable, pageno);                \
+		if (!page) {                                                  \
+			is_in_scratch = false;                                \
+			if (famdb_get_page(impl, &page, pageno) < 0)          \
 				return -1;                                    \
 		} else                                                        \
-			(state)->is_in_scratch[(state)->level] = true;        \
-		(state)->pagenos[(state)->level] = (state)->pageno;           \
-		if (PAGE_IS_INTERNAL((state)->page)) {                        \
-			(state)->indices[(state)->level] =                    \
-			    INTERNAL_FIND_INDEX((state)->page, key, key_len); \
-			u16 offset = PAGE_OFFSET_OF(                          \
-			    (state)->page, (state)->indices[(state)->level]); \
-			(state)->pageno = *(u64 *)((state)->page + offset);   \
+			is_in_scratch = true;                                 \
+		if (PAGE_IS_INTERNAL(page)) {                                 \
+			index = INTERNAL_FIND_INDEX(page, key, key_len);      \
+			u16 offset = PAGE_OFFSET_OF(page, index);             \
+			pageno = *(u64 *)(page + offset);                     \
 		}                                                             \
-		(state)->level++;                                             \
+		(state)->info[(state)->levels].index = index;                 \
+		(state)->info[(state)->levels].page = page;                   \
+		(state)->info[(state)->levels].is_in_scratch = is_in_scratch; \
+		(state)->info[(state)->levels + 1].pageno = pageno;           \
+		(state)->levels++;                                            \
 	})
 #define NEXT_PAGE(impl, state, key, key_len)                                 \
 	({                                                                   \
@@ -254,6 +253,65 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 	})
 #define PAGE_RESV 16
 #define AVAILABLE(data_off) (PAGE_SIZE - (data_off + PAGE_RESV))
+#define LEAF_INSERT_IMPL2(impl, data_off, state, key, key_len, value,          \
+			  value_len)                                           \
+	({                                                                     \
+		u8 *page = (state)->info[(state)->levels - 1].page;            \
+		u64 pageno = (state)->info[(state)->levels - 1].pageno;        \
+		u16 total_bytes = PAGE_TOTAL_BYTES(page);                      \
+		u16 needed = key_len + value_len + sizeof(u32) + sizeof(u16);  \
+		if (needed + total_bytes > AVAILABLE(data_off) ||              \
+		    PAGE_ELEMENTS(page) > 40) {                                \
+			u8 *rpage = NULL, *ppage = NULL;                       \
+			i64 rpageno, ppageno;                                  \
+			rpageno = BITMAP_ALLOC_PAGE(impl->db);                 \
+			if (rpageno < 0) return -1;                            \
+			if (famdb_get_page(impl, &rpage, rpageno) < 0) {       \
+				BITMAP_RELEASE_PAGE(impl->db, rpageno);        \
+				return -1;                                     \
+			}                                                      \
+			HashtableEntry *nent =                                 \
+			    ALLOC(impl, sizeof(HashtableEntry));               \
+			if (!nent) {                                           \
+				BITMAP_RELEASE_PAGE(impl->db, rpageno);        \
+				return -1;                                     \
+			}                                                      \
+			nent->value.disk_pageno = rpageno;                     \
+			nent->key = rpageno;                                   \
+			hashtable_put(impl->hashtable, (void *)nent);          \
+			rpage = nent->value.page;                              \
+                                                                               \
+			ppageno = BITMAP_ALLOC_PAGE(impl->db);                 \
+			if (ppageno < 0) {                                     \
+				BITMAP_RELEASE_PAGE(impl->db, rpageno);        \
+				return -1;                                     \
+			}                                                      \
+			nent = ALLOC(impl, sizeof(HashtableEntry));            \
+			if (!nent) {                                           \
+				BITMAP_RELEASE_PAGE(impl->db, rpageno);        \
+				BITMAP_RELEASE_PAGE(impl->db, ppageno);        \
+				return -1;                                     \
+			}                                                      \
+			nent->value.disk_pageno = ppageno;                     \
+			nent->key = ppageno;                                   \
+			hashtable_put(impl->hashtable, (void *)nent);          \
+			ppage = nent->value.page;                              \
+			LEAF_SPLIT(page, data_off, rpage);                     \
+			u16 left_elems = PAGE_ELEMENTS(page);                  \
+			INTERNAL_CREATE(ppage, data_off,                       \
+					LEAF_READ_KEY(page, left_elems - 1),   \
+					LEAF_KEY_LEN(page, left_elems - 1),    \
+					pageno, rpageno);                      \
+			(state)->info[(state)->levels - 1].page =              \
+			    LEAF_COMPARE_KEYS(page, left_elems - 1, key,       \
+					      key_len) > 0                     \
+				? rpage                                        \
+				: page;                                        \
+			impl->root = ppageno;                                  \
+		}                                                              \
+		LEAF_INSERT((state)->info[(state)->levels - 1].page, data_off, \
+			    key, key_len, value, value_len);                   \
+	})
 #define LEAF_INSERT_IMPL(impl, data_off, state, key, key_len, value,          \
 			 value_len)                                           \
 	({                                                                    \
@@ -261,7 +319,6 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		u16 needed = key_len + value_len + sizeof(u32) + sizeof(u16); \
 		if (needed + total_bytes > AVAILABLE(data_off) ||             \
 		    PAGE_ELEMENTS((state)->page) > 40) {                      \
-			println("split");                                     \
 			u8 *rpage = NULL, *ppage = NULL;                      \
 			i64 rpageno, ppageno;                                 \
 			rpageno = BITMAP_ALLOC_PAGE(impl->db);                \
@@ -574,22 +631,42 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u16 key_len, void *value_out,
 i32 famdb_set(FamDbTxn *txn, const void *key, u16 key_len, const void *value,
 	      u32 value_len, u32 offset) {
 	FamDbTxnImpl *impl = (void *)txn;
-	FamDbState state = {.pageno = impl->root},
-		   state2 = {.pageno = impl->root};
-	do GET_PAGE2(impl, &state2, key, key_len);
-	while (PAGE_IS_INTERNAL(state2.page));
-	println("level={}", state2.level);
-	for (i32 i = state2.level - 1; i >= 0; i--) {
-		println("[{}]=> index={},is_in_scratch={},pagenos={}", i,
-			state2.indices[i], state2.is_in_scratch[i],
-			state2.pagenos[i]);
-		if (!state2.is_in_scratch[i]) {
+	FamDbState state = {0};
+	state.info[0].pageno = impl->root;
+	do GET_PAGE2(impl, &state, key, key_len);
+	while (PAGE_IS_INTERNAL(state.info[state.levels - 1].page));
+	/*
+	println("levels={},elems={}", state.levels,
+		PAGE_ELEMENTS(state.info[state.levels - 1].page));
+		*/
+	for (i32 i = state.levels - 1; i >= 0; i--) {
+		/*
+		println("[{}]=> index={},is_in_scratch={}, pageno={}, page={X}",
+			i, state.info[i].index, state.info[i].is_in_scratch,
+			state.info[i].pageno, (u64)state.info[i].page);
+			*/
+
+		if (!state.info[i].is_in_scratch) {
+			i64 npage = BITMAP_ALLOC_PAGE(impl->db);
+			if (npage < 0) return -1;
+			HashtableEntry *nent =
+			    ALLOC(impl, sizeof(HashtableEntry));
+			if (!nent) {
+				BITMAP_RELEASE_PAGE(impl->db, npage);
+				return -1;
+			}
+			nent->value.disk_pageno = state.info[i].pageno;
+			nent->key = npage;
+			hashtable_put(impl->hashtable, (void *)nent);
+			__builtin_memcpy(nent->value.page, state.info[i].page,
+					 PAGE_SIZE);
+			state.info[i].page = nent->value.page;
+			if (state.info[i].pageno == impl->root)
+				impl->root = npage;
+			state.info[i].pageno = nent->key;
 		}
 	}
-
-	do NEXT_PAGE(impl, &state, key, key_len);
-	while (PAGE_IS_INTERNAL(state.page));
-	LEAF_INSERT_IMPL(impl, 512, &state, key, key_len, value, value_len);
+	LEAF_INSERT_IMPL2(impl, 512, &state, key, key_len, value, value_len);
 	return 0;
 }
 
