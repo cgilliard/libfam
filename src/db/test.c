@@ -448,7 +448,7 @@ Test(famdb1) {
 }
 
 Test(famdb2) {
-#define TRIALS 8
+#define TRIALS 10000
 #define SCRATCH_SIZE (2 * 1024 * 1024)
 #define DB_MEGABYTES 4
 #define DB_FILE "/tmp/famdb2.dat"
@@ -464,7 +464,7 @@ Test(famdb2) {
 	FamDbScratch scratch;
 	FamDb *db = NULL;
 	FamDbConfig config = {
-	    .queue_depth = 16,
+	    .queue_depth = 1024,
 	    .pathname = DB_FILE,
 	    .lru_hash_buckets = 1024,
 	    .lru_capacity = 512,
@@ -495,7 +495,7 @@ Test(famdb2) {
 		u8 v[5] = {'x', 'x', 'x', v4 + 'a', v5 + 'a'};
 		ASSERT_EQ(
 		    famdb_get(&txn, buf, 5, value_out, sizeof(value_out), 0), 5,
-		    "famdb_get");
+		    "famdb_get1 {}", i);
 		ASSERT(!memcmp(value_out, v, 5), "equal");
 	}
 
@@ -512,7 +512,7 @@ Test(famdb2) {
 		u8 v[5] = {'x', 'x', 'x', v4 + 'a', v5 + 'a'};
 		ASSERT_EQ(
 		    famdb_get(&txn, buf, 5, value_out, sizeof(value_out), 0), 5,
-		    "famdb_get");
+		    "famdb_get2 {}", i);
 		ASSERT(!memcmp(value_out, v, 5), "equal");
 	}
 

@@ -196,8 +196,9 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		page = hashtable_get(impl->hashtable, pageno);                \
 		if (!page) {                                                  \
 			is_in_scratch = false;                                \
-			if (famdb_get_page(impl, &page, pageno) < 0)          \
+			if (famdb_get_page(impl, &page, pageno) < 0) {        \
 				return -1;                                    \
+			}                                                     \
 		} else                                                        \
 			is_in_scratch = true;                                 \
 		if (PAGE_IS_INTERNAL(page)) {                                 \
@@ -218,8 +219,7 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		u64 pageno = (state)->info[(state)->levels - 1].pageno;        \
 		u16 total_bytes = PAGE_TOTAL_BYTES(page);                      \
 		u16 needed = key_len + value_len + sizeof(u32) + sizeof(u16);  \
-		if (PAGE_ELEMENTS(page) > 5 ||                                 \
-		    needed + total_bytes > AVAILABLE(data_off) ||              \
+		if (needed + total_bytes > AVAILABLE(data_off) ||              \
 		    PAGE_ELEMENTS(page) > MAX_ELEMENTS(data_off)) {            \
 			u8 *rpage = NULL, *ppage = NULL;                       \
 			i64 rpageno, ppageno;                                  \
@@ -351,6 +351,7 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 	res = io_uring_enter2(db->ring_fd, 1, 1, flags, NULL, 0);
 	if (res < 0) {
 		__atomic_fetch_sub(db->sq_tail, 1, __ATOMIC_SEQ_CST);
+		perror("enter2");
 		return -1;
 	}
 
