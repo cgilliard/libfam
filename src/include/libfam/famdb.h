@@ -52,6 +52,7 @@ typedef struct {
 	u64 scratch_max_pages;
 	u16 leaf_max_keys;
 	u16 internal_max_keys;
+	bool o_direct;
 #if TEST == 1
 	bool debug_split_delete;
 #endif /* TEST */

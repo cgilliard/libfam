@@ -507,7 +507,6 @@ Test(famdb2) {
 
 	famdb_txn_commit(&txn);
 
-	println("txn 2");
 	FamDbTxn txn2;
 	FamDbScratch scratch2;
 	ASSERT(!famdb_create_scratch(&scratch2, SCRATCH_SIZE), "scratch2");

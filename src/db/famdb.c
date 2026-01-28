@@ -337,14 +337,11 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 				   .off = page_num * PAGE_SIZE,
 				   .len = PAGE_SIZE,
 				   .user_data = 1};
-	println("famdb get page {}", page_num);
 
 	if ((page_from_cache = lru_get(impl->db->cache, page_num)) != NULL) {
-		println("cache hit");
 		*page = page_from_cache;
 		return 0;
 	}
-	println("read from disk");
 
 	index = *db->sq_tail & *db->sq_mask;
 	db->sq_array[index] = index;
@@ -352,16 +349,13 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 
 	__atomic_fetch_add(db->sq_tail, 1, __ATOMIC_SEQ_CST);
 	res = io_uring_enter2(db->ring_fd, 1, 1, flags, NULL, 0);
-	println("io_uring_enter2 result={}", res);
 	if (res < 0) {
 		__atomic_fetch_sub(db->sq_tail, 1, __ATOMIC_SEQ_CST);
-		perror("enter2");
 		return -1;
 	}
 
 	u32 idx = *db->cq_head & *db->cq_mask;
 	result = db->cqes[idx].res;
-	println("result={}", result);
 
 	if (result < 0)
 		errno = -result;
@@ -373,8 +367,6 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 	__atomic_fetch_add(db->cq_head, 1, __ATOMIC_SEQ_CST);
 
 	u8 *tail = lru_tail(impl->db->cache);
-	println("elems read into cache = {}",
-		PAGE_ELEMENTS(impl->db->free_page));
 	lru_put(impl->db->cache, page_num, impl->db->free_page);
 	*page = impl->db->free_page;
 	impl->db->free_page = tail;
@@ -490,7 +482,10 @@ i32 famdb_open(FamDb **dbret, const FamDbConfig *config) {
 	db->cqes =
 	    (struct io_uring_cqe *)(db->cq_ring + db->params.cq_off.cqes);
 
-	db->fd = open(config->pathname, O_RDWR | O_NOATIME | O_CLOEXEC, 0);
+	db->fd = open(
+	    config->pathname,
+	    O_RDWR | O_NOATIME | O_CLOEXEC | (config->o_direct ? O_DIRECT : 0),
+	    0);
 	if (db->fd < 0) {
 		famdb_close(db);
 		return -1;
@@ -563,12 +558,9 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u16 key_len, void *value_out,
 	FamDbTxnImpl *impl = (void *)txn;
 	FamDbState state = {.info[0].pageno = impl->root};
 
-	println("root={}", impl->root);
-
 	do GET_PAGE(impl, &state, key, key_len);
 	while (PAGE_IS_INTERNAL(state.info[state.levels - 1].page));
 
-	println("elems={}", PAGE_ELEMENTS(state.info[state.levels - 1].page));
 	LEAF_FIND_MATCH(state.info[state.levels - 1].page, key, key_len,
 			value_out, value_out_capacity, &ret);
 	if (__builtin_expect(ret < 0, 0)) errno = ENOENT;
