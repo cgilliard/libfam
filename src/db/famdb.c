@@ -373,6 +373,8 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 	__atomic_fetch_add(db->cq_head, 1, __ATOMIC_SEQ_CST);
 
 	u8 *tail = lru_tail(impl->db->cache);
+	println("elems read into cache = {}",
+		PAGE_ELEMENTS(impl->db->free_page));
 	lru_put(impl->db->cache, page_num, impl->db->free_page);
 	*page = impl->db->free_page;
 	impl->db->free_page = tail;
