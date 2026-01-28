@@ -620,6 +620,7 @@ Test(famdb3) {
 }
 
 Test(famdb4) {
+#define ITER 5
 #define TRIALS 1024
 #define SCRATCH_SIZE (8 * 1024 * 1024)
 #define DB_MEGABYTES 16
@@ -650,33 +651,37 @@ Test(famdb4) {
 
 	ASSERT(!famdb_create_scratch(&scratch, SCRATCH_SIZE), "scratch");
 
-	for (u64 x = 0; x < 5; x++) {
+	u8 keys[ITER][TRIALS][17] = {0};
+	u8 values[ITER][TRIALS][17] = {0};
+
+	for (u64 x = 0; x < ITER; x++) {
 		famdb_txn_begin(&txn, db, &scratch);
 
-		u8 keys[TRIALS][17] = {0};
-		u8 values[TRIALS][17] = {0};
 		Rng rng;
 
 		rng_init(&rng);
 
 		for (u64 i = 0; i < TRIALS; i++) {
-			rng_gen(&rng, keys[i], 16);
-			rng_gen(&rng, values[i], 16);
-			res = famdb_set(&txn, keys[i], 16, values[i], 16, 0);
+			rng_gen(&rng, keys[x][i], 16);
+			rng_gen(&rng, values[x][i], 16);
+			res = famdb_set(&txn, keys[x][i], 16, values[x][i], 16,
+					0);
 			ASSERT_EQ(res, 0, "famdb_set {} {}", x, i);
 		}
 
-		for (u64 i = 0; i < TRIALS; i++) {
-			u8 out[1024];
-			ASSERT_EQ(
-			    famdb_get(&txn, keys[i], 16, out, sizeof(out), 0),
-			    16, "famdb_get {} {}", x, i);
-			ASSERT(!memcmp(values[i], out, 16), "equal {}", i);
+		for (u64 j = 0; j <= x; j++) {
+			for (u64 i = 0; i < TRIALS; i++) {
+				u8 out[1024];
+				ASSERT_EQ(famdb_get(&txn, keys[j][i], 16, out,
+						    sizeof(out), 0),
+					  16, "famdb_get {} {}", j, i);
+				ASSERT(!memcmp(values[j][i], out, 16),
+				       "equal {}", i);
+			}
 		}
 
 		famdb_txn_commit(&txn);
 	}
-	// famdb_txn_begin(&txn, db, &scratch);
 
 	famdb_destroy_scratch(&scratch);
 	famdb_close(db);
