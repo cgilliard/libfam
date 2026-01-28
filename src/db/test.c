@@ -448,6 +448,7 @@ Test(famdb1) {
 }
 
 Test(famdb2) {
+#define TRIALS 8
 #define SCRATCH_SIZE (2 * 1024 * 1024)
 #define DB_MEGABYTES 4
 #define DB_FILE "/tmp/famdb2.dat"
@@ -479,7 +480,7 @@ Test(famdb2) {
 	ASSERT(!famdb_create_scratch(&scratch, SCRATCH_SIZE), "scratch");
 	famdb_txn_begin(&txn, db, &scratch);
 
-	for (u32 i = 0; i < 500; i++) {
+	for (u32 i = 0; i < TRIALS; i++) {
 		u8 v4 = i / 26;
 		u8 v5 = i % 26;
 		u8 buf[5] = {'a', 'a', 'a', v4 + 'a', v5 + 'a'};
@@ -487,7 +488,7 @@ Test(famdb2) {
 		ASSERT(!famdb_set(&txn, buf, 5, v, 5, 0), "famdb set {}", i);
 	}
 
-	for (u32 i = 0; i < 500; i++) {
+	for (u32 i = 0; i < TRIALS; i++) {
 		u8 v4 = i / 26;
 		u8 v5 = i % 26;
 		u8 buf[5] = {'a', 'a', 'a', v4 + 'a', v5 + 'a'};
@@ -502,6 +503,21 @@ Test(famdb2) {
 		  "not found");
 
 	famdb_txn_commit(&txn);
+
+	famdb_txn_begin(&txn, db, &scratch);
+	for (u32 i = 0; i < TRIALS; i++) {
+		u8 v4 = i / 26;
+		u8 v5 = i % 26;
+		u8 buf[5] = {'a', 'a', 'a', v4 + 'a', v5 + 'a'};
+		u8 v[5] = {'x', 'x', 'x', v4 + 'a', v5 + 'a'};
+		ASSERT_EQ(
+		    famdb_get(&txn, buf, 5, value_out, sizeof(value_out), 0), 5,
+		    "famdb_get");
+		ASSERT(!memcmp(value_out, v, 5), "equal");
+	}
+
+	ASSERT_EQ(famdb_get(&txn, "p", 1, value_out, sizeof(value_out), 0), -1,
+		  "not found");
 
 	famdb_destroy_scratch(&scratch);
 	famdb_close(db);

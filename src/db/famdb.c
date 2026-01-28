@@ -218,16 +218,13 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		u64 pageno = (state)->info[(state)->levels - 1].pageno;        \
 		u16 total_bytes = PAGE_TOTAL_BYTES(page);                      \
 		u16 needed = key_len + value_len + sizeof(u32) + sizeof(u16);  \
-		if (needed + total_bytes > AVAILABLE(data_off) ||              \
+		if (PAGE_ELEMENTS(page) > 5 ||                                 \
+		    needed + total_bytes > AVAILABLE(data_off) ||              \
 		    PAGE_ELEMENTS(page) > MAX_ELEMENTS(data_off)) {            \
 			u8 *rpage = NULL, *ppage = NULL;                       \
 			i64 rpageno, ppageno;                                  \
 			rpageno = BITMAP_ALLOC_PAGE(impl->db);                 \
 			if (rpageno < 0) return -1;                            \
-			if (famdb_get_page(impl, &rpage, rpageno) < 0) {       \
-				BITMAP_RELEASE_PAGE(impl->db, rpageno);        \
-				return -1;                                     \
-			}                                                      \
 			HashtableEntry *nent =                                 \
 			    ALLOC(impl, sizeof(HashtableEntry));               \
 			if (!nent) {                                           \
@@ -561,7 +558,6 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u16 key_len, void *value_out,
 
 	do GET_PAGE(impl, &state, key, key_len);
 	while (PAGE_IS_INTERNAL(state.info[state.levels - 1].page));
-
 	LEAF_FIND_MATCH(state.info[state.levels - 1].page, key, key_len,
 			value_out, value_out_capacity, &ret);
 	if (__builtin_expect(ret < 0, 0)) errno = ENOENT;
@@ -582,7 +578,61 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u16 key_len, const void *value,
 
 i32 famdb_del(FamDbTxn *txn, const void *key, u16 key_len);
 
-i32 famdb_txn_commit(FamDbTxn *txn) { return 0; }
+i32 famdb_txn_commit(FamDbTxn *txn) {
+	u32 index, flags = IORING_ENTER_GETEVENTS;
+	FamDbTxnImpl *impl = (void *)txn;
+	FamDb *db = impl->db;
+	u64 size = sizeof(HashtableEntry), count = 0;
+
+	for (u64 i = impl->scratch_off;
+	     i > sizeof(void *) * impl->db->config.scratch_hash_buckets +
+		     impl->db->config.scratch_max_pages * PAGE_SIZE +
+		     sizeof(Hashtable);
+	     i -= size) {
+		HashtableEntry *ent =
+		    (void *)(impl->scratch->space + i - sizeof(HashtableEntry));
+		u64 npagenum = ent->key;
+		u8 *page = ent->value.page;
+
+		index = (*db->sq_tail + count) & *db->sq_mask;
+		db->sq_array[index] = index;
+
+		struct io_uring_sqe write_sqe = {.opcode = IORING_OP_WRITE,
+						 .flags = IOSQE_FIXED_FILE,
+						 .addr = (u64)page,
+						 .off = npagenum * PAGE_SIZE,
+						 .len = PAGE_SIZE,
+						 .user_data = ++count};
+
+		db->sqes[index] = write_sqe;
+	}
+
+	__atomic_add_fetch(db->sq_tail, count, __ATOMIC_SEQ_CST);
+	io_uring_enter2(db->ring_fd, count, count, flags, NULL, 0);
+	__atomic_add_fetch(db->cq_head, count, __ATOMIC_SEQ_CST);
+
+	struct io_uring_sqe sync_sqe = {.opcode = IORING_OP_FSYNC,
+					.flags = IOSQE_FIXED_FILE,
+					.fsync_flags = IORING_FSYNC_DATASYNC,
+					.user_data = U64_MAX};
+	index = (*db->sq_tail + count) & *db->sq_mask;
+	db->sq_array[index] = index;
+	db->sqes[index] = sync_sqe;
+	__atomic_add_fetch(db->sq_tail, 1, __ATOMIC_SEQ_CST);
+	io_uring_enter2(db->ring_fd, 1, 1, 0, NULL, 0);
+	__atomic_add_fetch(db->cq_head, 1, __ATOMIC_SEQ_CST);
+
+	CommitUnion commit = {.commit.seqno = impl->commit.commit.seqno + 1,
+			      .commit.root = impl->root};
+
+	SuperBlock *sb = (void *)db->map;
+	CommitUnion expected = impl->commit;
+	i32 result = !__atomic_compare_exchange(
+	    &sb->commit.value, &expected.value, &commit.value, false,
+	    __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
+
+	return result;
+}
 
 i32 famdb_create_scratch(FamDbScratch *scratch, u64 size) {
 	scratch->space = map(size);

@@ -165,5 +165,16 @@ void lru_put(LruCache *cache, u64 key, void *value) {
 	cache->hash_buckets[bucket] = nent;
 }
 
+void lru_set_key(LruCache *cache, u64 current_key, u64 new_key) {
+	u64 bucket =
+	    lru_hash(cache->seed, cache->hash_bucket_count, current_key);
+
+	LruCacheEntry *ent = cache->hash_buckets[bucket];
+	while (ent) {
+		if (ent->key == current_key) ent->key = new_key;
+		ent = ent->hash_next;
+	}
+}
+
 void *lru_tail(LruCache *cache) { return cache->lru_tail->value; }
 void *lru_head(LruCache *cache) { return cache->lru_head->value; }
