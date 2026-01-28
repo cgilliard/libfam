@@ -397,7 +397,7 @@ Test(internal) {
 }
 
 Test(famdb1) {
-#define SCRATCH_SIZE (2 * 1024 * 1024)
+#define SCRATCH_SIZE (8 * 1024 * 1024)
 #define DB_MEGABYTES 4
 #define DB_FILE "/tmp/famdb1.dat"
 	unlink(DB_FILE);
@@ -427,7 +427,8 @@ Test(famdb1) {
 
 	ASSERT(!famdb_create_scratch(&scratch, SCRATCH_SIZE), "scratch");
 	famdb_txn_begin(&txn, db, &scratch);
-	ASSERT(!famdb_set(&txn, "abc", 3, "def1", 4, 0), "famdb_set1");
+	res = famdb_set(&txn, "abc", 3, "def1", 4, 0);
+	ASSERT(!res, "famdb_set1");
 	ASSERT(!famdb_set(&txn, "x", 1, "aaa", 3, 0), "famdb_set2");
 
 	ASSERT_EQ(famdb_get(&txn, "abc", 3, value_out, sizeof(value_out), 0), 4,
@@ -449,7 +450,7 @@ Test(famdb1) {
 
 Test(famdb2) {
 #define TRIALS 10000
-#define SCRATCH_SIZE (2 * 1024 * 1024)
+#define SCRATCH_SIZE (8 * 1024 * 1024)
 #define DB_MEGABYTES 4
 #define DB_FILE "/tmp/famdb2.dat"
 	unlink(DB_FILE);
