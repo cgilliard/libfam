@@ -561,6 +561,8 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u16 key_len, void *value_out,
 
 	do GET_PAGE(impl, &state, key, key_len);
 	while (PAGE_IS_INTERNAL(state.info[state.levels - 1].page));
+
+	println("elems={}", PAGE_ELEMENTS(state.info[state.levels - 1].page));
 	LEAF_FIND_MATCH(state.info[state.levels - 1].page, key, key_len,
 			value_out, value_out_capacity, &ret);
 	if (__builtin_expect(ret < 0, 0)) errno = ENOENT;
