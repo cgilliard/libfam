@@ -654,29 +654,29 @@ Test(famdb4) {
 	u8 keys[ITER][TRIALS][17] = {0};
 	u8 values[ITER][TRIALS][17] = {0};
 
-	for (u64 x = 0; x < ITER; x++) {
+	for (u64 i = 0; i < ITER; i++) {
 		famdb_txn_begin(&txn, db, &scratch);
 
 		Rng rng;
 
 		rng_init(&rng);
 
-		for (u64 i = 0; i < TRIALS; i++) {
-			rng_gen(&rng, keys[x][i], 16);
-			rng_gen(&rng, values[x][i], 16);
-			res = famdb_set(&txn, keys[x][i], 16, values[x][i], 16,
+		for (u64 j = 0; j < TRIALS; j++) {
+			rng_gen(&rng, keys[i][j], 16);
+			rng_gen(&rng, values[i][j], 16);
+			res = famdb_set(&txn, keys[i][j], 16, values[i][j], 16,
 					0);
-			ASSERT_EQ(res, 0, "famdb_set {} {}", x, i);
+			ASSERT_EQ(res, 0, "famdb_set {} {}", i, j);
 		}
 
-		for (u64 j = 0; j <= x; j++) {
-			for (u64 i = 0; i < TRIALS; i++) {
+		for (u64 j = 0; j <= i; j++) {
+			for (u64 k = 0; k < TRIALS; k++) {
 				u8 out[1024];
-				ASSERT_EQ(famdb_get(&txn, keys[j][i], 16, out,
+				ASSERT_EQ(famdb_get(&txn, keys[j][k], 16, out,
 						    sizeof(out), 0),
-					  16, "famdb_get {} {}", j, i);
-				ASSERT(!memcmp(values[j][i], out, 16),
-				       "equal {}", i);
+					  16, "famdb_get {} {}", j, k);
+				ASSERT(!memcmp(values[j][k], out, 16),
+				       "equal {} {}", j, k);
 			}
 		}
 
