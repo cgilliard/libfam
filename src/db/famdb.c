@@ -557,6 +557,8 @@ i32 famdb_get(FamDbTxn *txn, const void *key, u16 key_len, void *value_out,
 	FamDbTxnImpl *impl = (void *)txn;
 	FamDbState state = {.info[0].pageno = impl->root};
 
+	println("root={}", impl->root);
+
 	do GET_PAGE(impl, &state, key, key_len);
 	while (PAGE_IS_INTERNAL(state.info[state.levels - 1].page));
 	LEAF_FIND_MATCH(state.info[state.levels - 1].page, key, key_len,
