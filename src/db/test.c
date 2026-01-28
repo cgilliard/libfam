@@ -399,7 +399,7 @@ Test(internal) {
 Test(famdb1) {
 #define SCRATCH_SIZE (8 * 1024 * 1024)
 #define DB_MEGABYTES 4
-#define DB_FILE "/tmp/famdb1.dat"
+#define DB_FILE "resources/famdb1.dat"
 	unlink(DB_FILE);
 	i32 fd = open(DB_FILE, O_CREAT | O_RDWR, 0600);
 	u8 value_out[1024] = {0};
