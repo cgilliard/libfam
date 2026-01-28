@@ -337,11 +337,14 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 				   .off = page_num * PAGE_SIZE,
 				   .len = PAGE_SIZE,
 				   .user_data = 1};
+	println("famdb get page {}", page_num);
 
 	if ((page_from_cache = lru_get(impl->db->cache, page_num)) != NULL) {
+		println("cache hit");
 		*page = page_from_cache;
 		return 0;
 	}
+	println("read from disk");
 
 	index = *db->sq_tail & *db->sq_mask;
 	db->sq_array[index] = index;
@@ -349,6 +352,7 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 
 	__atomic_fetch_add(db->sq_tail, 1, __ATOMIC_SEQ_CST);
 	res = io_uring_enter2(db->ring_fd, 1, 1, flags, NULL, 0);
+	println("io_uring_enter2 result={}", res);
 	if (res < 0) {
 		__atomic_fetch_sub(db->sq_tail, 1, __ATOMIC_SEQ_CST);
 		perror("enter2");
@@ -357,6 +361,7 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 
 	u32 idx = *db->cq_head & *db->cq_mask;
 	result = db->cqes[idx].res;
+	println("result={}", result);
 
 	if (result < 0)
 		errno = -result;
