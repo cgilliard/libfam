@@ -490,8 +490,7 @@ i32 famdb_open(FamDb **dbret, const FamDbConfig *config) {
 	db->cqes =
 	    (struct io_uring_cqe *)(db->cq_ring + db->params.cq_off.cqes);
 
-	db->fd = open(config->pathname,
-		      O_RDWR | O_DIRECT | O_NOATIME | O_CLOEXEC, 0);
+	db->fd = open(config->pathname, O_RDWR, 0);
 	if (db->fd < 0) {
 		famdb_close(db);
 		return -1;
