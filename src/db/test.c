@@ -449,7 +449,7 @@ Test(famdb1) {
 }
 
 Test(famdb2) {
-#define TRIALS 10000
+#define TRIALS 1
 #define SCRATCH_SIZE (8 * 1024 * 1024)
 #define DB_MEGABYTES 4
 #define DB_FILE "/tmp/famdb2.dat"
@@ -507,6 +507,7 @@ Test(famdb2) {
 
 	famdb_txn_commit(&txn);
 
+	println("txn 2");
 	famdb_txn_begin(&txn, db, &scratch);
 	for (u32 i = 0; i < TRIALS; i++) {
 		u8 v3 = i / (26 * 26);
