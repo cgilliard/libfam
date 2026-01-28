@@ -481,18 +481,20 @@ Test(famdb2) {
 	famdb_txn_begin(&txn, db, &scratch);
 
 	for (u32 i = 0; i < TRIALS; i++) {
-		u8 v4 = i / 26;
+		u8 v3 = i / (26 * 26);
+		u8 v4 = (i / 26) % 26;
 		u8 v5 = i % 26;
-		u8 buf[5] = {'a', 'a', 'a', v4 + 'a', v5 + 'a'};
-		u8 v[5] = {'x', 'x', 'x', v4 + 'a', v5 + 'a'};
+		u8 buf[5] = {'a', 'a', v3 + 'a', v4 + 'a', v5 + 'a'};
+		u8 v[5] = {'x', 'x', v3 + 'a', v4 + 'a', v5 + 'a'};
 		ASSERT(!famdb_set(&txn, buf, 5, v, 5, 0), "famdb set {}", i);
 	}
 
 	for (u32 i = 0; i < TRIALS; i++) {
-		u8 v4 = i / 26;
+		u8 v3 = i / (26 * 26);
+		u8 v4 = (i / 26) % 26;
 		u8 v5 = i % 26;
-		u8 buf[5] = {'a', 'a', 'a', v4 + 'a', v5 + 'a'};
-		u8 v[5] = {'x', 'x', 'x', v4 + 'a', v5 + 'a'};
+		u8 buf[5] = {'a', 'a', v3 + 'a', v4 + 'a', v5 + 'a'};
+		u8 v[5] = {'x', 'x', v3 + 'a', v4 + 'a', v5 + 'a'};
 		ASSERT_EQ(
 		    famdb_get(&txn, buf, 5, value_out, sizeof(value_out), 0), 5,
 		    "famdb_get1 {}", i);
@@ -506,10 +508,11 @@ Test(famdb2) {
 
 	famdb_txn_begin(&txn, db, &scratch);
 	for (u32 i = 0; i < TRIALS; i++) {
-		u8 v4 = i / 26;
+		u8 v3 = i / (26 * 26);
+		u8 v4 = (i / 26) % 26;
 		u8 v5 = i % 26;
-		u8 buf[5] = {'a', 'a', 'a', v4 + 'a', v5 + 'a'};
-		u8 v[5] = {'x', 'x', 'x', v4 + 'a', v5 + 'a'};
+		u8 buf[5] = {'a', 'a', v3 + 'a', v4 + 'a', v5 + 'a'};
+		u8 v[5] = {'x', 'x', v3 + 'a', v4 + 'a', v5 + 'a'};
 		ASSERT_EQ(
 		    famdb_get(&txn, buf, 5, value_out, sizeof(value_out), 0), 5,
 		    "famdb_get2 {}", i);
