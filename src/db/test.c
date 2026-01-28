@@ -620,10 +620,10 @@ Test(famdb3) {
 }
 
 Test(famdb4) {
-#define ITER 5
+#define ITER 8
 #define TRIALS 1024
 #define SCRATCH_SIZE (8 * 1024 * 1024)
-#define DB_MEGABYTES 16
+#define DB_MEGABYTES 32
 #define DB_FILE "/tmp/famdb4.dat"
 	unlink(DB_FILE);
 	i32 fd = open(DB_FILE, O_CREAT | O_RDWR, 0600);
@@ -639,7 +639,7 @@ Test(famdb4) {
 	    .queue_depth = 1024,
 	    .pathname = DB_FILE,
 	    .lru_hash_buckets = 1024,
-	    .lru_capacity = 512,
+	    .lru_capacity = 1024,
 	    .debug_split_delete = true,
 	    .scratch_hash_buckets = 512,
 	    .scratch_max_pages = 256,
@@ -674,7 +674,7 @@ Test(famdb4) {
 				u8 out[1024];
 				ASSERT_EQ(famdb_get(&txn, keys[j][k], 16, out,
 						    sizeof(out), 0),
-					  16, "famdb_get {} {}", j, k);
+					  16, "famdb_get {} {} {}", i, j, k);
 				ASSERT(!memcmp(values[j][k], out, 16),
 				       "equal {} {}", j, k);
 			}
