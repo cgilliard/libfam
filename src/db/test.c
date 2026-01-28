@@ -537,3 +537,85 @@ Test(famdb2) {
 #undef DB_FILE
 }
 
+Test(famdb3) {
+#define SCRATCH_SIZE (8 * 1024 * 1024)
+#define DB_MEGABYTES 4
+#define DB_FILE "/tmp/famdb3.dat"
+	unlink(DB_FILE);
+	i32 fd = open(DB_FILE, O_CREAT | O_RDWR, 0600);
+	u8 value_out[1024] = {0};
+	ASSERT(fd > 0, "open");
+	ASSERT(!fallocate(fd, DB_MEGABYTES * 1024 * 1024), "fallocate");
+	close(fd);
+
+	i32 res;
+	FamDbTxn txn;
+	FamDbScratch scratch;
+	FamDb *db = NULL;
+	FamDbConfig config = {
+	    .queue_depth = 1024,
+	    .pathname = DB_FILE,
+	    .lru_hash_buckets = 1024,
+	    .lru_capacity = 512,
+	    .debug_split_delete = true,
+	    .scratch_hash_buckets = 512,
+	    .scratch_max_pages = 256,
+	};
+
+	res = famdb_open(&db, &config);
+	ASSERT(!res, "famdb_open");
+	ASSERT(db, "db");
+
+	ASSERT(!famdb_create_scratch(&scratch, SCRATCH_SIZE), "scratch");
+	famdb_txn_begin(&txn, db, &scratch);
+
+	res = famdb_set(&txn, "abc", 3, "111", 3, 0);
+	ASSERT(!res, "famdb_set1");
+
+	famdb_txn_commit(&txn);
+	famdb_txn_begin(&txn, db, &scratch);
+
+	res = famdb_set(&txn, "def", 3, "222", 3, 0);
+	ASSERT(!res, "famdb_set2");
+
+	ASSERT_EQ(famdb_get(&txn, "def", 3, value_out, sizeof(value_out), 0), 3,
+		  "famdb_geta");
+	ASSERT(!memcmp(value_out, "222", 3), "equal1");
+
+	ASSERT_EQ(famdb_get(&txn, "abc", 3, value_out, sizeof(value_out), 0), 3,
+		  "famdb_getb");
+	ASSERT(!memcmp(value_out, "111", 3), "equal2");
+
+	famdb_txn_commit(&txn);
+	famdb_txn_begin(&txn, db, &scratch);
+
+	res = famdb_set(&txn, "ghi", 3, "333", 3, 0);
+	ASSERT(!res, "famdb_set2");
+
+	ASSERT_EQ(famdb_get(&txn, "def", 3, value_out, sizeof(value_out), 0), 3,
+		  "famdb_get2a");
+	ASSERT(!memcmp(value_out, "222", 3), "equal1");
+
+	ASSERT_EQ(famdb_get(&txn, "abc", 3, value_out, sizeof(value_out), 0), 3,
+		  "famdb_get2b");
+	ASSERT(!memcmp(value_out, "111", 3), "equal2");
+
+	famdb_txn_commit(&txn);
+	famdb_txn_begin(&txn, db, &scratch);
+
+	ASSERT_EQ(famdb_get(&txn, "def", 3, value_out, sizeof(value_out), 0), 3,
+		  "famdb_get2a");
+	ASSERT(!memcmp(value_out, "222", 3), "equal1");
+
+	ASSERT_EQ(famdb_get(&txn, "abc", 3, value_out, sizeof(value_out), 0), 3,
+		  "famdb_get2b");
+	ASSERT(!memcmp(value_out, "111", 3), "equal2");
+
+	famdb_destroy_scratch(&scratch);
+	famdb_close(db);
+	unlink(DB_FILE);
+#undef SCRATCH_SIZE
+#undef DB_MEGABYTES
+#undef DB_FILE
+}
+

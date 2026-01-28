@@ -607,6 +607,11 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 						 .len = PAGE_SIZE,
 						 .user_data = ++count};
 
+		u8 *tail = lru_tail(impl->db->cache);
+		__builtin_memcpy(impl->db->free_page, page, PAGE_SIZE);
+		lru_put(impl->db->cache, npagenum, impl->db->free_page);
+		impl->db->free_page = tail;
+
 		db->sqes[index] = write_sqe;
 	}
 
