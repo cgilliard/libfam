@@ -138,6 +138,31 @@ void *lru_get(LruCache *cache, u64 key) {
 	return NULL;
 }
 
+void *lru_remove(LruCache *cache, u64 key) {
+	u64 bucket = lru_hash(cache->seed, cache->hash_bucket_count, key);
+
+	LruCacheEntry **slot = &cache->hash_buckets[bucket];
+	LruCacheEntry *ent = cache->hash_buckets[bucket];
+	while (ent) {
+		if (ent->key == key) {
+			*slot = ent->hash_next;
+			if (ent->lru_prev)
+				ent->lru_prev->lru_next = ent->lru_next;
+			if (ent->lru_next)
+				ent->lru_next->lru_prev = ent->lru_prev;
+			if (ent == cache->lru_tail)
+				cache->lru_tail = ent->lru_prev;
+			if (ent == cache->lru_head)
+				cache->lru_head = ent->lru_next;
+
+			return ent->value;
+		}
+		slot = &ent->hash_next;
+		ent = ent->hash_next;
+	}
+	return NULL;
+}
+
 void lru_put(LruCache *cache, u64 key, void *value) {
 	u64 bucket = lru_hash(cache->seed, cache->hash_bucket_count, key);
 
@@ -165,5 +190,6 @@ void lru_put(LruCache *cache, u64 key, void *value) {
 	cache->hash_buckets[bucket] = nent;
 }
 
+u64 lru_tail_key(LruCache *cache) { return cache->lru_tail->key; }
 void *lru_tail(LruCache *cache) { return cache->lru_tail->value; }
 void *lru_head(LruCache *cache) { return cache->lru_head->value; }

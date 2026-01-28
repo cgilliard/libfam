@@ -34,7 +34,9 @@ LruCache *lru_init(u64 capacity, u64 hash_bucket_count);
 void lru_destroy(LruCache *cache);
 void *lru_get(LruCache *cache, u64 key);
 void lru_put(LruCache *cache, u64 key, void *value);
+void *lru_remove(LruCache *cache, u64 key);
 void *lru_tail(LruCache *cache);
+u64 lru_tail_key(LruCache *cache);
 void *lru_head(LruCache *cache);
 
 #endif /* _LRU_H */

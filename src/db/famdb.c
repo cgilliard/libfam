@@ -340,9 +340,11 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 				   .user_data = 1};
 
 	if ((page_from_cache = lru_get(impl->db->cache, page_num)) != NULL) {
+		// println("read from cache {}", page_num);
 		*page = page_from_cache;
 		return 0;
 	}
+	// println("read {}", page_num);
 
 	index = *db->sq_tail & *db->sq_mask;
 	db->sq_array[index] = index;
@@ -615,7 +617,13 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 						 .len = PAGE_SIZE,
 						 .user_data = ++count};
 
+		u8 *cur = lru_get(impl->db->cache, ent->value.disk_pageno);
 		u8 *tail = lru_tail(impl->db->cache);
+		u64 ekey = lru_tail_key(impl->db->cache);
+		(void)cur;
+		(void)ekey;
+		/*println("cur={X},evict={},new write={},disk={}", (u64)cur,
+		   ekey, npagenum, ent->value.disk_pageno);*/
 		__builtin_memcpy(impl->db->free_page, page, PAGE_SIZE);
 		lru_put(impl->db->cache, npagenum, impl->db->free_page);
 		impl->db->free_page = tail;

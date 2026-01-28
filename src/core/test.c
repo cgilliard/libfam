@@ -408,6 +408,34 @@ Bench(lru) {
 #undef TRIALS
 }
 
+Test(lru_remove) {
+	u64 arr[1024];
+	LruCache *cache = lru_init(2048, 32);
+	for (u64 i = 0; i < 1024; i++) arr[i] = i;
+
+	for (u64 i = 0; i < 1024; i++) {
+		lru_put(cache, i, arr + i);
+	}
+
+	for (u64 i = 0; i < 1024; i++) {
+		ASSERT_EQ(*(u64 *)lru_get(cache, i), i, "get {}");
+	}
+
+	for (u64 i = 128; i < 512; i++) {
+		ASSERT_EQ(*(u64 *)lru_remove(cache, i), i, "rem {}");
+	}
+
+	for (u64 i = 0; i < 1024; i++) {
+		u64 *v = lru_get(cache, i);
+		if (i < 128 || i >= 512)
+			ASSERT_EQ(*v, i, "get {}", i);
+		else
+			ASSERT(!v, "not in map {}", i);
+	}
+
+	lru_destroy(cache);
+}
+
 typedef struct {
 	u64 abc;
 	u32 def;
