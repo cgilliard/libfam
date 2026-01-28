@@ -508,7 +508,11 @@ Test(famdb2) {
 	famdb_txn_commit(&txn);
 
 	println("txn 2");
-	famdb_txn_begin(&txn, db, &scratch);
+	FamDbTxn txn2;
+	FamDbScratch scratch2;
+	ASSERT(!famdb_create_scratch(&scratch2, SCRATCH_SIZE), "scratch2");
+
+	famdb_txn_begin(&txn2, db, &scratch2);
 	for (u32 i = 0; i < TRIALS; i++) {
 		u8 v3 = i / (26 * 26);
 		u8 v4 = (i / 26) % 26;
@@ -516,14 +520,15 @@ Test(famdb2) {
 		u8 buf[5] = {'a', 'a', v3 + 'a', v4 + 'a', v5 + 'a'};
 		u8 v[5] = {'x', 'x', v3 + 'a', v4 + 'a', v5 + 'a'};
 		ASSERT_EQ(
-		    famdb_get(&txn, buf, 5, value_out, sizeof(value_out), 0), 5,
-		    "famdb_get2 {}", i);
+		    famdb_get(&txn2, buf, 5, value_out, sizeof(value_out), 0),
+		    5, "famdb_get2 {}", i);
 		ASSERT(!memcmp(value_out, v, 5), "equal");
 	}
 
-	ASSERT_EQ(famdb_get(&txn, "p", 1, value_out, sizeof(value_out), 0), -1,
+	ASSERT_EQ(famdb_get(&txn2, "p", 1, value_out, sizeof(value_out), 0), -1,
 		  "not found");
 
+	famdb_destroy_scratch(&scratch2);
 	famdb_destroy_scratch(&scratch);
 	famdb_close(db);
 	unlink(DB_FILE);
