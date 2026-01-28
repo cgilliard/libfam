@@ -525,6 +525,7 @@ Test(famdb2) {
 	famdb_destroy_scratch(&scratch);
 	famdb_close(db);
 	unlink(DB_FILE);
+#undef TRIALS
 #undef SCRATCH_SIZE
 #undef DB_MEGABYTES
 #undef DB_FILE

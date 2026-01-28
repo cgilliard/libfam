@@ -627,10 +627,10 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 			      .commit.root = impl->root};
 
 	SuperBlock *sb = (void *)db->map;
-	CommitUnion expected = impl->commit;
+	u128 expected = impl->commit.value, desired = commit.value;
 	i32 result = !__atomic_compare_exchange(
-	    &sb->commit.value, &expected.value, &commit.value, false,
-	    __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
+	    &sb->commit.value, &expected, &desired, false, __ATOMIC_SEQ_CST,
+	    __ATOMIC_RELAXED);
 
 	return result;
 }
