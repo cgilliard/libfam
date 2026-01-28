@@ -141,7 +141,7 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 				u64 nblock = cur | (1UL << bit);               \
 				if (__atomic_compare_exchange(                 \
 					map_ptr, &cur, &nblock, false,         \
-					__ATOMIC_SEQ_CST, __ATOMIC_RELAXED)) { \
+					__ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) { \
 					ret = bit + (lw_offset << 6) +         \
 					      db->fmap_pages;                  \
 					break;                                 \
@@ -172,7 +172,7 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 			desired = cur & ~bit_to_zero;                        \
 		} while (!__atomic_compare_exchange(map_ptr, &cur, &desired, \
 						    false, __ATOMIC_SEQ_CST, \
-						    __ATOMIC_RELAXED));      \
+						    __ATOMIC_SEQ_CST));      \
 		db->last_free = lw_offset;                                   \
 	})
 #define ALLOC(impl, size)                                                  \
@@ -323,7 +323,7 @@ STATIC i32 famdb_init(FamDb *db) {
 	CommitUnion cu = {.commit.root = db->fmap_pages};
 	return !__atomic_compare_exchange(&sb->commit.value, &expected,
 					  &cu.value, false, __ATOMIC_SEQ_CST,
-					  __ATOMIC_RELAXED);
+					  __ATOMIC_SEQ_CST);
 }
 
 STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
@@ -634,7 +634,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	u128 expected = impl->commit.value, desired = commit.value;
 	i32 result = !__atomic_compare_exchange(
 	    &sb->commit.value, &expected, &desired, false, __ATOMIC_SEQ_CST,
-	    __ATOMIC_RELAXED);
+	    __ATOMIC_SEQ_CST);
 
 	return result;
 }
