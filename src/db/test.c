@@ -449,7 +449,7 @@ Test(famdb1) {
 }
 
 Test(famdb2) {
-#define TRIALS 1
+#define TRIALS 10000
 #define SCRATCH_SIZE (8 * 1024 * 1024)
 #define DB_MEGABYTES 4
 #define DB_FILE "/tmp/famdb2.dat"
