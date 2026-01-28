@@ -182,6 +182,11 @@
 		u64 ret = *(u64 *)(page + offset);       \
 		ret;                                     \
 	})
+#define INTERNAL_SET_INDEX(page, elem, value)            \
+	({                                               \
+		u16 offset = PAGE_OFFSET_OF(page, elem); \
+		*(u64 *)(page + offset) = value;         \
+	})
 #define INTERNAL_CREATE(page, data_off, key, key_length, lpageno, rpageno) \
 	({                                                                 \
 		((u16 *)page)[0] = PAGE_TYPE_INTERNAL_FLAG;                \

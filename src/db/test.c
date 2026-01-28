@@ -619,3 +619,70 @@ Test(famdb3) {
 #undef DB_FILE
 }
 
+Test(famdb4) {
+#define TRIALS 1024
+#define SCRATCH_SIZE (8 * 1024 * 1024)
+#define DB_MEGABYTES 16
+#define DB_FILE "/tmp/famdb4.dat"
+	unlink(DB_FILE);
+	i32 fd = open(DB_FILE, O_CREAT | O_RDWR, 0600);
+	ASSERT(fd > 0, "open");
+	ASSERT(!fallocate(fd, DB_MEGABYTES * 1024 * 1024), "fallocate");
+	close(fd);
+
+	i32 res;
+	FamDbTxn txn;
+	FamDbScratch scratch;
+	FamDb *db = NULL;
+	FamDbConfig config = {
+	    .queue_depth = 1024,
+	    .pathname = DB_FILE,
+	    .lru_hash_buckets = 1024,
+	    .lru_capacity = 512,
+	    .debug_split_delete = true,
+	    .scratch_hash_buckets = 512,
+	    .scratch_max_pages = 256,
+	};
+
+	res = famdb_open(&db, &config);
+	ASSERT(!res, "famdb_open");
+	ASSERT(db, "db");
+
+	ASSERT(!famdb_create_scratch(&scratch, SCRATCH_SIZE), "scratch");
+
+	for (u64 x = 0; x < 5; x++) {
+		famdb_txn_begin(&txn, db, &scratch);
+
+		u8 keys[TRIALS][17] = {0};
+		u8 values[TRIALS][17] = {0};
+		Rng rng;
+
+		rng_init(&rng);
+
+		for (u64 i = 0; i < TRIALS; i++) {
+			rng_gen(&rng, keys[i], 16);
+			rng_gen(&rng, values[i], 16);
+			res = famdb_set(&txn, keys[i], 16, values[i], 16, 0);
+			ASSERT_EQ(res, 0, "famdb_set {} {}", x, i);
+		}
+
+		for (u64 i = 0; i < TRIALS; i++) {
+			u8 out[1024];
+			ASSERT_EQ(
+			    famdb_get(&txn, keys[i], 16, out, sizeof(out), 0),
+			    16, "famdb_get {} {}", x, i);
+			ASSERT(!memcmp(values[i], out, 16), "equal {}", i);
+		}
+
+		famdb_txn_commit(&txn);
+	}
+	// famdb_txn_begin(&txn, db, &scratch);
+
+	famdb_destroy_scratch(&scratch);
+	famdb_close(db);
+	unlink(DB_FILE);
+#undef SCRATCH_SIZE
+#undef DB_MEGABYTES
+#undef DB_FILE
+}
+

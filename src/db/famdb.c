@@ -286,6 +286,7 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 		LEAF_INSERT((state)->info[(state)->levels - 1].page, data_off, \
 			    key, key_len, value, value_len);                   \
 	})
+
 #define BRING_TO_SCRATCH(impl, state)                                         \
 	({                                                                    \
 		for (i32 i = (state)->levels - 1; i >= 0; i--) {              \
@@ -575,6 +576,13 @@ i32 famdb_set(FamDbTxn *txn, const void *key, u16 key_len, const void *value,
 	do GET_PAGE(impl, &state, key, key_len);
 	while (PAGE_IS_INTERNAL(state.info[state.levels - 1].page));
 	BRING_TO_SCRATCH(impl, &state);
+	if (!state.info[state.levels - 1].is_in_scratch) {
+		for (u64 i = 1; i < state.levels; i++) {
+			u8 *page = state.info[i - 1].page;
+			u16 index = state.info[i - 1].index;
+			INTERNAL_SET_INDEX(page, index, state.info[i].pageno);
+		}
+	}
 	LEAF_INSERT_IMPL(impl, 512, &state, key, key_len, value, value_len);
 	return 0;
 }
