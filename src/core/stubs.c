@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/asm.h>
+#include <libfam/format.h>
 #include <libfam/string.h>
 #include <libfam/syscall.h>
 #include <libfam/sysext.h>
@@ -37,19 +38,9 @@ typedef union {
 	} s;
 } utwords;
 
-PUBLIC void __stack_chk_fail(void) {
-	i32 __attribute__((unused)) _v;
-	const u8 *msg = "STACK_CHK_FAIL\n";
-	_v = pwrite(2, msg, __builtin_strlen(msg), 0);
-	exit_group(-1);
-}
+PUBLIC void __stack_chk_fail(void) { panic("STACK_CHK_FAIL"); }
 
-PUBLIC void __stack_chk_guard(void) {
-	i32 __attribute__((unused)) _v;
-	const u8 *msg = "STACK_CHK_GUARD\n";
-	_v = pwrite(2, msg, __builtin_strlen(msg), 0);
-	exit_group(-1);
-}
+PUBLIC void __stack_chk_guard(void) { panic("STACK_CHK_GUARD"); }
 
 PUBLIC _Bool __atomic_compare_exchange_16(volatile void *ptr, void *expected,
 					  u128 desired, _Bool weak,

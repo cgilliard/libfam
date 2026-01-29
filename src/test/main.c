@@ -139,9 +139,9 @@ i32 run_benches(u8 **envp) {
 		    !__builtin_strcmp((void *)pattern, (void *)"*") ||
 		    !__builtin_strcmp((void *)pattern,
 				      (void *)benches[exe_test].name)) {
-			println("{}Running bench{} {} [{}{}{}]", YELLOW, RESET,
-				++bench_count, DIMMED, benches[exe_test].name,
-				RESET);
+			print("{}Running bench{} {} [{}{}{}] ", YELLOW, RESET,
+			      ++bench_count, DIMMED, benches[exe_test].name,
+			      RESET);
 			benches[exe_test].test_fn();
 		}
 		ASSERT_BYTES(0);

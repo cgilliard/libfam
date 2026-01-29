@@ -52,8 +52,8 @@ i32 kill(i32 pid, i32 signal);
 i32 fchmod(i32 fd, u32 mode);
 i32 utimesat(i32 dirfd, const u8 *path, const struct timeval *times, i32 flags);
 i32 setsockopt(i32 socket, i32 level, i32 option_name, const void *option_value,
-	       i64 option_len);
+	       u64 option_len);
 i32 getsockname(i32 sockfd, struct sockaddr *restrict addr,
-		i64 *restrict addrlen);
+		u64 *restrict addrlen);
 
 #endif /* _SYSCALL_H */

@@ -23,36 +23,19 @@
  *
  *******************************************************************************/
 
-#ifndef _EXIT_H
-#define _EXIT_H
+#ifndef _STORM_H
+#define _STORM_H
 
-#include <libfam/format.h>
-#include <libfam/sysext.h>
 #include <libfam/types.h>
 
-#define MAX_EXITS 100
+#define STORM_CONTEXT_SIZE 192
 
 typedef struct {
-	void (*exit_fn)(void);
-} ExitEntry;
+	__attribute__((aligned(32))) u8 _data[STORM_CONTEXT_SIZE];
+} StormContext;
 
-extern i32 cur_exits;
-extern ExitEntry exits[MAX_EXITS];
+void storm_init(StormContext *ctx, const u8 key[32]);
+void storm_next_block(StormContext *ctx, u8 buf[32]);
+void storm_xcrypt_buffer(StormContext *s, u8 buf[32]);
 
-static inline void add_exit_fn(void (*exit_fn)(void)) {
-	if (cur_exits >= MAX_EXITS) {
-		println("Too many exits!");
-		return;
-	}
-	exits[cur_exits++].exit_fn = exit_fn;
-}
-
-#define ON_EXIT(name)                                                  \
-	void __##name##__on_exit(void);                                \
-	__attribute__((constructor)) void __##name##__register(void) { \
-		add_exit_fn(__##name##__on_exit);                      \
-	}                                                              \
-	void __##name##__on_exit(void)
-
-#endif /* _EXIT_H */
-
+#endif /* _STORM_H */

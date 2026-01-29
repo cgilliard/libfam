@@ -23,36 +23,33 @@
  *
  *******************************************************************************/
 
-#ifndef _EXIT_H
-#define _EXIT_H
+#ifndef _WOTS_H
+#define _WOTS_H
 
-#include <libfam/format.h>
-#include <libfam/sysext.h>
 #include <libfam/types.h>
 
-#define MAX_EXITS 100
+#define WOTS_CHAINS 18
+#define WOTS_CHAIN_LEN 256
+#define WOTS_HASH_BYTES 32
+
+#define WOTS_SECKEY_SIZE (WOTS_CHAINS * WOTS_HASH_BYTES)
+#define WOTS_PUBKEY_SIZE (WOTS_CHAINS * WOTS_HASH_BYTES)
+#define WOTS_SIG_SIZE (WOTS_CHAINS * WOTS_HASH_BYTES)
 
 typedef struct {
-	void (*exit_fn)(void);
-} ExitEntry;
+	__attribute__((aligned(32))) u8 data[WOTS_SECKEY_SIZE];
+} WotsSecKey;
 
-extern i32 cur_exits;
-extern ExitEntry exits[MAX_EXITS];
+typedef struct {
+	__attribute__((aligned(32))) u8 data[WOTS_PUBKEY_SIZE];
+} WotsPubKey;
 
-static inline void add_exit_fn(void (*exit_fn)(void)) {
-	if (cur_exits >= MAX_EXITS) {
-		println("Too many exits!");
-		return;
-	}
-	exits[cur_exits++].exit_fn = exit_fn;
-}
+typedef struct {
+	__attribute__((aligned(32))) u8 data[WOTS_SIG_SIZE];
+} WotsSig;
 
-#define ON_EXIT(name)                                                  \
-	void __##name##__on_exit(void);                                \
-	__attribute__((constructor)) void __##name##__register(void) { \
-		add_exit_fn(__##name##__on_exit);                      \
-	}                                                              \
-	void __##name##__on_exit(void)
+void wots_keyfrom(const u8 seed[32], WotsPubKey *pk, WotsSecKey *sk);
+void wots_sign(const WotsSecKey *sk, const u8 message[32], WotsSig *sig);
+i32 wots_verify(const WotsPubKey *pk, const WotsSig *sig, const u8 message[32]);
 
-#endif /* _EXIT_H */
-
+#endif /* _WOTS_H */

@@ -24,6 +24,7 @@
  *******************************************************************************/
 
 #include <libfam/errno.h>
+#include <libfam/format.h>
 #include <libfam/string.h>
 #include <libfam/syscall.h>
 #include <libfam/sysext.h>
@@ -34,16 +35,7 @@ PUBLIC i32 *__error(void) { return &__err_value; }
 PUBLIC i32 *__err_location(void) { return &__err_value; }
 
 PUBLIC void perror(const char *s) {
-	const u8 *err_msg;
-	i32 __attribute__((unused)) _v;
-	if (s) {
-		u64 len = __builtin_strlen(s);
-		if (pwrite(2, s, len, 0) < len) return;
-		if (pwrite(2, ": ", 2, 0) < 2) return;
-	}
-	err_msg = strerror(errno);
-	_v = pwrite(2, err_msg, __builtin_strlen(err_msg), 0);
-	_v = pwrite(2, "\n", 1, 0);
+	println("{}{}{}", s ? s : "", s ? ": " : "", strerror(errno));
 }
 
 PUBLIC char *strerror(i32 err_code) {

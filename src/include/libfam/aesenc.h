@@ -23,36 +23,9 @@
  *
  *******************************************************************************/
 
-#ifndef _EXIT_H
-#define _EXIT_H
+#ifndef _AESENC_H
+#define _AESENC_H
 
-#include <libfam/format.h>
-#include <libfam/sysext.h>
-#include <libfam/types.h>
+void aesenc256(void *data, const void *key);
 
-#define MAX_EXITS 100
-
-typedef struct {
-	void (*exit_fn)(void);
-} ExitEntry;
-
-extern i32 cur_exits;
-extern ExitEntry exits[MAX_EXITS];
-
-static inline void add_exit_fn(void (*exit_fn)(void)) {
-	if (cur_exits >= MAX_EXITS) {
-		println("Too many exits!");
-		return;
-	}
-	exits[cur_exits++].exit_fn = exit_fn;
-}
-
-#define ON_EXIT(name)                                                  \
-	void __##name##__on_exit(void);                                \
-	__attribute__((constructor)) void __##name##__register(void) { \
-		add_exit_fn(__##name##__on_exit);                      \
-	}                                                              \
-	void __##name##__on_exit(void)
-
-#endif /* _EXIT_H */
-
+#endif /* _AESENC_H */

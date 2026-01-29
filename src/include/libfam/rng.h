@@ -23,36 +23,21 @@
  *
  *******************************************************************************/
 
-#ifndef _EXIT_H
-#define _EXIT_H
+#ifndef _RNG_H
+#define _RNG_H
 
-#include <libfam/format.h>
-#include <libfam/sysext.h>
+#include <libfam/storm.h>
 #include <libfam/types.h>
 
-#define MAX_EXITS 100
-
 typedef struct {
-	void (*exit_fn)(void);
-} ExitEntry;
+	StormContext ctx;
+} Rng;
 
-extern i32 cur_exits;
-extern ExitEntry exits[MAX_EXITS];
+void rng_init(Rng *rng);
+void rng_gen(Rng *rng, void *v, u64 size);
 
-static inline void add_exit_fn(void (*exit_fn)(void)) {
-	if (cur_exits >= MAX_EXITS) {
-		println("Too many exits!");
-		return;
-	}
-	exits[cur_exits++].exit_fn = exit_fn;
-}
+#if TEST == 1
+void rng_test_seed(Rng *rng, u8 key[32]);
+#endif /* TEST */
 
-#define ON_EXIT(name)                                                  \
-	void __##name##__on_exit(void);                                \
-	__attribute__((constructor)) void __##name##__register(void) { \
-		add_exit_fn(__##name##__on_exit);                      \
-	}                                                              \
-	void __##name##__on_exit(void)
-
-#endif /* _EXIT_H */
-
+#endif /* _RNG_H */
