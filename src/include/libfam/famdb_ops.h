@@ -176,11 +176,43 @@
 				 page + data_off + split_bytes,                \
 				 total_bytes - split_bytes);                   \
 	})
+#define INTERNAL_SPLIT(page, data_off, rpage)                                  \
+	({                                                                     \
+		u16 page_elements = PAGE_ELEMENTS(page);                       \
+		u16 total_bytes = PAGE_TOTAL_BYTES(page);                      \
+		u16 left_elems = page_elements >> 1;                           \
+		u16 right_elems = page_elements - left_elems;                  \
+		((u16 *)page)[1] = left_elems;                                 \
+		((u16 *)rpage)[0] = PAGE_TYPE_INTERNAL_FLAG;                   \
+		((u16 *)rpage)[1] = right_elems;                               \
+		u16 split_bytes = PAGE_OFFSET_OF(page, left_elems) - data_off; \
+		((u16 *)page)[2] = split_bytes;                                \
+		((u16 *)rpage)[2] = total_bytes - ((u16 *)page)[2];            \
+		__builtin_memcpy(((u16 *)rpage) + 3,                           \
+				 ((u16 *)page) + 3 + left_elems,               \
+				 right_elems << 1);                            \
+		for (u16 i = 0; i < right_elems; i++)                          \
+			((u16 *)rpage)[3 + i] -= split_bytes;                  \
+		__builtin_memcpy(rpage + data_off,                             \
+				 page + data_off + split_bytes,                \
+				 total_bytes - split_bytes);                   \
+	})
 #define INTERNAL_READ_INDEX(page, elem)                  \
 	({                                               \
 		u16 offset = PAGE_OFFSET_OF(page, elem); \
 		u64 ret = *(u64 *)(page + offset);       \
 		ret;                                     \
+	})
+#define INTERNAL_READ_KEY(page, elem)                    \
+	({                                               \
+		u16 offset = PAGE_OFFSET_OF(page, elem); \
+		(page + offset + sizeof(u64));           \
+	})
+#define INTERNAL_KEY_LEN(page, elem)                                      \
+	({                                                                \
+		u16 elem_key_len = ((u16 *)page)[3 + elem + 1] -          \
+				   ((u16 *)page)[3 + elem] - sizeof(u64); \
+		elem_key_len;                                             \
 	})
 #define INTERNAL_SET_INDEX(page, elem, value)            \
 	({                                               \

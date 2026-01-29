@@ -119,6 +119,7 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 
 #define PAGE_RESV 16
 #define MAX_ELEMENTS(data_off) (((data_off - sizeof(u64)) >> 1) - 3)
+// #define MAX_ELEMENTS(data_off) 3
 #define AVAILABLE(data_off) (PAGE_SIZE - (data_off + PAGE_RESV))
 #define BITMAP_ALLOC_PAGE(db)                                                  \
 	({                                                                     \
@@ -269,13 +270,131 @@ STATIC_ASSERT(sizeof(FamDbTxn) == sizeof(FamDbTxnImpl), fam_db_txn_size);
 				    LEAF_READ_KEY(page, left_elems - 1),       \
 				    LEAF_KEY_LEN(page, left_elems - 1),        \
 				    pageno, rpageno);                          \
-			else                                                   \
+			else {                                                 \
+				u16 total_internal_bytes =                     \
+				    PAGE_TOTAL_BYTES(ppage);                   \
+				u16 internal_needed = key_len + sizeof(u64);   \
+				if (internal_needed + total_internal_bytes >   \
+					AVAILABLE(data_off) ||                 \
+				    PAGE_ELEMENTS(ppage) >                     \
+					MAX_ELEMENTS(data_off)) {              \
+					u8 *prpage = NULL, *pppage = NULL;     \
+					i64 prpageno, pppageno;                \
+					prpageno =                             \
+					    BITMAP_ALLOC_PAGE(impl->db);       \
+					if (prpageno < 0) return -1;           \
+					HashtableEntry *nent = ALLOC(          \
+					    impl, sizeof(HashtableEntry));     \
+					if (!nent) {                           \
+						BITMAP_RELEASE_PAGE(impl->db,  \
+								    prpageno); \
+						return -1;                     \
+					}                                      \
+					nent->value.disk_pageno = prpageno;    \
+					nent->key = prpageno;                  \
+					hashtable_put(impl->hashtable,         \
+						      (void *)nent);           \
+					prpage = nent->value.page;             \
+                                                                               \
+					if ((state)->levels == 2) {            \
+						pppageno = BITMAP_ALLOC_PAGE(  \
+						    impl->db);                 \
+						if (pppageno < 0) {            \
+							BITMAP_RELEASE_PAGE(   \
+							    impl->db,          \
+							    prpageno);         \
+							return -1;             \
+						}                              \
+						nent = ALLOC(                  \
+						    impl,                      \
+						    sizeof(HashtableEntry));   \
+						if (!nent) {                   \
+							BITMAP_RELEASE_PAGE(   \
+							    impl->db,          \
+							    prpageno);         \
+							BITMAP_RELEASE_PAGE(   \
+							    impl->db,          \
+							    pppageno);         \
+							return -1;             \
+						}                              \
+						nent->value.disk_pageno =      \
+						    pppageno;                  \
+						nent->key = pppageno;          \
+						hashtable_put(impl->hashtable, \
+							      (void *)nent);   \
+						pppage = nent->value.page;     \
+					} else {                               \
+						pppage =                       \
+						    (state)                    \
+							->info[(state)         \
+								   ->levels -  \
+							       3]              \
+							.page;                 \
+						pppageno =                     \
+						    (state)                    \
+							->info[(state)         \
+								   ->levels -  \
+							       3]              \
+							.pageno;               \
+					}                                      \
+					INTERNAL_SPLIT(ppage, data_off,        \
+						       prpage);                \
+					u16 pleft_elems =                      \
+					    PAGE_ELEMENTS(ppage);              \
+					if ((state)->levels == 2) {            \
+						INTERNAL_CREATE(               \
+						    pppage, data_off,          \
+						    INTERNAL_READ_KEY(         \
+							ppage,                 \
+							pleft_elems - 1),      \
+						    INTERNAL_KEY_LEN(          \
+							ppage,                 \
+							pleft_elems - 1),      \
+						    ppageno, prpageno);        \
+					} else {                               \
+						INTERNAL_INSERT(               \
+						    pppage, data_off,          \
+						    INTERNAL_READ_KEY(         \
+							ppage,                 \
+							pleft_elems - 1),      \
+						    INTERNAL_KEY_LEN(          \
+							ppage,                 \
+							pleft_elems - 1),      \
+						    (state)                    \
+							->info[(state)         \
+								   ->levels -  \
+							       3]              \
+							.index,                \
+						    ppageno, prpageno);        \
+					}                                      \
+					ppage =                                \
+					    INTERNAL_COMPARE_KEYS(             \
+						pppage, 0,                     \
+						LEAF_READ_KEY(page,            \
+							      left_elems - 1), \
+						LEAF_KEY_LEN(                  \
+						    page, left_elems - 1)) > 0 \
+						? prpage                       \
+						: ppage;                       \
+					pleft_elems = PAGE_ELEMENTS(ppage);    \
+					(state)                                \
+					    ->info[(state)->levels - 2]        \
+					    .index = INTERNAL_FIND_INDEX(      \
+					    ppage,                             \
+					    LEAF_READ_KEY(page,                \
+							  left_elems - 1),     \
+					    LEAF_KEY_LEN(page,                 \
+							 left_elems - 1));     \
+					if ((state)->levels == 2)              \
+						impl->root = pppageno;         \
+				}                                              \
 				INTERNAL_INSERT(                               \
 				    ppage, data_off,                           \
 				    LEAF_READ_KEY(page, left_elems - 1),       \
 				    LEAF_KEY_LEN(page, left_elems - 1),        \
 				    (state)->info[(state)->levels - 2].index,  \
 				    pageno, rpageno);                          \
+			}                                                      \
 			(state)->info[(state)->levels - 1].page =              \
 			    LEAF_COMPARE_KEYS(page, left_elems - 1, key,       \
 					      key_len) > 0                     \
@@ -343,7 +462,6 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 		*page = page_from_cache;
 		return 0;
 	}
-	// println("read {}", page_num);
 
 	index = *db->sq_tail & *db->sq_mask;
 	db->sq_array[index] = index;
