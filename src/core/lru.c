@@ -112,6 +112,8 @@ void lru_destroy(LruCache *cache) {
 	}
 }
 
+#include <libfam/format.h>
+
 void *lru_get(LruCache *cache, u64 key) {
 	u64 bucket = lru_hash(cache->seed, cache->hash_bucket_count, key);
 
@@ -131,30 +133,38 @@ void *lru_get(LruCache *cache, u64 key) {
 				ent->lru_prev = NULL;
 				old_head->lru_prev = ent;
 			}
+			// println("lru_get {} {X}", key, (u64)ent->value);
 			return ent->value;
 		}
 		ent = ent->hash_next;
 	}
+	// println("lru_get {} 0", key);
 	return NULL;
 }
 
 void *lru_remove(LruCache *cache, u64 key) {
+	// println("lru remove {}", key);
 	u64 bucket = lru_hash(cache->seed, cache->hash_bucket_count, key);
 
 	LruCacheEntry **slot = &cache->hash_buckets[bucket];
 	LruCacheEntry *ent = cache->hash_buckets[bucket];
 	while (ent) {
 		if (ent->key == key) {
-			*slot = ent->hash_next;
-			if (ent->lru_prev)
-				ent->lru_prev->lru_next = ent->lru_next;
-			if (ent->lru_next)
-				ent->lru_next->lru_prev = ent->lru_prev;
-			if (ent == cache->lru_tail)
-				cache->lru_tail = ent->lru_prev;
-			if (ent == cache->lru_head)
-				cache->lru_head = ent->lru_next;
+			if (ent != cache->lru_tail) {
+				if (ent->lru_next)
+					ent->lru_next->lru_prev = ent->lru_prev;
+				if (ent->lru_prev)
+					ent->lru_prev->lru_next = ent->lru_next;
+				if (ent == cache->lru_head)
+					cache->lru_head = ent->lru_next;
+				LruCacheEntry *old_tail = cache->lru_tail;
+				cache->lru_tail = ent;
+				ent->lru_next = NULL;
+				ent->lru_prev = old_tail;
+				old_tail->lru_next = ent;
+			}
 
+			*slot = ent->hash_next;
 			return ent->value;
 		}
 		slot = &ent->hash_next;
@@ -164,8 +174,8 @@ void *lru_remove(LruCache *cache, u64 key) {
 }
 
 void lru_put(LruCache *cache, u64 key, void *value) {
+	// println("lru put {} {X}", key, (u64)value);
 	u64 bucket = lru_hash(cache->seed, cache->hash_bucket_count, key);
-
 	LruCacheEntry *nent = cache->lru_tail;
 	u64 old_bucket = nent->bucket;
 	LruCacheEntry **head = &cache->hash_buckets[old_bucket];

@@ -340,7 +340,6 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 				   .user_data = 1};
 
 	if ((page_from_cache = lru_get(impl->db->cache, page_num)) != NULL) {
-		// println("read from cache {}", page_num);
 		*page = page_from_cache;
 		return 0;
 	}
@@ -617,13 +616,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 						 .len = PAGE_SIZE,
 						 .user_data = ++count};
 
-		u8 *cur = lru_get(impl->db->cache, ent->value.disk_pageno);
 		u8 *tail = lru_tail(impl->db->cache);
-		u64 ekey = lru_tail_key(impl->db->cache);
-		(void)cur;
-		(void)ekey;
-		/*println("cur={X},evict={},new write={},disk={}", (u64)cur,
-		   ekey, npagenum, ent->value.disk_pageno);*/
 		__builtin_memcpy(impl->db->free_page, page, PAGE_SIZE);
 		lru_put(impl->db->cache, npagenum, impl->db->free_page);
 		impl->db->free_page = tail;
@@ -632,18 +625,56 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	}
 
 	__atomic_add_fetch(db->sq_tail, count, __ATOMIC_SEQ_CST);
-	io_uring_enter2(db->ring_fd, count, count, flags, NULL, 0);
+	i32 completions =
+	    io_uring_enter2(db->ring_fd, count, count, flags, NULL, 0);
+	(void)completions;
+
+	u32 drained =
+	    __atomic_load_n(db->cq_tail, __ATOMIC_SEQ_CST) - *db->cq_head;
+	if (drained != count) {
+		errno = EIO;
+		return -1;
+	}
+
+	for (u32 i = 0; i < count; i++) {
+		u32 idx = *db->cq_head + i & *db->cq_mask;
+		i32 result = db->cqes[idx].res;
+		u64 user_data = db->cqes[idx].user_data;
+
+		if (result < 0 || user_data > count + 1) {
+			errno = -result;
+			return -1;
+		} else if (result != PAGE_SIZE) {
+			errno = EIO;
+			return -1;
+		}
+	}
+
 	__atomic_add_fetch(db->cq_head, count, __ATOMIC_SEQ_CST);
 
 	struct io_uring_sqe sync_sqe = {.opcode = IORING_OP_FSYNC,
 					.flags = IOSQE_FIXED_FILE,
 					.fsync_flags = IORING_FSYNC_DATASYNC,
 					.user_data = U64_MAX};
-	index = (*db->sq_tail + count) & *db->sq_mask;
+	index = *db->sq_tail & *db->sq_mask;
 	db->sq_array[index] = index;
 	db->sqes[index] = sync_sqe;
 	__atomic_add_fetch(db->sq_tail, 1, __ATOMIC_SEQ_CST);
-	io_uring_enter2(db->ring_fd, 1, 1, 0, NULL, 0);
+	io_uring_enter2(db->ring_fd, 1, 1, flags, NULL, 0);
+	drained = __atomic_load_n(db->cq_tail, __ATOMIC_SEQ_CST) - *db->cq_head;
+	if (drained != 1) {
+		errno = EIO;
+		return -1;
+	}
+	u32 idx = *(db->cq_head) & *db->cq_mask;
+	i32 result = db->cqes[idx].res;
+	u64 user_data = db->cqes[idx].user_data;
+	(void)user_data;
+	if (result < 0) {
+		errno = -result;
+		return -1;
+	}
+
 	__atomic_add_fetch(db->cq_head, 1, __ATOMIC_SEQ_CST);
 
 	CommitUnion commit = {.commit.seqno = impl->commit.commit.seqno + 1,
@@ -651,9 +682,11 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 
 	SuperBlock *sb = (void *)db->map;
 	u128 expected = impl->commit.value, desired = commit.value;
-	i32 result = !__atomic_compare_exchange(
-	    &sb->commit.value, &expected, &desired, false, __ATOMIC_SEQ_CST,
-	    __ATOMIC_SEQ_CST);
+	result =
+	    __atomic_compare_exchange(&sb->commit.value, &expected, &desired,
+				      false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
+		? 0
+		: -1;
 
 	return result;
 }

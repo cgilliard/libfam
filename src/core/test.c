@@ -540,3 +540,16 @@ Bench(hashtable) {
 	    get_sum / TRIALS, put_sum / TRIALS, rem_sum / TRIALS);
 #undef TRIALS
 }
+
+Test(lru_remove2) {
+	LruCache *cache = lru_init(3, 32);
+	u64 a = 1, b = 2, c = 3, d = 4;
+	lru_put(cache, a, &a);
+	lru_put(cache, b, &b);
+	lru_put(cache, c, &c);
+	ASSERT_EQ(*(u64 *)lru_remove(cache, b), b, "rem b");
+	lru_put(cache, d, &d);
+	ASSERT_EQ(*(u64 *)lru_get(cache, a), a, "get a");
+	lru_destroy(cache);
+	(void)d;
+}

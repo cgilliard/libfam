@@ -505,7 +505,8 @@ Test(famdb2) {
 	ASSERT_EQ(famdb_get(&txn, "p", 1, value_out, sizeof(value_out), 0), -1,
 		  "not found");
 
-	famdb_txn_commit(&txn);
+	res = famdb_txn_commit(&txn);
+	ASSERT_EQ(res, 0, "commit {}", res);
 
 	FamDbTxn txn2;
 	FamDbScratch scratch2;
@@ -520,7 +521,7 @@ Test(famdb2) {
 		u8 v[5] = {'x', 'x', v3 + 'a', v4 + 'a', v5 + 'a'};
 		ASSERT_EQ(
 		    famdb_get(&txn2, buf, 5, value_out, sizeof(value_out), 0),
-		    5, "famdb_get2 {}", i);
+		    5, "famdb test 2 famdb_get2 {}", i);
 		ASSERT(!memcmp(value_out, v, 5), "equal");
 	}
 
@@ -648,7 +649,7 @@ Test(famdb4) {
 	    .debug_split_delete = true,
 	    .scratch_hash_buckets = 512,
 	    .scratch_max_pages = 256,
-	    .o_direct = true,
+	    .o_direct = false,
 	};
 
 	res = famdb_open(&db, &config);
@@ -699,8 +700,12 @@ Test(famdb4) {
 		commit_sum += cycle_counter() - cc;
 	}
 
-	println("set={},get={},commit={}", set_sum / (TRIALS * ITER),
-		get_sum / total_gets, commit_sum / ITER);
+	/*println("set={},get={},commit={}", set_sum / (TRIALS * ITER),
+		get_sum / total_gets, commit_sum / ITER);*/
+	(void)set_sum;
+	(void)get_sum;
+	(void)commit_sum;
+	(void)total_gets;
 
 	famdb_destroy_scratch(&scratch);
 	famdb_close(db);
