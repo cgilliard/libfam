@@ -778,3 +778,95 @@ Test(famdb5) {
 #undef DB_MEGABYTES
 #undef DB_FILE
 }
+
+Test(famdb6) {
+#define ITER 8
+#define TRIALS 1024
+#define SCRATCH_SIZE (8 * 1024 * 1024)
+#define DB_MEGABYTES 32
+#define DB_FILE "/tmp/famdb6.dat"
+	unlink(DB_FILE);
+	i32 fd = open(DB_FILE, O_CREAT | O_RDWR, 0600);
+	ASSERT(fd > 0, "open");
+	ASSERT(!fallocate(fd, DB_MEGABYTES * 1024 * 1024), "fallocate");
+	close(fd);
+
+	i32 res;
+	FamDbTxn txn;
+	FamDbScratch scratch;
+	FamDb *db = NULL;
+	FamDbConfig config = {
+	    .queue_depth = 1024,
+	    .pathname = DB_FILE,
+	    .lru_hash_buckets = 1024,
+	    .lru_capacity = 1024,
+	    .debug_split_delete = true,
+	    .scratch_hash_buckets = 512,
+	    .scratch_max_pages = 256,
+	    .o_direct = false,
+	};
+
+	ASSERT(!famdb_create_scratch(&scratch, SCRATCH_SIZE), "scratch");
+
+	u8 keys[ITER][TRIALS][17] = {0};
+	u8 values[ITER][TRIALS][17] = {0};
+	u64 cc, set_sum = 0, get_sum = 0, commit_sum = 0, total_gets = 0;
+
+	for (u64 i = 0; i < ITER; i++) {
+		res = famdb_open(&db, &config);
+		ASSERT(!res, "famdb_open");
+		ASSERT(db, "db");
+
+		famdb_txn_begin(&txn, db, &scratch);
+
+		Rng rng;
+
+		rng_init(&rng);
+
+		for (u64 j = 0; j < TRIALS; j++) {
+			rng_gen(&rng, keys[i][j], 16);
+			rng_gen(&rng, values[i][j], 16);
+			cc = cycle_counter();
+			res = famdb_set(&txn, keys[i][j], 16, values[i][j], 16,
+					0);
+			set_sum += cycle_counter() - cc;
+			ASSERT_EQ(res, 0, "famdb_set {} {}", i, j);
+		}
+
+		for (u64 j = 0; j <= i; j++) {
+			for (u64 k = 0; k < TRIALS; k++) {
+				u8 out[1024];
+				cc = cycle_counter();
+				res = famdb_get(&txn, keys[j][k], 16, out,
+						sizeof(out), 0);
+				get_sum += cycle_counter() - cc;
+				total_gets++;
+
+				ASSERT_EQ(res, 16, "famdb_get {} {} {}", i, j,
+					  k);
+				ASSERT(!memcmp(values[j][k], out, 16),
+				       "equal {} {}", j, k);
+			}
+		}
+
+		cc = cycle_counter();
+		famdb_txn_commit(&txn);
+		commit_sum += cycle_counter() - cc;
+		famdb_close(db);
+	}
+
+	/*println("set={},get={},commit={}", set_sum / (TRIALS * ITER),
+		get_sum / total_gets, commit_sum / ITER);*/
+	(void)set_sum;
+	(void)get_sum;
+	(void)commit_sum;
+	(void)total_gets;
+
+	famdb_destroy_scratch(&scratch);
+	// famdb_close(db);
+	unlink(DB_FILE);
+#undef SCRATCH_SIZE
+#undef DB_MEGABYTES
+#undef DB_FILE
+}
+
