@@ -873,10 +873,10 @@ Test(famdb6) {
 }
 
 Test(famdb8) {
-#define ITER 1
-#define TRIALS 20
-#define SCRATCH_SIZE (8 * 1024 * 1024)
-#define DB_MEGABYTES 32
+#define ITER 16
+#define TRIALS 1024
+#define SCRATCH_SIZE (16 * 1024 * 1024)
+#define DB_MEGABYTES 64
 #define DB_FILE "/tmp/famdb8.dat"
 	unlink(DB_FILE);
 	i32 fd = open(DB_FILE, O_CREAT | O_RDWR, 0600);

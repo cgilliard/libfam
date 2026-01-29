@@ -312,7 +312,10 @@
 	({                                                                     \
 		u64 elements = PAGE_ELEMENTS(page);                            \
 		u64 total_bytes = PAGE_TOTAL_BYTES(page);                      \
-		println("elements={},total_bytes={}", elements, total_bytes);  \
+		println(                                                       \
+		    "========Printing leaf "                                   \
+		    "elements={},total_bytes={}=========",                     \
+		    elements, total_bytes);                                    \
 		println(                                                       \
 		    "--------------------------------------------------------" \
 		    "-------------------------------");                        \
