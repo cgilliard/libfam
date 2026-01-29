@@ -25,7 +25,7 @@
 
 #include <libfam/errno.h>
 #include <libfam/iouring.h>
-#include <libfam/linux.h>
+#include <libfam/mmap.h>
 #include <libfam/string.h>
 #include <libfam/sync.h>
 #include <libfam/syscall.h>

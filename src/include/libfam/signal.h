@@ -23,18 +23,8 @@
  *
  *******************************************************************************/
 
-#ifndef _LINUX_H
-#define _LINUX_H
-
-#include <libfam/fstatx.h>
-#include <libfam/iouring.h>
-#include <libfam/net.h>
-#include <libfam/types.h>
-
-struct timespec {
-	u64 tv_sec;
-	u64 tv_nsec;
-};
+#ifndef _SIGNAL_H
+#define _SIGNAL_H
 
 struct rt_sigaction {
 	void (*k_sa_handler)(i32);
@@ -42,30 +32,6 @@ struct rt_sigaction {
 	void (*k_sa_restorer)(void);
 	u64 k_sa_mask;
 };
-
-struct open_how {
-	u64 flags;
-	u64 mode;
-	u64 resolve;
-};
-
-struct iovec {
-	void *iov_base;
-	u64 iov_len;
-};
-
-struct timeval {
-	u64 tv_sec;
-	u64 tv_usec;
-};
-
-/* MMAP */
-#define PROT_READ 0x01
-#define PROT_WRITE 0x02
-#define MAP_SHARED 0x01
-#define MAP_PRIVATE 0x02
-#define MAP_ANONYMOUS 0x20
-#define MAP_FAILED ((void *)-1)
 
 /* SIGNALS */
 #define SIGHUP 1     /* Hangup */
@@ -105,48 +71,6 @@ struct timeval {
 #define SIGRTMIN 32  /* First real-time signal */
 #define SIGRTMAX 64  /* Last real-time signal */
 
-/* Clone flags for clone and clone3 */
-#define CLONE_VM 0x00000100		/* Share memory */
-#define CLONE_FS 0x00000200		/* Share filesystem info */
-#define CLONE_FILES 0x00000400		/* Share file descriptors */
-#define CLONE_SIGHAND 0x00000800	/* Share signal handlers */
-#define CLONE_PIDFD 0x00001000		/* Return pidfd (clone3) */
-#define CLONE_PTRACE 0x00002000		/* Continue ptrace */
-#define CLONE_VFORK 0x00004000		/* vfork semantics */
-#define CLONE_PARENT 0x00008000		/* Set parent to caller */
-#define CLONE_THREAD 0x00010000		/* Same thread group */
-#define CLONE_NEWNS 0x00020000		/* New mount namespace */
-#define CLONE_SYSVSEM 0x00040000	/* Share System V semaphores */
-#define CLONE_SETTLS 0x00080000		/* Set TLS */
-#define CLONE_PARENT_SETTID 0x00100000	/* Store TID in parent */
-#define CLONE_CHILD_CLEARTID 0x00200000 /* Clear TID on exit */
-#define CLONE_DETACHED 0x00400000	/* Obsolete, ignored */
-#define CLONE_UNTRACED 0x00800000	/* Don't trace child */
-#define CLONE_CHILD_SETTID 0x01000000	/* Store TID in child */
-#define CLONE_NEWCGROUP 0x02000000	/* New cgroup namespace */
-#define CLONE_NEWUTS 0x04000000		/* New UTS namespace */
-#define CLONE_NEWIPC 0x08000000		/* New IPC namespace */
-#define CLONE_NEWUSER 0x10000000	/* New user namespace */
-#define CLONE_NEWPID 0x20000000		/* New PID namespace */
-#define CLONE_NEWNET 0x40000000		/* New network namespace */
-#define CLONE_IO 0x80000000		/* Clone I/O context */
-
-#define CLOCK_REALTIME 0
-#define CLOCK_MONOTONIC 1
-#define CLOCK_PROCESS_CPUTIME_ID 2
-#define CLOCK_THREAD_CPUTIME_ID 3
-#define CLOCK_MONOTONIC_RAW 4
-#define CLOCK_REALTIME_COARSE 5
-#define CLOCK_MONOTONIC_COARSE 6
-#define CLOCK_BOOTTIME 7
-#define CLOCK_REALTIME_ALARM 8
-#define CLOCK_BOOTTIME_ALARM 9
-
-/* SA_RESTORER - rt_sigaction */
 #define SA_RESTORER 0x04000000
 
-/* waitid consts */
-#define P_PID 1
-#define WEXITED 4
-
-#endif /* _LINUX_H */
+#endif /* _SIGNAL_H */

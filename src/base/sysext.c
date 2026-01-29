@@ -25,11 +25,15 @@
 
 #include <libfam/debug.h>
 #include <libfam/exit.h>
+#include <libfam/fstatx.h>
 #include <libfam/iouring.h>
-#include <libfam/linux.h>
+#include <libfam/mmap.h>
+#include <libfam/pid.h>
+#include <libfam/signal.h>
 #include <libfam/sync.h>
 #include <libfam/syscall.h>
 #include <libfam/sysext.h>
+#include <libfam/time.h>
 #include <libfam/utils.h>
 
 Sync *__global_sync = NULL;

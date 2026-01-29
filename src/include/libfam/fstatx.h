@@ -28,6 +28,12 @@
 
 #include <libfam/types.h>
 
+struct open_how {
+	u64 flags;
+	u64 mode;
+	u64 resolve;
+};
+
 #define STATX_BASIC_STATS 0x07ffU
 #define AT_EMPTY_PATH 0x1000
 
