@@ -637,7 +637,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	}
 
 	for (u32 i = 0; i < count; i++) {
-		u32 idx = *db->cq_head + i & *db->cq_mask;
+		u32 idx = ((*db->cq_head) + i) & *db->cq_mask;
 		i32 result = db->cqes[idx].res;
 		u64 user_data = db->cqes[idx].user_data;
 
