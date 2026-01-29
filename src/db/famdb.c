@@ -359,9 +359,10 @@ STATIC i32 famdb_get_page(FamDbTxnImpl *impl, u8 **page, u64 page_num) {
 	u32 idx = *db->cq_head & *db->cq_mask;
 	result = db->cqes[idx].res;
 
-	if (result < 0)
+	if (result < 0) {
 		errno = -result;
-	else if (result != PAGE_SIZE) {
+		result = -1;
+	} else if (result != PAGE_SIZE) {
 		errno = EIO;
 		result = -1;
 	}
@@ -627,11 +628,10 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	__atomic_add_fetch(db->sq_tail, count, __ATOMIC_SEQ_CST);
 	i32 completions =
 	    io_uring_enter2(db->ring_fd, count, count, flags, NULL, 0);
-	(void)completions;
 
 	u32 drained =
 	    __atomic_load_n(db->cq_tail, __ATOMIC_SEQ_CST) - *db->cq_head;
-	if (drained != count) {
+	if (drained != count || completions != count) {
 		errno = EIO;
 		return -1;
 	}
@@ -660,7 +660,7 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	db->sq_array[index] = index;
 	db->sqes[index] = sync_sqe;
 	__atomic_add_fetch(db->sq_tail, 1, __ATOMIC_SEQ_CST);
-	io_uring_enter2(db->ring_fd, 1, 1, flags, NULL, 0);
+	if (io_uring_enter2(db->ring_fd, 1, 1, flags, NULL, 0) != 1) return -1;
 	drained = __atomic_load_n(db->cq_tail, __ATOMIC_SEQ_CST) - *db->cq_head;
 	if (drained != 1) {
 		errno = EIO;
@@ -669,7 +669,10 @@ i32 famdb_txn_commit(FamDbTxn *txn) {
 	u32 idx = *(db->cq_head) & *db->cq_mask;
 	i32 result = db->cqes[idx].res;
 	u64 user_data = db->cqes[idx].user_data;
-	(void)user_data;
+	if (user_data != U64_MAX) {
+		errno = EIO;
+		return -1;
+	}
 	if (result < 0) {
 		errno = -result;
 		return -1;
