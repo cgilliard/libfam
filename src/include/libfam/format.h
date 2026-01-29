@@ -34,6 +34,14 @@
 
 #define FORMATTER_INIT {0};
 
+#pragma GCC diagnostic push
+#ifdef __clang__
+#pragma GCC diagnostic ignored \
+    "-Wincompatible-pointer-types-discards-qualifiers"
+#else
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+#endif /* !__clang__ */
+
 #define FORMAT_ITEM(ign, value)                                                \
 	({                                                                     \
 		Printable _p__ = _Generic((value),                             \
@@ -135,12 +143,14 @@
 		_p__;                                                          \
 	})
 
+#pragma GCC diagnostic pop
+
 #ifdef __clang__
 #define FORMAT(f, fmt, ...)                                                    \
 	({                                                                     \
 		_Pragma("GCC diagnostic push");                                \
 		/* clang-format off */                                       \
-		_Pragma("GCC diagnostic ignored \"-Wincompatible-pointer-types-discards-qualifiers\""); \
+                _Pragma("GCC diagnostic ignored \"-Wincompatible-pointer-types-discards-qualifiers\""); \
 		/* clang-format on */                                          \
 		format_append(                                                 \
 		    f, fmt __VA_OPT__(                                         \
@@ -159,44 +169,48 @@
 	})
 #endif
 
-#define println(fmt, ...)                                                     \
-	({                                                                    \
-		const u8 *_tmp__;                                             \
-		Formatter _f__ = {0};                                         \
-		if (FORMAT(&_f__, fmt, __VA_ARGS__) >= 0) {                   \
-			if (format_append(&_f__, "\n") >= 0) {                \
-				_tmp__ = format_to_string(&_f__);             \
-				if (_tmp__)                                   \
-					pwrite(2, _tmp__, strlen(_tmp__), 0); \
-			}                                                     \
-		}                                                             \
-		format_clear(&_f__);                                          \
+#define println(fmt, ...)                                                    \
+	({                                                                   \
+		const u8 *_tmp__;                                            \
+		Formatter _f__ = {0};                                        \
+		if (FORMAT(&_f__, fmt, __VA_ARGS__) >= 0) {                  \
+			if (format_append(&_f__, "\n") >= 0) {               \
+				_tmp__ = format_to_string(&_f__);            \
+				if (_tmp__)                                  \
+					pwrite(2, _tmp__,                    \
+					       __builtin_strlen(_tmp__), 0); \
+			}                                                    \
+		}                                                            \
+		format_clear(&_f__);                                         \
 	})
 
-#define print(fmt, ...)                                                   \
-	({                                                                \
-		const u8 *_tmp__;                                         \
-		Formatter _f__ = {0};                                     \
-		if (FORMAT(&_f__, fmt, __VA_ARGS__) >= 0) {               \
-			_tmp__ = format_to_string(&_f__);                 \
-			if (_tmp__) pwrite(2, _tmp__, strlen(_tmp__), 0); \
-		}                                                         \
-		format_clear(&_f__);                                      \
+#define print(fmt, ...)                                                     \
+	({                                                                  \
+		const u8 *_tmp__;                                           \
+		Formatter _f__ = {0};                                       \
+		if (FORMAT(&_f__, fmt, __VA_ARGS__) >= 0) {                 \
+			_tmp__ = format_to_string(&_f__);                   \
+			if (_tmp__)                                         \
+				pwrite(2, _tmp__, __builtin_strlen(_tmp__), \
+				       0);                                  \
+		}                                                           \
+		format_clear(&_f__);                                        \
 	})
 
-#define panic(fmt, ...)                                                       \
-	({                                                                    \
-		const u8 *_tmp__;                                             \
-		Formatter _f__ = {0};                                         \
-		if (FORMAT(&_f__, fmt, __VA_ARGS__) >= 0) {                   \
-			if (format_append(&_f__, "\n") >= 0) {                \
-				_tmp__ = format_to_string(&_f__);             \
-				if (_tmp__)                                   \
-					pwrite(2, _tmp__, strlen(_tmp__), 0); \
-			}                                                     \
-		}                                                             \
-		format_clear(&_f__);                                          \
-		exit_group(-1);                                               \
+#define panic(fmt, ...)                                                      \
+	({                                                                   \
+		const u8 *_tmp__;                                            \
+		Formatter _f__ = {0};                                        \
+		if (FORMAT(&_f__, fmt, __VA_ARGS__) >= 0) {                  \
+			if (format_append(&_f__, "\n") >= 0) {               \
+				_tmp__ = format_to_string(&_f__);            \
+				if (_tmp__)                                  \
+					pwrite(2, _tmp__,                    \
+					       __builtin_strlen(_tmp__), 0); \
+			}                                                    \
+		}                                                            \
+		format_clear(&_f__);                                         \
+		exit_group(-1);                                              \
 	})
 
 typedef struct {

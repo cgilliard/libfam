@@ -37,7 +37,7 @@
 #include <libfam/sync.h>
 #include <libfam/syscall.h>
 #include <libfam/sysext.h>
-#include <libfam/test_base.h>
+#include <libfam/test.h>
 #include <libfam/time.h>
 
 #ifndef PAGE_SIZE
@@ -733,6 +733,7 @@ Test(clone) {
 		__atomic_fetch_add(val, 1, __ATOMIC_SEQ_CST);
 		while (1) yield();
 	} else {
+		yield();
 	}
 
 	pid2 = fork();
@@ -741,6 +742,7 @@ Test(clone) {
 		__atomic_fetch_add(val, 1, __ATOMIC_SEQ_CST);
 		while (1) yield();
 	} else {
+		yield();
 	}
 
 	while (__atomic_load_n(val, __ATOMIC_SEQ_CST) != 2) yield();
@@ -900,6 +902,7 @@ Test(write_num) {
 	unlink("/tmp/write_num0");
 	i32 fd = open("/tmp/write_num0", O_CREAT | O_RDWR, 0600);
 	ASSERT(!write_num(fd, 0), "write_num");
+	ASSERT(!write_num(fd, 1), "write_num2");
 	close(fd);
 	unlink("/tmp/write_num0");
 	cc = cycle_counter() - cc;
@@ -1329,3 +1332,6 @@ Test(format_errs) {
 	format_clear(&f5);
 }
 
+Bench(abc) {}
+
+Bench(def) {}
