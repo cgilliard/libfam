@@ -27,9 +27,11 @@
 #include <libfam/env.h>
 #include <libfam/format.h>
 #include <libfam/fstatx.h>
+#include <libfam/hashtable.h>
 #include <libfam/iouring.h>
 #include <libfam/iov.h>
 #include <libfam/limits.h>
+#include <libfam/lru.h>
 #include <libfam/mmap.h>
 #include <libfam/rbtree.h>
 #include <libfam/signal.h>
@@ -1332,6 +1334,129 @@ Test(format_errs) {
 	format_clear(&f5);
 }
 
-Bench(abc) {}
+typedef struct {
+	u64 abc;
+	u32 def;
+	u8 ghi;
+	u64 xyz;
+	u8 padding[24];
+} MyValue;
 
-Bench(def) {}
+typedef struct {
+	u8 _reserved[HASHTABLE_KEY_VALUE_OVERHEAD];
+	u64 key;
+	MyValue value;
+} TestHashtableKeyValue;
+
+Test(hashtable) {
+#define HASH_BUCKETS 256
+#define TRIALS 512
+	Hashtable h = {0};
+	u64 hash_buckets[HASH_BUCKETS] = {0};
+	TestHashtableKeyValue kvs[TRIALS] = {0};
+	hashtable_init(&h, HASH_BUCKETS, (void *)hash_buckets, getpid());
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		kvs[i].key = (i + 3) * 0x9E3779B97F4A7C15ULL;
+		kvs[i].value.abc = (i + 1000) * 0x9E3779B97F4A7C15ULL;
+		hashtable_put(&h, (void *)&kvs[i]);
+	}
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		MyValue *value = hashtable_get(&h, kvs[i].key);
+		ASSERT(value, "found {}", i);
+		ASSERT_EQ(value->abc, kvs[i].value.abc, "value {}", i);
+	}
+
+	ASSERT(!hashtable_get(&h, 0), "not found");
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		HashtableKeyValue *kv =
+		    (void *)hashtable_remove(&h, kvs[i].key);
+		ASSERT(kv, "found on rem {}", i);
+		MyValue *mv = ((MyValue *)kv->value);
+		ASSERT_EQ(mv->abc, kvs[i].value.abc, "remove match {}", i);
+	}
+
+	ASSERT(!hashtable_remove(&h, kvs[0].key), "not found");
+
+	for (u64 i = 0; i < TRIALS; i++) {
+		MyValue *value = hashtable_get(&h, kvs[i].key);
+		ASSERT(!value, "found {}", i);
+	}
+#undef HASH_BUCKETS
+#undef TRIALS
+}
+
+Test(lru_errors) {
+	ASSERT(!lru_init(0, 0, 0), "einval");
+	_debug_alloc_count = 0;
+	ASSERT(!lru_init(1, 1, 0), "alloc1");
+	_debug_alloc_count = I64_MAX;
+	_debug_alloc_count = 1;
+	ASSERT(!lru_init(1, 1, 0), "alloc2");
+	_debug_alloc_count = I64_MAX;
+}
+
+Test(lru_cache) {
+	LruCache *cache = lru_init(1024, 2048, getpid());
+	ASSERT(cache, "cache");
+	u64 value = 2;
+	lru_put(cache, 1, &value);
+	ASSERT_EQ(&value, lru_head(cache), "head");
+	ASSERT_EQ(lru_get(cache, 2), NULL, "cache not found");
+	u64 *x = lru_get(cache, 1);
+	ASSERT_EQ(*x, 2, "cache found");
+	lru_destroy(cache);
+}
+
+Test(lru_cache_cycle) {
+	LruCache *cache = lru_init(256, 512, getpid());
+	u64 values[256];
+
+	ASSERT(cache, "cache");
+	for (u64 i = 0; i < 256; i++) {
+		values[i] = i + 1000;
+		lru_put(cache, i, &values[i]);
+	}
+	for (u64 i = 0; i < 256; i++) {
+		u64 *value = lru_get(cache, i);
+		ASSERT(value, "found {}", i);
+		ASSERT_EQ(*value, i + 1000, "value {}", i);
+	}
+
+	u64 x = 1256;
+	lru_put(cache, 256, &x);
+
+	ASSERT(!lru_get(cache, 0), "evicted");
+	x = 1001;
+	ASSERT(!memcmp(lru_get(cache, 1), &x, sizeof(u64)), "not evicted");
+
+	u64 x1 = 2000;
+	lru_put(cache, 1000, &x1);
+	ASSERT(!lru_get(cache, 2), "evicted");
+	x = 1001;
+	ASSERT(!memcmp(lru_get(cache, 1), &x, sizeof(u64)), "not evicted");
+	x = 1003;
+	ASSERT(!memcmp(lru_get(cache, 3), &x, sizeof(u64)), "not evicted");
+
+	lru_destroy(cache);
+}
+
+Test(lru_cache_evictions) {
+	LruCache *cache = lru_init(4, 2, getpid());
+	u64 values[8] = {0};
+	for (u64 i = 0; i < 8; i++)
+		values[i] = (i + getpid() + 3) * 0x9E3779B97F4A7C15ULL;
+
+	for (u64 i = 0; i < 8; i++) lru_put(cache, i, &values[i]);
+	for (u64 i = 0; i < 4; i++) ASSERT(!lru_get(cache, i), "evicted {}", i);
+
+	u64 *tail = lru_tail(cache);
+	ASSERT_EQ(*tail, values[4], "tail");
+
+	for (u64 i = 4; i < 8; i++)
+		ASSERT_EQ(*(u64 *)lru_get(cache, i), values[i], "found {}", i);
+
+	lru_destroy(cache);
+}
