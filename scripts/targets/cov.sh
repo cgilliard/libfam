@@ -36,8 +36,13 @@ export TEST_PATTERN="*";
 LD_LIBRARY_PATH=${LIB_DIR} ${TEST_BIN} || { echo "tests failed!"; exit 1; }
 
 for DIR in ${SUB_DIRS}; do
-        cp ./src/${DIR}/*.c ./target/cov/objs/${DIR}/
-        touch ./target/cov/objs/${DIR}/*
+    src_dir="./src/${DIR}"
+    dst_dir="./target/cov/objs/${DIR}"
+
+    if [ -d "$src_dir" ] && ls "$src_dir"/*.c >/dev/null 2>&1; then
+        cp "$src_dir"/*.c "$dst_dir"/
+        touch "$dst_dir"/*
+    fi
 done
 
 LINESUM=0;

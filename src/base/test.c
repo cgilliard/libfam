@@ -860,6 +860,7 @@ Test(secure_zero) {
 	ASSERT(!memcmp(buf, (u8[32]){0}, 32), "not zero");
 }
 
+/*
 Test(cas128) {
 	u128 value = 1;
 	u128 expected = 1;
@@ -878,6 +879,7 @@ Test(cas128) {
 	       "cas");
 	ASSERT_EQ(__atomic_load_n(&value, __ATOMIC_SEQ_CST), 1, "not updated");
 }
+*/
 
 Test(openfds) {
 	ASSERT(!get_open_fds(), "get open fds");

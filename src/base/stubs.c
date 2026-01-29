@@ -43,6 +43,7 @@ PUBLIC void __stack_chk_guard(void) {
 	exit_group(-1);
 }
 
+/*
 PUBLIC _Bool __atomic_compare_exchange_16(volatile void *ptr, void *expected,
 					  u128 desired, _Bool weak,
 					  i32 success_memorder,
@@ -55,3 +56,5 @@ PUBLIC u128 __atomic_load_16(volatile void *ptr, i32 memorder) {
 	cas128(ptr, &ret, ret);
 	return ret;
 }
+*/
+
