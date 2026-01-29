@@ -25,7 +25,7 @@
 
 #include <libfam/debug.h>
 #include <libfam/exit.h>
-#include <libfam/fstatx.h>
+#include <libfam/file.h>
 #include <libfam/iouring.h>
 #include <libfam/mmap.h>
 #include <libfam/pid.h>

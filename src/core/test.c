@@ -25,8 +25,8 @@
 
 #include <libfam/debug.h>
 #include <libfam/env.h>
+#include <libfam/file.h>
 #include <libfam/format.h>
-#include <libfam/fstatx.h>
 #include <libfam/hashtable.h>
 #include <libfam/iouring.h>
 #include <libfam/iov.h>
